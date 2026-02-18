@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/sidebar";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { TRPCProvider } from "@/components/providers";
+import { HouseholdGuard } from "@/components/household-guard";
 
 export default async function DashboardLayout({
   children,
@@ -28,7 +29,7 @@ export default async function DashboardLayout({
         <div className="flex flex-1 flex-col overflow-hidden">
           <DashboardHeader />
           <main className="flex-1 overflow-y-auto px-6 py-6">
-            {children}
+            <HouseholdGuard>{children}</HouseholdGuard>
           </main>
         </div>
       </div>

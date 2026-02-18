@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { trpcVanilla } from "@/lib/trpc/vanilla";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -26,6 +27,17 @@ export function LoginForm() {
       setError(signInError.message);
       setLoading(false);
       return;
+    }
+
+    // Fetch user's households and set active household in localStorage
+    try {
+      const households = await trpcVanilla.household.list.query();
+      if (households.length > 0) {
+        localStorage.setItem("orbyt-household-id", households[0]!.id);
+      }
+    } catch {
+      // Household fetch failed — dashboard guard will handle
+      console.warn("Failed to fetch households on login");
     }
 
     router.push("/dashboard");

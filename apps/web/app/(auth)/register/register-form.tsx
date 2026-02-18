@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { trpcVanilla } from "@/lib/trpc/vanilla";
 
 type Step = "account" | "household" | "persona";
 
@@ -56,6 +57,17 @@ export function RegisterForm() {
       setError(signUpError.message);
       setLoading(false);
       return;
+    }
+
+    // Create the household and store ID for tRPC context
+    try {
+      const household = await trpcVanilla.household.create.mutate({
+        name: formData.householdName,
+      });
+      localStorage.setItem("orbyt-household-id", household.id);
+    } catch {
+      // Household creation failed — user can create one from dashboard
+      console.warn("Auto household creation failed, user will be prompted on dashboard");
     }
 
     router.push("/dashboard");
