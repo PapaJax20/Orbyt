@@ -1,0 +1,269 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Orbyt Design System — CSS Custom Properties (Theme Tokens)
+   The data-theme attribute on <html> drives all color changes.
+   ============================================================ */
+
+@layer base {
+  /* Default: Cosmic (deep space dark) */
+  :root,
+  [data-theme="cosmic"] {
+    --color-bg: 11 25 41;
+    --color-bg-subtle: 15 34 56;
+    --color-surface: 21 45 74;
+    --color-border: 0 212 255;
+    --color-text: 240 248 255;
+    --color-text-muted: 192 192 192;
+    --color-accent: 0 212 255;
+    --color-accent-hover: 0 170 204;
+    --color-cta: 255 215 0;
+    --color-cta-hover: 204 168 0;
+  }
+
+  [data-theme="solar"] {
+    --color-bg: 255 253 245;
+    --color-bg-subtle: 255 248 230;
+    --color-surface: 255 255 255;
+    --color-border: 204 168 0;
+    --color-text: 11 25 41;
+    --color-text-muted: 128 128 128;
+    --color-accent: 204 168 0;
+    --color-accent-hover: 153 126 0;
+    --color-cta: 0 212 255;
+    --color-cta-hover: 0 170 204;
+  }
+
+  [data-theme="aurora"] {
+    --color-bg: 26 11 46;
+    --color-bg-subtle: 36 18 60;
+    --color-surface: 46 24 78;
+    --color-border: 192 132 252;
+    --color-text: 253 244 255;
+    --color-text-muted: 192 132 252;
+    --color-accent: 192 132 252;
+    --color-accent-hover: 168 85 247;
+    --color-cta: 255 215 0;
+    --color-cta-hover: 204 168 0;
+  }
+
+  [data-theme="aurora-light"] {
+    --color-bg: 253 244 255;
+    --color-bg-subtle: 250 232 255;
+    --color-surface: 255 255 255;
+    --color-border: 168 85 247;
+    --color-text: 26 11 46;
+    --color-text-muted: 128 100 160;
+    --color-accent: 168 85 247;
+    --color-accent-hover: 139 22 232;
+    --color-cta: 0 212 255;
+    --color-cta-hover: 0 170 204;
+  }
+
+  [data-theme="nebula"] {
+    --color-bg: 10 15 46;
+    --color-bg-subtle: 16 24 68;
+    --color-surface: 24 34 90;
+    --color-border: 129 140 248;
+    --color-text: 238 242 255;
+    --color-text-muted: 129 140 248;
+    --color-accent: 129 140 248;
+    --color-accent-hover: 99 102 241;
+    --color-cta: 255 215 0;
+    --color-cta-hover: 204 168 0;
+  }
+
+  [data-theme="titanium"] {
+    --color-bg: 17 24 39;
+    --color-bg-subtle: 31 41 55;
+    --color-surface: 55 65 81;
+    --color-border: 156 163 175;
+    --color-text: 249 250 251;
+    --color-text-muted: 156 163 175;
+    --color-accent: 209 213 219;
+    --color-accent-hover: 156 163 175;
+    --color-cta: 0 212 255;
+    --color-cta-hover: 0 170 204;
+  }
+
+  [data-theme="titanium-light"] {
+    --color-bg: 249 250 251;
+    --color-bg-subtle: 243 244 246;
+    --color-surface: 255 255 255;
+    --color-border: 156 163 175;
+    --color-text: 17 24 39;
+    --color-text-muted: 107 114 128;
+    --color-accent: 75 85 99;
+    --color-accent-hover: 55 65 81;
+    --color-cta: 0 212 255;
+    --color-cta-hover: 0 170 204;
+  }
+
+  [data-theme="ember"] {
+    --color-bg: 28 10 0;
+    --color-bg-subtle: 45 18 4;
+    --color-surface: 68 28 8;
+    --color-border: 249 115 22;
+    --color-text: 255 247 237;
+    --color-text-muted: 249 115 22;
+    --color-accent: 249 115 22;
+    --color-accent-hover: 234 88 12;
+    --color-cta: 255 215 0;
+    --color-cta-hover: 204 168 0;
+  }
+
+  [data-theme="ember-light"] {
+    --color-bg: 255 247 237;
+    --color-bg-subtle: 255 237 213;
+    --color-surface: 255 255 255;
+    --color-border: 234 88 12;
+    --color-text: 28 10 0;
+    --color-text-muted: 154 52 18;
+    --color-accent: 234 88 12;
+    --color-accent-hover: 194 65 12;
+    --color-cta: 0 212 255;
+    --color-cta-hover: 0 170 204;
+  }
+
+  /* Base styles */
+  * {
+    @apply border-border/20;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-bg text-text font-body antialiased;
+    /* Space background gradient on dark themes */
+    background-image: radial-gradient(
+      ellipse at top,
+      rgb(var(--color-bg-subtle) / 0.6) 0%,
+      rgb(var(--color-bg)) 60%
+    );
+    min-height: 100vh;
+  }
+
+  /* Focus ring using accent color */
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-bg;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-bg-subtle;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full;
+    background-color: rgb(var(--color-border) / 0.4);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--color-border) / 0.7);
+  }
+}
+
+/* ============================================================
+   Orbyt Component Utilities
+   ============================================================ */
+@layer components {
+  /* Input field */
+  .orbyt-input {
+    @apply w-full rounded-xl px-4 py-2.5 text-sm text-text placeholder:text-text-muted transition-all;
+    background: rgb(var(--color-surface) / 0.5);
+    border: 1px solid rgb(var(--color-border) / 0.2);
+    outline: none;
+  }
+  .orbyt-input:focus {
+    border-color: rgb(var(--color-accent) / 0.5);
+    box-shadow: 0 0 0 3px rgb(var(--color-accent) / 0.1);
+  }
+
+  /* Primary button (CTA gold) */
+  .orbyt-button-primary {
+    @apply flex w-full cursor-pointer items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200;
+    background: linear-gradient(135deg, rgb(var(--color-cta)), rgb(var(--color-cta-hover)));
+    color: rgb(11 25 41);
+    box-shadow: 0 0 16px rgb(var(--color-cta) / 0.3);
+  }
+  .orbyt-button-primary:hover:not(:disabled) {
+    box-shadow: 0 0 24px rgb(var(--color-cta) / 0.5);
+    transform: translateY(-1px);
+  }
+  .orbyt-button-primary:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  /* Accent button (teal) */
+  .orbyt-button-accent {
+    @apply flex w-full cursor-pointer items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200;
+    background: linear-gradient(135deg, rgb(var(--color-accent)), rgb(var(--color-accent-hover)));
+    color: rgb(11 25 41);
+    box-shadow: 0 0 16px rgb(var(--color-accent) / 0.3);
+  }
+  .orbyt-button-accent:hover:not(:disabled) {
+    box-shadow: 0 0 24px rgb(var(--color-accent) / 0.5);
+    transform: translateY(-1px);
+  }
+
+  /* Ghost button */
+  .orbyt-button-ghost {
+    @apply flex w-full cursor-pointer items-center justify-center rounded-xl px-5 py-2.5 text-sm font-medium text-text-muted transition-all;
+    background: rgb(var(--color-surface) / 0.4);
+    border: 1px solid rgb(var(--color-border) / 0.2);
+  }
+  .orbyt-button-ghost:hover {
+    background: rgb(var(--color-surface) / 0.7);
+    color: rgb(var(--color-text));
+  }
+}
+
+/* ============================================================
+   Glass morphism card utility
+   ============================================================ */
+@layer utilities {
+  .glass-card {
+    background: rgb(var(--color-surface) / 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgb(var(--color-border) / 0.2);
+    box-shadow:
+      0 4px 24px rgb(0 0 0 / 0.3),
+      inset 0 1px 0 rgb(255 255 255 / 0.05);
+    border-radius: 1rem;
+  }
+
+  .glass-card-hover {
+    transition:
+      box-shadow 0.2s ease,
+      border-color 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .glass-card-hover:hover {
+    border-color: rgb(var(--color-border) / 0.4);
+    box-shadow:
+      0 8px 32px rgb(0 0 0 / 0.4),
+      0 0 20px rgb(var(--color-accent) / 0.15),
+      inset 0 1px 0 rgb(255 255 255 / 0.08);
+    transform: translateY(-2px);
+  }
+
+  .glow-text {
+    text-shadow:
+      0 0 8px rgb(var(--color-accent) / 0.6),
+      0 0 16px rgb(var(--color-accent) / 0.3);
+  }
+
+  .orbital-ring {
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: rgb(var(--color-accent));
+    border-right-color: rgb(var(--color-accent) / 0.4);
+  }
+}

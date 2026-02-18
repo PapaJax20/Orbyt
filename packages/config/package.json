@@ -1,0 +1,22 @@
+{
+  "name": "@orbyt/config",
+  "version": "0.0.1",
+  "private": true,
+  "exports": {
+    "./eslint": "./eslint/index.js",
+    "./typescript/base.json": "./typescript/base.json",
+    "./typescript/nextjs.json": "./typescript/nextjs.json",
+    "./tailwind": "./tailwind/base.config.ts"
+  },
+  "peerDependencies": {
+    "tailwindcss": "^3.4.0"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17",
+    "@typescript-eslint/eslint-plugin": "^8.19.0",
+    "@typescript-eslint/parser": "^8.19.0",
+    "eslint": "^9.18.0",
+    "eslint-config-next": "^15.1.3",
+    "typescript": "^5.7.3"
+  }
+}

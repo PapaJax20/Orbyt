@@ -1,0 +1,30 @@
+{
+  "name": "orbyt",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "db:generate": "turbo db:generate",
+    "db:migrate": "turbo db:migrate",
+    "db:push": "turbo db:push",
+    "clean": "turbo clean && find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +"
+  },
+  "devDependencies": {
+    "@orbyt/config": "workspace:*",
+    "turbo": "^2.3.3",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@10.30.0",
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "sharp", "unrs-resolver"]
+  }
+}

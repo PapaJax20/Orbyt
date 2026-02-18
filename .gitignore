@@ -1,0 +1,45 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+.next
+dist
+build
+.turbo
+
+# Environment files
+.env
+.env.local
+.env.production
+.env*.local
+
+# Supabase
+supabase/.branches
+supabase/.temp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+
+# Testing
+coverage
+
+# Vercel
+.vercel
+
+# Expo
+.expo
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
