@@ -68,20 +68,8 @@ CREATE TABLE public.households (
 
 ALTER TABLE public.households ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "households_member_select" ON public.households
-  FOR SELECT USING (
-    id IN (
-      SELECT household_id FROM public.household_members WHERE user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "households_admin_update" ON public.households
-  FOR UPDATE USING (
-    id IN (
-      SELECT household_id FROM public.household_members
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
-  );
+-- NOTE: households RLS policies that reference household_members are defined
+-- below, after the household_members table is created.
 
 -- ============================================================
 -- HOUSEHOLD MEMBERS
@@ -108,6 +96,22 @@ CREATE POLICY "members_household_select" ON public.household_members
 CREATE POLICY "members_admin_insert" ON public.household_members
   FOR INSERT WITH CHECK (
     household_id IN (
+      SELECT household_id FROM public.household_members
+      WHERE user_id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Households policies that reference household_members (deferred to here)
+CREATE POLICY "households_member_select" ON public.households
+  FOR SELECT USING (
+    id IN (
+      SELECT household_id FROM public.household_members WHERE user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "households_admin_update" ON public.households
+  FOR UPDATE USING (
+    id IN (
       SELECT household_id FROM public.household_members
       WHERE user_id = auth.uid() AND role = 'admin'
     )
