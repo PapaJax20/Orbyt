@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -41,56 +42,64 @@ export default function DashboardPage() {
         {/* Upcoming Events */}
         <div className="glass-card p-5">
           <h2 className="mb-4 font-display text-lg font-semibold text-text">
-            Upcoming Events
+            <Link href="/calendar" className="hover:text-accent transition-colors">
+              Upcoming Events
+            </Link>
           </h2>
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <p className="text-4xl">📅</p>
             <p className="mt-3 text-sm text-text-muted">No upcoming events</p>
-            <button className="orbyt-button-accent mt-4 w-auto px-6">
+            <Link href="/calendar" className="orbyt-button-accent mt-4 w-auto px-6">
               Add Event
-            </button>
+            </Link>
           </div>
         </div>
 
         {/* Financial Snapshot */}
         <div className="glass-card p-5">
           <h2 className="mb-4 font-display text-lg font-semibold text-text">
-            Financial Snapshot
+            <Link href="/finances" className="hover:text-accent transition-colors">
+              Financial Snapshot
+            </Link>
           </h2>
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <p className="text-4xl">💰</p>
             <p className="mt-3 text-sm text-text-muted">No bills tracked yet</p>
-            <button className="orbyt-button-accent mt-4 w-auto px-6">
+            <Link href="/finances" className="orbyt-button-accent mt-4 w-auto px-6">
               Add Bill
-            </button>
+            </Link>
           </div>
         </div>
 
         {/* Tasks Summary */}
         <div className="glass-card p-5">
           <h2 className="mb-4 font-display text-lg font-semibold text-text">
-            Tasks
+            <Link href="/tasks" className="hover:text-accent transition-colors">
+              Tasks
+            </Link>
           </h2>
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <p className="text-4xl">✅</p>
             <p className="mt-3 text-sm text-text-muted">Your task list is empty</p>
-            <button className="orbyt-button-accent mt-4 w-auto px-6">
+            <Link href="/tasks" className="orbyt-button-accent mt-4 w-auto px-6">
               Add Task
-            </button>
+            </Link>
           </div>
         </div>
 
         {/* Shopping Lists */}
         <div className="glass-card p-5">
           <h2 className="mb-4 font-display text-lg font-semibold text-text">
-            Shopping Lists
+            <Link href="/shopping" className="hover:text-accent transition-colors">
+              Shopping Lists
+            </Link>
           </h2>
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <p className="text-4xl">🛒</p>
             <p className="mt-3 text-sm text-text-muted">No shopping lists yet</p>
-            <button className="orbyt-button-accent mt-4 w-auto px-6">
+            <Link href="/shopping" className="orbyt-button-accent mt-4 w-auto px-6">
               Create List
-            </button>
+            </Link>
           </div>
         </div>
       </div>
