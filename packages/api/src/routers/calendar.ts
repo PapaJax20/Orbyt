@@ -140,7 +140,12 @@ export const calendarRouter = router({
         // Update the base event
         const [updated] = await ctx.db
           .update(events)
-          .set({ ...input.data, updatedAt: new Date() })
+          .set({
+          ...input.data,
+          startAt: input.data.startAt ? new Date(input.data.startAt) : undefined,
+          endAt: input.data.endAt ? new Date(input.data.endAt) : undefined,
+          updatedAt: new Date(),
+        })
           .where(eq(events.id, input.id))
           .returning();
         return updated;
@@ -150,7 +155,12 @@ export const calendarRouter = router({
       // TODO: Full recurrence exception handling in Phase 1 completion
       const [updated] = await ctx.db
         .update(events)
-        .set({ ...input.data, updatedAt: new Date() })
+        .set({
+          ...input.data,
+          startAt: input.data.startAt ? new Date(input.data.startAt) : undefined,
+          endAt: input.data.endAt ? new Date(input.data.endAt) : undefined,
+          updatedAt: new Date(),
+        })
         .where(eq(events.id, input.id))
         .returning();
       return updated;

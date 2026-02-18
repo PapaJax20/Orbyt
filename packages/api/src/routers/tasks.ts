@@ -131,9 +131,10 @@ export const tasksRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { assigneeIds, ...taskData } = input.data;
 
+      const { dueAt: dueAtStr, ...restTaskData } = taskData;
       const setData = {
-        ...taskData,
-        dueAt: taskData.dueAt ? new Date(taskData.dueAt) : taskData.dueAt,
+        ...restTaskData,
+        ...(dueAtStr !== undefined ? { dueAt: dueAtStr !== null ? new Date(dueAtStr) : null } : {}),
         updatedAt: new Date(),
       };
 

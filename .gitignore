@@ -43,3 +43,6 @@ coverage
 *.mobileprovision
 *.orig.*
 web-build/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

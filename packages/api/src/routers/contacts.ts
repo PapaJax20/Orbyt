@@ -57,7 +57,7 @@ export const contactsRouter = router({
       const contact = await ctx.db.query.contacts.findFirst({
         where: and(eq(contacts.id, input.id), eq(contacts.householdId, ctx.householdId)),
         with: {
-          relationships: {
+          relationshipsFrom: {
             with: {
               toContact: true,
             },

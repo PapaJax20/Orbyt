@@ -79,7 +79,7 @@ export function buildRRule(options: {
   const rule = new RRule({
     freq: freqMap[options.freq],
     interval: options.interval ?? 1,
-    byweekday: options.byWeekDay?.map((d) => d),
+    byweekday: options.byWeekDay?.map((d) => d) ?? null,
     until: options.until ?? null,
     count: options.count ?? null,
   });

@@ -3,7 +3,11 @@
   "extends": "./base.json",
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "ES2022"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "ES2022"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "preserve",
@@ -12,6 +16,12 @@
     "incremental": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "plugins": [{ "name": "next" }]
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "declaration": false,
+    "declarationMap": false
   }
 }

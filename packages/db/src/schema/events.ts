@@ -42,6 +42,7 @@ export const eventAttendees = pgTable(
       .references(() => events.id, { onDelete: "cascade" })
       .notNull(),
     userId: uuid("user_id").references(() => profiles.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id"),
     rsvpStatus: varchar("rsvp_status", { length: 20 }).default("pending"),
   },
   (t) => ({

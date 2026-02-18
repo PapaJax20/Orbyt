@@ -151,7 +151,7 @@ export const householdRouter = router({
           .update(invitations)
           .set({ status: "expired" })
           .where(eq(invitations.id, invitation.id));
-        throw new TRPCError({ code: "GONE", message: "This invitation has expired" });
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This invitation has expired" });
       }
 
       // Add user to household

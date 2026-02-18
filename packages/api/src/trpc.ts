@@ -93,6 +93,8 @@ export const householdProcedure = protectedProcedure.use(async ({ ctx, next }) =
  * Admin procedure — requires household membership with admin role.
  * Use for: household settings, member management.
  */
+export const createCallerFactory = t.createCallerFactory;
+
 export const adminProcedure = householdProcedure.use(({ ctx, next }) => {
   if (ctx.memberRole !== "admin") {
     throw new TRPCError({
