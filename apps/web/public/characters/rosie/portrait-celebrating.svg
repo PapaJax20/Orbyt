@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Rosie Portrait - Celebrating -->
+  <circle cx="100" cy="100" r="98" fill="#FDF0F2" stroke="#E8D0D4" stroke-width="2"/>
+
+  <!-- Confetti -->
+  <rect x="20" y="30" width="6" height="6" rx="1" fill="#2DD4BF" opacity="0.7" transform="rotate(20 23 33)"/>
+  <rect x="165" y="25" width="6" height="6" rx="1" fill="#8B4D6B" opacity="0.6" transform="rotate(-15 168 28)"/>
+  <circle cx="30" cy="70" r="4" fill="#F5A0C0" opacity="0.7"/>
+  <circle cx="170" cy="65" r="4" fill="#2DD4BF" opacity="0.6"/>
+  <rect x="155" y="55" width="5" height="5" rx="1" fill="#F5A0C0" opacity="0.7" transform="rotate(35 158 58)"/>
+
+  <!-- Antenna with star -->
+  <line x1="100" y1="28" x2="100" y2="8" stroke="#8B4D6B" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="100,0 102,6 108,6 103,10 105,16 100,12 95,16 97,10 92,6 98,6" fill="#2DD4BF"/>
+
+  <circle cx="100" cy="90" r="62" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2.5"/>
+
+  <rect x="31" y="72" width="12" height="24" rx="6" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+  <rect x="157" y="72" width="12" height="24" rx="6" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+
+  <!-- Eyes - Star shaped -->
+  <polygon points="86,80 88,86 94,86 89,90 91,96 86,92 81,96 83,90 78,86 84,86" fill="#8B4D6B"/>
+  <polygon points="114,80 116,86 122,86 117,90 119,96 114,92 109,96 111,90 106,86 112,86" fill="#8B4D6B"/>
+
+  <!-- Cheeks bright -->
+  <ellipse cx="66" cy="102" rx="12" ry="7" fill="#E8A0B0" opacity="0.7"/>
+  <ellipse cx="134" cy="102" rx="12" ry="7" fill="#E8A0B0" opacity="0.7"/>
+
+  <!-- Mouth - Big open smile -->
+  <path d="M80 116 Q100 134 120 116" stroke="#8B4D6B" stroke-width="2.5" fill="#E8A0B0" opacity="0.5"/>
+  <path d="M80 116 Q100 134 120 116" stroke="#8B4D6B" stroke-width="2.5" fill="none"/>
+
+  <path d="M68 148 Q68 160 100 165 Q132 160 132 148" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+  <rect x="88" y="148" width="24" height="14" rx="4" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+
+  <ellipse cx="52" cy="170" rx="30" ry="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+  <ellipse cx="148" cy="170" rx="30" ry="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+
+  <path d="M82 162 Q100 170 118 162" stroke="#2DD4BF" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Rosie Portrait - Concerned -->
+  <circle cx="100" cy="100" r="98" fill="#FDF0F2" stroke="#E8D0D4" stroke-width="2"/>
+
+  <!-- Antenna drooping -->
+  <path d="M100 28 Q108 18 106 8" stroke="#8B4D6B" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <circle cx="106" cy="6" r="5" fill="#2DD4BF" opacity="0.7"/>
+
+  <circle cx="100" cy="90" r="62" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2.5"/>
+
+  <rect x="31" y="72" width="12" height="24" rx="6" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+  <rect x="157" y="72" width="12" height="24" rx="6" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+
+  <!-- Eyes - concerned: angled brows -->
+  <ellipse cx="84" cy="87" rx="9" ry="7" fill="#8B4D6B"/>
+  <ellipse cx="86" cy="85" rx="3.5" ry="2.5" fill="white"/>
+  <line x1="75" y1="76" x2="93" y2="80" stroke="#8B4D6B" stroke-width="2.5" stroke-linecap="round"/>
+
+  <ellipse cx="116" cy="87" rx="9" ry="7" fill="#8B4D6B"/>
+  <ellipse cx="118" cy="85" rx="3.5" ry="2.5" fill="white"/>
+  <line x1="107" y1="80" x2="125" y2="76" stroke="#8B4D6B" stroke-width="2.5" stroke-linecap="round"/>
+
+  <ellipse cx="68" cy="100" rx="10" ry="6" fill="#E8A0B0" opacity="0.4"/>
+  <ellipse cx="132" cy="100" rx="10" ry="6" fill="#E8A0B0" opacity="0.4"/>
+
+  <!-- Mouth - frown -->
+  <path d="M88 118 Q100 110 112 118" stroke="#8B4D6B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <path d="M68 148 Q68 160 100 165 Q132 160 132 148" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+  <rect x="88" y="148" width="24" height="14" rx="4" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+
+  <ellipse cx="52" cy="170" rx="30" ry="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+  <ellipse cx="148" cy="170" rx="30" ry="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+
+  <path d="M82 162 Q100 170 118 162" stroke="#2DD4BF" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

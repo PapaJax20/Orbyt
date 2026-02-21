@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Eddie Portrait - Thinking -->
+  <circle cx="100" cy="100" r="98" fill="#EEF3FA" stroke="#D0DCE8" stroke-width="2"/>
+
+  <line x1="100" y1="28" x2="100" y2="8" stroke="#3B4B6B" stroke-width="3" stroke-linecap="square"/>
+  <rect x="93" y="2" width="14" height="14" rx="2" fill="#3B82F6"/>
+  <!-- Thought bubbles -->
+  <circle cx="124" cy="20" r="4" fill="#3B82F6" opacity="0.5"/>
+  <circle cx="136" cy="11" r="5" fill="#3B82F6" opacity="0.4"/>
+  <circle cx="150" cy="4" r="7" fill="#3B82F6" opacity="0.3"/>
+
+  <circle cx="100" cy="90" r="62" fill="#E8EEF5" stroke="#3B4B6B" stroke-width="2.5"/>
+  <rect x="58" y="70" width="84" height="50" rx="7" fill="#D8E4F0" stroke="#3B4B6B" stroke-width="1.5"/>
+
+  <rect x="29" y="72" width="14" height="20" rx="3" fill="#D0DCE8" stroke="#3B4B6B" stroke-width="1.5"/>
+  <rect x="157" y="72" width="14" height="20" rx="3" fill="#D0DCE8" stroke="#3B4B6B" stroke-width="1.5"/>
+  <line x1="32" y1="77" x2="41" y2="77" stroke="#3B4B6B" stroke-width="1.2"/>
+  <line x1="32" y1="83" x2="41" y2="83" stroke="#3B4B6B" stroke-width="1.2"/>
+  <line x1="159" y1="77" x2="168" y2="77" stroke="#3B4B6B" stroke-width="1.2"/>
+  <line x1="159" y1="83" x2="168" y2="83" stroke="#3B4B6B" stroke-width="1.2"/>
+
+  <!-- Eyes: dots up-right -->
+  <circle cx="84" cy="82" r="5" fill="#3B4B6B"/>
+  <circle cx="86" cy="80" r="2" fill="white"/>
+  <circle cx="116" cy="82" r="5" fill="#3B4B6B"/>
+  <circle cx="118" cy="80" r="2" fill="white"/>
+
+  <!-- Neutral mouth -->
+  <line x1="88" y1="112" x2="112" y2="112" stroke="#3B4B6B" stroke-width="2.5" stroke-linecap="round"/>
+
+  <path d="M66 148 Q66 162 100 166 Q134 162 134 148" fill="#E8EEF5" stroke="#3B4B6B" stroke-width="2"/>
+  <rect x="88" y="148" width="24" height="16" rx="3" fill="#D0DCE8" stroke="#3B4B6B" stroke-width="1.5"/>
+
+  <ellipse cx="50" cy="172" rx="30" ry="18" fill="#E8EEF5" stroke="#3B4B6B" stroke-width="2"/>
+  <ellipse cx="150" cy="172" rx="30" ry="18" fill="#E8EEF5" stroke="#3B4B6B" stroke-width="2"/>
+
+  <!-- Hand at chin -->
+  <rect x="58" y="156" width="22" height="14" rx="5" fill="#D0DCE8" stroke="#3B4B6B" stroke-width="1.5"/>
+
+  <path d="M82 164 Q100 172 118 164" stroke="#3B82F6" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+</svg>

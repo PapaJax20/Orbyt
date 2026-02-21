@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo typecheck
+      - run: pnpm turbo lint
+      - run: pnpm turbo test
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: supabase/setup-cli@v1
+
+      - run: supabase start
+
+      - name: Create env file
+        run: |
+          echo "NEXT_PUBLIC_SUPABASE_URL=$(supabase status --output json | jq -r '.API_URL')" >> apps/web/.env.local
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$(supabase status --output json | jq -r '.ANON_KEY')" >> apps/web/.env.local
+          echo "SUPABASE_SERVICE_ROLE_KEY=$(supabase status --output json | jq -r '.SERVICE_ROLE_KEY')" >> apps/web/.env.local
+          echo "DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres" >> apps/web/.env.local
+          echo "NEXT_PUBLIC_APP_URL=http://localhost:3000" >> apps/web/.env.local
+
+      - run: pnpm --filter @orbyt/db db:seed
+
+      - run: pnpm --filter @orbyt/web build
+
+      - run: pnpm --filter @orbyt/web test:e2e

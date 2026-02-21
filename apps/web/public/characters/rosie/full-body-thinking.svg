@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+  <!-- Rosie Full Body - Thinking -->
+  <!-- Antenna with question dot -->
+  <line x1="200" y1="60" x2="200" y2="30" stroke="#8B4D6B" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="200" cy="24" r="8" fill="#2DD4BF"/>
+  <!-- Thought bubbles -->
+  <circle cx="228" cy="50" r="5" fill="#2DD4BF" opacity="0.5"/>
+  <circle cx="242" cy="38" r="7" fill="#2DD4BF" opacity="0.4"/>
+  <circle cx="258" cy="24" r="10" fill="#2DD4BF" opacity="0.3"/>
+
+  <!-- Head - tilted slightly -->
+  <circle cx="200" cy="100" r="60" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+
+  <!-- Ear panels -->
+  <rect x="133" y="80" width="14" height="28" rx="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <rect x="253" y="80" width="14" height="28" rx="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Eyes - Thinking: dot eyes shifted up-right -->
+  <circle cx="184" cy="92" r="6" fill="#8B4D6B"/>
+  <circle cx="186" cy="90" r="2" fill="white"/>
+  <circle cx="218" cy="92" r="6" fill="#8B4D6B"/>
+  <circle cx="220" cy="90" r="2" fill="white"/>
+
+  <!-- Cheek blushes - lighter for thinking -->
+  <ellipse cx="165" cy="112" rx="10" ry="6" fill="#E8A0B0" opacity="0.3"/>
+  <ellipse cx="235" cy="112" rx="10" ry="6" fill="#E8A0B0" opacity="0.3"/>
+
+  <!-- Mouth - neutral straight line -->
+  <line x1="188" y1="126" x2="212" y2="126" stroke="#8B4D6B" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Neck -->
+  <rect x="185" y="155" width="30" height="20" rx="4" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Body -->
+  <rect x="120" y="172" width="160" height="200" rx="30" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+
+  <!-- Apron -->
+  <path d="M150 200 L150 350 Q200 370 250 350 L250 200 Q200 210 150 200Z" fill="#2DD4BF" opacity="0.35"/>
+  <rect x="185" y="172" width="30" height="30" rx="4" fill="#2DD4BF" opacity="0.5"/>
+
+  <!-- Chest panel with question marks -->
+  <rect x="155" y="215" width="90" height="60" rx="10" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <rect x="163" y="223" width="74" height="44" rx="7" fill="#2DD4BF" opacity="0.25"/>
+  <text x="200" y="252" text-anchor="middle" font-size="24" fill="#8B4D6B" opacity="0.7" font-family="sans-serif">?</text>
+
+  <!-- Arm left - hand on chin pose -->
+  <rect x="78" y="180" width="44" height="100" rx="22" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+  <!-- arm bends up -->
+  <path d="M100 280 Q80 260 90 240 Q100 225 120 230" stroke="#F5E6E8" stroke-width="38" fill="none" stroke-linecap="round"/>
+  <path d="M100 280 Q80 260 90 240 Q100 225 120 230" stroke="#8B4D6B" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Hand near chin -->
+  <circle cx="132" cy="232" r="16" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Arm right -->
+  <rect x="278" y="180" width="44" height="120" rx="22" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+  <circle cx="300" cy="310" r="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+  <circle cx="290" cy="300" r="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+  <circle cx="302" cy="296" r="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+  <circle cx="313" cy="300" r="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+
+  <!-- Hip section -->
+  <rect x="130" y="362" width="140" height="30" rx="10" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Legs -->
+  <rect x="140" y="388" width="50" height="110" rx="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+  <ellipse cx="165" cy="505" rx="32" ry="16" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <ellipse cx="157" cy="512" rx="22" ry="10" fill="#2DD4BF" opacity="0.4"/>
+
+  <rect x="210" y="388" width="50" height="110" rx="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+  <ellipse cx="235" cy="505" rx="32" ry="16" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <ellipse cx="243" cy="512" rx="22" ry="10" fill="#2DD4BF" opacity="0.4"/>
+
+  <circle cx="145" cy="290" r="5" fill="#2DD4BF" opacity="0.6"/>
+  <circle cx="255" cy="290" r="5" fill="#2DD4BF" opacity="0.6"/>
+</svg>

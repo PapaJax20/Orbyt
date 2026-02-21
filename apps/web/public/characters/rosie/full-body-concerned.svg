@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+  <!-- Rosie Full Body - Concerned -->
+  <!-- Antenna - drooping -->
+  <path d="M200 60 Q210 45 205 30" stroke="#8B4D6B" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <circle cx="205" cy="24" r="8" fill="#2DD4BF" opacity="0.7"/>
+
+  <!-- Head -->
+  <circle cx="200" cy="100" r="60" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+
+  <!-- Ear panels -->
+  <rect x="133" y="80" width="14" height="28" rx="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <rect x="253" y="80" width="14" height="28" rx="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Eyes - Concerned: angled down inner corners (worried brows effect) -->
+  <!-- Left eye: tilted down on inner side -->
+  <ellipse cx="182" cy="97" rx="10" ry="8" fill="#8B4D6B"/>
+  <ellipse cx="184" cy="95" rx="4" ry="3" fill="white"/>
+  <!-- Inner brow line slanting down -->
+  <line x1="172" y1="83" x2="192" y2="88" stroke="#8B4D6B" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Right eye -->
+  <ellipse cx="218" cy="97" rx="10" ry="8" fill="#8B4D6B"/>
+  <ellipse cx="220" cy="95" rx="4" ry="3" fill="white"/>
+  <line x1="208" y1="88" x2="228" y2="83" stroke="#8B4D6B" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Cheek blushes - concerned warm tint -->
+  <ellipse cx="162" cy="112" rx="12" ry="7" fill="#E8A0B0" opacity="0.4"/>
+  <ellipse cx="238" cy="112" rx="12" ry="7" fill="#E8A0B0" opacity="0.4"/>
+
+  <!-- Mouth - slight frown -->
+  <path d="M185 128 Q200 120 215 128" stroke="#8B4D6B" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- Neck -->
+  <rect x="185" y="155" width="30" height="20" rx="4" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Body -->
+  <rect x="120" y="172" width="160" height="200" rx="30" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+
+  <!-- Apron -->
+  <path d="M150 200 L150 350 Q200 370 250 350 L250 200 Q200 210 150 200Z" fill="#2DD4BF" opacity="0.25"/>
+  <rect x="185" y="172" width="30" height="30" rx="4" fill="#2DD4BF" opacity="0.4"/>
+
+  <!-- Chest panel with exclamation -->
+  <rect x="155" y="215" width="90" height="60" rx="10" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <rect x="163" y="223" width="74" height="44" rx="7" fill="#2DD4BF" opacity="0.2"/>
+  <text x="200" y="252" text-anchor="middle" font-size="24" fill="#8B4D6B" opacity="0.7" font-family="sans-serif">!</text>
+
+  <!-- Arm left - both slightly raised toward body (hugging self pose) -->
+  <rect x="82" y="185" width="44" height="110" rx="22" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3" transform="rotate(10 104 185)"/>
+  <circle cx="96" cy="306" r="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Arm right -->
+  <rect x="274" y="185" width="44" height="110" rx="22" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3" transform="rotate(-10 296 185)"/>
+  <circle cx="304" cy="306" r="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Hip section -->
+  <rect x="130" y="362" width="140" height="30" rx="10" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Legs -->
+  <rect x="140" y="388" width="50" height="110" rx="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+  <ellipse cx="165" cy="505" rx="32" ry="16" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <ellipse cx="157" cy="512" rx="22" ry="10" fill="#2DD4BF" opacity="0.4"/>
+
+  <rect x="210" y="388" width="50" height="110" rx="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+  <ellipse cx="235" cy="505" rx="32" ry="16" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <ellipse cx="243" cy="512" rx="22" ry="10" fill="#2DD4BF" opacity="0.4"/>
+
+  <circle cx="145" cy="290" r="5" fill="#2DD4BF" opacity="0.4"/>
+  <circle cx="255" cy="290" r="5" fill="#2DD4BF" opacity="0.4"/>
+</svg>

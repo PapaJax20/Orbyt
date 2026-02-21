@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Eddie Portrait - Concerned -->
+  <circle cx="100" cy="100" r="98" fill="#EEF3FA" stroke="#D0DCE8" stroke-width="2"/>
+
+  <!-- Antenna drooping -->
+  <path d="M100 28 Q108 18 106 8" stroke="#3B4B6B" stroke-width="3" fill="none" stroke-linecap="square"/>
+  <rect x="99" y="2" width="14" height="14" rx="2" fill="#3B82F6" opacity="0.7"/>
+
+  <circle cx="100" cy="90" r="62" fill="#E8EEF5" stroke="#3B4B6B" stroke-width="2.5"/>
+  <rect x="58" y="70" width="84" height="50" rx="7" fill="#D8E4F0" stroke="#3B4B6B" stroke-width="1.5"/>
+
+  <rect x="29" y="72" width="14" height="20" rx="3" fill="#D0DCE8" stroke="#3B4B6B" stroke-width="1.5"/>
+  <rect x="157" y="72" width="14" height="20" rx="3" fill="#D0DCE8" stroke="#3B4B6B" stroke-width="1.5"/>
+  <line x1="32" y1="77" x2="41" y2="77" stroke="#3B4B6B" stroke-width="1.2"/>
+  <line x1="32" y1="83" x2="41" y2="83" stroke="#3B4B6B" stroke-width="1.2"/>
+  <line x1="159" y1="77" x2="168" y2="77" stroke="#3B4B6B" stroke-width="1.2"/>
+  <line x1="159" y1="83" x2="168" y2="83" stroke="#3B4B6B" stroke-width="1.2"/>
+
+  <!-- Eyes - angled brows concerned -->
+  <rect x="72" y="82" width="20" height="12" rx="3" fill="#3B4B6B"/>
+  <rect x="75" y="84" rx="2" width="6" height="4" fill="white" opacity="0.4"/>
+  <line x1="70" y1="75" x2="92" y2="80" stroke="#3B4B6B" stroke-width="2.5" stroke-linecap="round"/>
+
+  <rect x="108" y="82" width="20" height="12" rx="3" fill="#3B4B6B"/>
+  <rect x="111" y="84" rx="2" width="6" height="4" fill="white" opacity="0.4"/>
+  <line x1="108" y1="80" x2="130" y2="75" stroke="#3B4B6B" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Frown -->
+  <path d="M84 116 Q100 108 116 116" stroke="#3B4B6B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <path d="M66 148 Q66 162 100 166 Q134 162 134 148" fill="#E8EEF5" stroke="#3B4B6B" stroke-width="2"/>
+  <rect x="88" y="148" width="24" height="16" rx="3" fill="#D0DCE8" stroke="#3B4B6B" stroke-width="1.5"/>
+
+  <ellipse cx="50" cy="172" rx="30" ry="18" fill="#E8EEF5" stroke="#3B4B6B" stroke-width="2"/>
+  <ellipse cx="150" cy="172" rx="30" ry="18" fill="#E8EEF5" stroke="#3B4B6B" stroke-width="2"/>
+
+  <path d="M82 164 Q100 172 118 164" stroke="#3B82F6" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+  <!-- Rosie Full Body - Winking -->
+  <!-- Antenna -->
+  <line x1="200" y1="60" x2="200" y2="30" stroke="#8B4D6B" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="200" cy="24" r="8" fill="#2DD4BF"/>
+
+  <!-- Head -->
+  <circle cx="200" cy="100" r="60" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+
+  <!-- Ear panels -->
+  <rect x="133" y="80" width="14" height="28" rx="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <rect x="253" y="80" width="14" height="28" rx="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Eyes - Winking: left arc open, right closed line -->
+  <path d="M172 98 Q182 88 192 98" stroke="#8B4D6B" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <line x1="208" y1="93" x2="228" y2="93" stroke="#8B4D6B" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Cheek blushes -->
+  <ellipse cx="165" cy="112" rx="12" ry="7" fill="#E8A0B0" opacity="0.5"/>
+  <ellipse cx="235" cy="112" rx="12" ry="7" fill="#E8A0B0" opacity="0.5"/>
+
+  <!-- Mouth - slight smile -->
+  <path d="M185 122 Q200 132 215 122" stroke="#8B4D6B" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- Neck -->
+  <rect x="185" y="155" width="30" height="20" rx="4" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Body -->
+  <rect x="120" y="172" width="160" height="200" rx="30" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+
+  <!-- Apron -->
+  <path d="M150 200 L150 350 Q200 370 250 350 L250 200 Q200 210 150 200Z" fill="#2DD4BF" opacity="0.35"/>
+  <rect x="185" y="172" width="30" height="30" rx="4" fill="#2DD4BF" opacity="0.5"/>
+
+  <!-- Chest panel -->
+  <rect x="155" y="215" width="90" height="60" rx="10" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <rect x="163" y="223" width="74" height="44" rx="7" fill="#2DD4BF" opacity="0.25"/>
+  <path d="M192 240 Q192 232 200 236 Q208 232 208 240 Q208 250 200 256 Q192 250 192 240Z" fill="#8B4D6B" opacity="0.6"/>
+
+  <!-- Arm left - raised slightly for wink pose -->
+  <rect x="78" y="170" width="44" height="115" rx="22" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3" transform="rotate(-8 100 170)"/>
+  <circle cx="88" cy="295" r="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+  <circle cx="78" cy="286" r="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+  <circle cx="90" cy="282" r="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+  <circle cx="101" cy="286" r="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+
+  <!-- Arm right -->
+  <rect x="278" y="180" width="44" height="120" rx="22" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+  <circle cx="300" cy="310" r="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+  <circle cx="290" cy="300" r="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+  <circle cx="302" cy="296" r="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+  <circle cx="313" cy="300" r="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="1.5"/>
+
+  <!-- Hip section -->
+  <rect x="130" y="362" width="140" height="30" rx="10" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Legs -->
+  <rect x="140" y="388" width="50" height="110" rx="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+  <ellipse cx="165" cy="505" rx="32" ry="16" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <ellipse cx="157" cy="512" rx="22" ry="10" fill="#2DD4BF" opacity="0.4"/>
+
+  <rect x="210" y="388" width="50" height="110" rx="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+  <ellipse cx="235" cy="505" rx="32" ry="16" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <ellipse cx="243" cy="512" rx="22" ry="10" fill="#2DD4BF" opacity="0.4"/>
+
+  <circle cx="145" cy="290" r="5" fill="#2DD4BF" opacity="0.6"/>
+  <circle cx="255" cy="290" r="5" fill="#2DD4BF" opacity="0.6"/>
+</svg>

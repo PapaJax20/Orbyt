@@ -73,7 +73,7 @@ export interface ContactNote {
   };
 }
 
-export interface ContactWithRelations extends Contact {
+export interface ContactWithRelations extends Omit<Contact, "notes"> {
   relationships: ContactRelationship[];
   notes: ContactNote[];
   upcomingBirthday: Date | null;

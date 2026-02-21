@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Eddie Portrait - Celebrating -->
+  <circle cx="100" cy="100" r="98" fill="#EEF3FA" stroke="#D0DCE8" stroke-width="2"/>
+
+  <!-- Confetti -->
+  <rect x="18" y="28" width="6" height="6" rx="1" fill="#3B82F6" opacity="0.7" transform="rotate(20 21 31)"/>
+  <rect x="168" y="22" width="6" height="6" rx="1" fill="#3B4B6B" opacity="0.6" transform="rotate(-15 171 25)"/>
+  <circle cx="28" cy="68" r="4" fill="#A0C4F5" opacity="0.7"/>
+  <circle cx="172" cy="62" r="4" fill="#3B82F6" opacity="0.6"/>
+  <rect x="158" y="50" width="5" height="5" rx="1" fill="#A0C4F5" opacity="0.7" transform="rotate(35 161 53)"/>
+
+  <!-- Antenna with star -->
+  <line x1="100" y1="28" x2="100" y2="8" stroke="#3B4B6B" stroke-width="3" stroke-linecap="square"/>
+  <polygon points="100,0 102,6 108,6 103,10 105,16 100,12 95,16 97,10 92,6 98,6" fill="#3B82F6"/>
+
+  <circle cx="100" cy="90" r="62" fill="#E8EEF5" stroke="#3B4B6B" stroke-width="2.5"/>
+  <rect x="58" y="70" width="84" height="50" rx="7" fill="#D8E4F0" stroke="#3B4B6B" stroke-width="1.5"/>
+
+  <rect x="29" y="72" width="14" height="20" rx="3" fill="#D0DCE8" stroke="#3B4B6B" stroke-width="1.5"/>
+  <rect x="157" y="72" width="14" height="20" rx="3" fill="#D0DCE8" stroke="#3B4B6B" stroke-width="1.5"/>
+  <line x1="32" y1="77" x2="41" y2="77" stroke="#3B4B6B" stroke-width="1.2"/>
+  <line x1="32" y1="83" x2="41" y2="83" stroke="#3B4B6B" stroke-width="1.2"/>
+  <line x1="159" y1="77" x2="168" y2="77" stroke="#3B4B6B" stroke-width="1.2"/>
+  <line x1="159" y1="83" x2="168" y2="83" stroke="#3B4B6B" stroke-width="1.2"/>
+
+  <!-- Eyes - Star shaped -->
+  <polygon points="84,76 86,82 92,82 87,86 89,92 84,88 79,92 81,86 76,82 82,82" fill="#3B4B6B"/>
+  <polygon points="116,76 118,82 124,82 119,86 121,92 116,88 111,92 113,86 108,82 114,82" fill="#3B4B6B"/>
+
+  <!-- Big smile -->
+  <path d="M78 114 Q100 132 122 114" stroke="#3B4B6B" stroke-width="2.5" fill="#A0C4F5" opacity="0.35"/>
+  <path d="M78 114 Q100 132 122 114" stroke="#3B4B6B" stroke-width="2.5" fill="none"/>
+
+  <path d="M66 148 Q66 162 100 166 Q134 162 134 148" fill="#E8EEF5" stroke="#3B4B6B" stroke-width="2"/>
+  <rect x="88" y="148" width="24" height="16" rx="3" fill="#D0DCE8" stroke="#3B4B6B" stroke-width="1.5"/>
+
+  <ellipse cx="50" cy="172" rx="30" ry="18" fill="#E8EEF5" stroke="#3B4B6B" stroke-width="2"/>
+  <ellipse cx="150" cy="172" rx="30" ry="18" fill="#E8EEF5" stroke="#3B4B6B" stroke-width="2"/>
+
+  <path d="M82 164 Q100 172 118 164" stroke="#3B82F6" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

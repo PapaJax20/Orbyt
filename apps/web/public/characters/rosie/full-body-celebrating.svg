@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+  <!-- Rosie Full Body - Celebrating -->
+  <!-- Confetti -->
+  <rect x="60" y="40" width="8" height="8" rx="2" fill="#2DD4BF" opacity="0.8" transform="rotate(20 64 44)"/>
+  <rect x="310" y="55" width="8" height="8" rx="2" fill="#8B4D6B" opacity="0.7" transform="rotate(-15 314 59)"/>
+  <rect x="85" y="80" width="6" height="6" rx="1" fill="#F5A0C0" opacity="0.8" transform="rotate(40 88 83)"/>
+  <rect x="290" y="30" width="6" height="6" rx="1" fill="#2DD4BF" opacity="0.6" transform="rotate(30 293 33)"/>
+  <circle cx="330" cy="80" r="5" fill="#F5A0C0" opacity="0.7"/>
+  <circle cx="70" cy="110" r="4" fill="#2DD4BF" opacity="0.6"/>
+  <rect x="340" y="110" width="7" height="7" rx="1" fill="#8B4D6B" opacity="0.5" transform="rotate(50 344 114)"/>
+
+  <!-- Antenna - with star on tip -->
+  <line x1="200" y1="60" x2="200" y2="28" stroke="#8B4D6B" stroke-width="4" stroke-linecap="round"/>
+  <!-- Star at tip -->
+  <polygon points="200,14 203,22 211,22 205,27 207,35 200,30 193,35 195,27 189,22 197,22" fill="#2DD4BF"/>
+
+  <!-- Head -->
+  <circle cx="200" cy="100" r="60" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+
+  <!-- Ear panels -->
+  <rect x="133" y="80" width="14" height="28" rx="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <rect x="253" y="80" width="14" height="28" rx="7" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Eyes - Celebrating: star-shaped eyes -->
+  <!-- Left star eye -->
+  <polygon points="182,92 184,98 190,98 185,102 187,108 182,104 177,108 179,102 174,98 180,98" fill="#8B4D6B"/>
+  <!-- Right star eye -->
+  <polygon points="218,92 220,98 226,98 221,102 223,108 218,104 213,108 215,102 210,98 216,98" fill="#8B4D6B"/>
+
+  <!-- Cheek blushes - bright for celebration -->
+  <ellipse cx="163" cy="113" rx="14" ry="8" fill="#E8A0B0" opacity="0.7"/>
+  <ellipse cx="237" cy="113" rx="14" ry="8" fill="#E8A0B0" opacity="0.7"/>
+
+  <!-- Mouth - Big smile / open mouth -->
+  <path d="M178 122 Q200 142 222 122" stroke="#8B4D6B" stroke-width="3" fill="#E8A0B0" opacity="0.6"/>
+  <path d="M178 122 Q200 142 222 122" stroke="#8B4D6B" stroke-width="3" fill="none"/>
+
+  <!-- Neck -->
+  <rect x="185" y="155" width="30" height="20" rx="4" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Body -->
+  <rect x="120" y="172" width="160" height="200" rx="30" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3"/>
+
+  <!-- Apron -->
+  <path d="M150 200 L150 350 Q200 370 250 350 L250 200 Q200 210 150 200Z" fill="#2DD4BF" opacity="0.45"/>
+  <rect x="185" y="172" width="30" height="30" rx="4" fill="#2DD4BF" opacity="0.6"/>
+
+  <!-- Chest panel with star -->
+  <rect x="155" y="215" width="90" height="60" rx="10" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <rect x="163" y="223" width="74" height="44" rx="7" fill="#2DD4BF" opacity="0.35"/>
+  <polygon points="200,228 204,240 216,240 207,247 210,259 200,252 190,259 193,247 184,240 196,240" fill="#8B4D6B" opacity="0.7"/>
+
+  <!-- Arm left - raised up celebrating -->
+  <rect x="78" y="155" width="44" height="100" rx="22" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3" transform="rotate(-30 100 155)"/>
+  <circle cx="66" cy="258" r="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+  <!-- Teal accent on hand -->
+  <circle cx="66" cy="258" r="10" fill="#2DD4BF" opacity="0.3"/>
+
+  <!-- Arm right - raised up celebrating -->
+  <rect x="278" y="155" width="44" height="100" rx="22" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3" transform="rotate(30 300 155)"/>
+  <circle cx="334" cy="258" r="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="2"/>
+  <circle cx="334" cy="258" r="10" fill="#2DD4BF" opacity="0.3"/>
+
+  <!-- Hip section -->
+  <rect x="130" y="362" width="140" height="30" rx="10" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+
+  <!-- Legs - slight bounce/lean -->
+  <rect x="138" y="388" width="50" height="110" rx="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3" transform="rotate(-3 163 388)"/>
+  <ellipse cx="163" cy="506" rx="32" ry="16" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <ellipse cx="155" cy="513" rx="22" ry="10" fill="#2DD4BF" opacity="0.5"/>
+
+  <rect x="212" y="388" width="50" height="110" rx="18" fill="#F5E6E8" stroke="#8B4D6B" stroke-width="3" transform="rotate(3 237 388)"/>
+  <ellipse cx="237" cy="506" rx="32" ry="16" fill="#E8D0D4" stroke="#8B4D6B" stroke-width="2"/>
+  <ellipse cx="245" cy="513" rx="22" ry="10" fill="#2DD4BF" opacity="0.5"/>
+
+  <!-- Extra confetti near body -->
+  <circle cx="118" cy="320" r="4" fill="#2DD4BF" opacity="0.5"/>
+  <circle cx="282" cy="310" r="4" fill="#F5A0C0" opacity="0.5"/>
+</svg>
