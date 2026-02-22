@@ -10,11 +10,13 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import { motion } from "framer-motion";
 import { LayoutGrid, List, Plus } from "lucide-react";
 import type { AppRouter } from "@orbyt/api";
 import type { inferRouterOutputs } from "@trpc/server";
 import { trpc } from "@/lib/trpc/client";
 import { TaskDrawer } from "./task-drawer";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatFriendlyDate } from "@orbyt/shared/utils";
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -236,7 +238,12 @@ function ListView({
           </div>
         ))
       ) : tasks.length === 0 ? (
-        <div className="py-16 text-center text-sm text-text-muted">No tasks yet</div>
+        <EmptyState
+          character="rosie"
+          expression="happy"
+          title="All clear! Nothing on the to-do list."
+          description="When you add tasks, I'll help keep everyone on track."
+        />
       ) : (
         tasks.map((task) => {
           const isOverdue =
@@ -360,7 +367,12 @@ export function TasksContent() {
   };
 
   return (
-    <>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="flex flex-col gap-6"
+    >
       {/* Page header */}
       <div className="flex items-center justify-between gap-4">
         <div>
@@ -442,6 +454,6 @@ export function TasksContent() {
           closeDrawer();
         }}
       />
-    </>
+    </motion.div>
   );
 }

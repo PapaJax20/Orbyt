@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { trpcVanilla } from "@/lib/trpc/vanilla";
 
@@ -220,12 +221,17 @@ export function RegisterForm() {
                 key={persona.id}
                 type="button"
                 onClick={() => update("persona", persona.id)}
-                className={`glass-card glass-card-hover flex flex-col items-center gap-3 p-4 text-center transition-all ${
+                className={`relative flex flex-col items-center gap-3 p-4 text-center transition-all rounded-2xl ${
                   formData.persona === persona.id
-                    ? "border-accent/60 ring-1 ring-accent/40"
-                    : ""
+                    ? "border-2 border-accent bg-accent/10 shadow-[0_0_20px_rgb(var(--color-accent)/0.25)] scale-[1.02]"
+                    : "glass-card glass-card-hover"
                 }`}
               >
+                {formData.persona === persona.id && (
+                  <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-accent">
+                    <Check className="h-3 w-3 text-bg" />
+                  </div>
+                )}
                 <span className="text-3xl">{persona.emoji}</span>
                 <div>
                   <p className="font-display font-semibold text-text">{persona.name}</p>

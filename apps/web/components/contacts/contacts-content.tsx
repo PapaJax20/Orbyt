@@ -248,8 +248,8 @@ export function ContactsContent() {
           <EmptyState
             character="rosie"
             expression="happy"
-            title="No contacts yet"
-            description="Start building your family's contact book"
+            title="No family contacts yet."
+            description="Keep track of the important people in your family's life."
             actionLabel="Add Contact"
             onAction={openCreate}
           />

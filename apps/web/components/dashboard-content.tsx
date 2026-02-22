@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc/client";
 import { formatFriendlyDate, formatCurrency } from "@orbyt/shared/utils";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -85,7 +87,12 @@ export function DashboardContent() {
     loading ? "…" : v !== undefined ? String(v) : "—";
 
   return (
-    <>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="flex flex-col gap-6"
+    >
       {/* Page header */}
       <div>
         <h1 className="font-display text-3xl font-bold text-text">
@@ -127,12 +134,12 @@ export function DashboardContent() {
           </h2>
 
           {eventsLoading ? (
-            <div className="divide-y divide-white/5">
+            <div className="space-y-1">
               <SkeletonRow /><SkeletonRow /><SkeletonRow />
             </div>
           ) : events && events.length > 0 ? (
             <>
-              <ul className="divide-y divide-white/5">
+              <ul className="space-y-1">
                 {events.slice(0, 3).map((event, i) => (
                   <li key={`${event.id}-${i}`} className="flex items-center gap-3 py-2.5">
                     <div
@@ -151,13 +158,13 @@ export function DashboardContent() {
               )}
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <p className="text-4xl">📅</p>
-              <p className="mt-3 text-sm text-text-muted">No upcoming events</p>
-              <Link href="/calendar" className="orbyt-button-accent mt-4 w-auto px-6">
-                Add Event
-              </Link>
-            </div>
+            <EmptyState
+              compact
+              character="rosie"
+              expression="happy"
+              title="Your calendar is wide open."
+              description="Add events and I'll make sure the family stays in sync."
+            />
           )}
         </div>
 
@@ -170,12 +177,12 @@ export function DashboardContent() {
           </h2>
 
           {billsLoading ? (
-            <div className="divide-y divide-white/5">
+            <div className="space-y-1">
               <SkeletonRow /><SkeletonRow /><SkeletonRow />
             </div>
           ) : upcomingBills && upcomingBills.length > 0 ? (
             <>
-              <ul className="divide-y divide-white/5">
+              <ul className="space-y-1">
                 {upcomingBills.slice(0, 3).map((bill) => (
                   <li key={bill.id} className="flex items-center gap-3 py-2.5">
                     <span className="flex-1 truncate text-sm text-text">{bill.name}</span>
@@ -193,13 +200,13 @@ export function DashboardContent() {
               )}
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <p className="text-4xl">💰</p>
-              <p className="mt-3 text-sm text-text-muted">No bills tracked yet</p>
-              <Link href="/finances" className="orbyt-button-accent mt-4 w-auto px-6">
-                Add Bill
-              </Link>
-            </div>
+            <EmptyState
+              compact
+              character="rosie"
+              expression="thinking"
+              title="No bills being tracked."
+              description="Add your household bills and I'll keep an eye on what's due."
+            />
           )}
         </div>
 
@@ -212,12 +219,12 @@ export function DashboardContent() {
           </h2>
 
           {tasksLoading ? (
-            <div className="divide-y divide-white/5">
+            <div className="space-y-1">
               <SkeletonRow /><SkeletonRow /><SkeletonRow />
             </div>
           ) : pendingTasks && pendingTasks.length > 0 ? (
             <>
-              <ul className="divide-y divide-white/5">
+              <ul className="space-y-1">
                 {pendingTasks.slice(0, 3).map((task) => (
                   <li key={task.id} className="flex items-center gap-3 py-2.5">
                     <div
@@ -235,13 +242,13 @@ export function DashboardContent() {
               )}
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <p className="text-4xl">✅</p>
-              <p className="mt-3 text-sm text-text-muted">Your task list is empty</p>
-              <Link href="/tasks" className="orbyt-button-accent mt-4 w-auto px-6">
-                Add Task
-              </Link>
-            </div>
+            <EmptyState
+              compact
+              character="rosie"
+              expression="happy"
+              title="All clear! Nothing on the to-do list."
+              description="When you add tasks, I'll help keep everyone on track."
+            />
           )}
         </div>
 
@@ -254,12 +261,12 @@ export function DashboardContent() {
           </h2>
 
           {l4 ? (
-            <div className="divide-y divide-white/5">
+            <div className="space-y-1">
               <SkeletonRow /><SkeletonRow /><SkeletonRow />
             </div>
           ) : shoppingLists && shoppingLists.length > 0 ? (
             <>
-              <ul className="divide-y divide-white/5">
+              <ul className="space-y-1">
                 {shoppingLists.slice(0, 3).map((list) => {
                   const remaining = list.itemCount - list.checkedCount;
                   return (
@@ -279,17 +286,17 @@ export function DashboardContent() {
               )}
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <p className="text-4xl">🛒</p>
-              <p className="mt-3 text-sm text-text-muted">No shopping lists yet</p>
-              <Link href="/shopping" className="orbyt-button-accent mt-4 w-auto px-6">
-                Create List
-              </Link>
-            </div>
+            <EmptyState
+              compact
+              character="rosie"
+              expression="happy"
+              title="No shopping lists yet."
+              description="Create a list and I'll make sure nothing gets forgotten."
+            />
           )}
         </div>
 
       </div>
-    </>
+    </motion.div>
   );
 }

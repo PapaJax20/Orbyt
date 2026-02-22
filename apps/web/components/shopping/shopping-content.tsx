@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@orbyt/api";
 import { ListPanel } from "./list-panel";
@@ -25,7 +26,12 @@ export function ShoppingContent() {
   }
 
   return (
-    <div className="flex h-full min-h-0 gap-4">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="flex h-full min-h-0 gap-4"
+    >
       {/* Left panel — shopping lists */}
       <div
         className={[
@@ -51,6 +57,6 @@ export function ShoppingContent() {
           onBack={handleBack}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }

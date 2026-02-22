@@ -1,17 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, Inter } from "next/font/google";
+import { Urbanist } from "next/font/google";
+import { ServiceWorkerRegister } from "@/components/sw-register";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+const urbanist = Urbanist({
   subsets: ["latin"],
-  variable: "--font-display",
+  variable: "--font-urbanist",
   display: "swap",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-body",
-  display: "swap",
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -53,9 +49,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="en" suppressHydrationWarning>
       <head />
       <body
-        className={`${spaceGrotesk.variable} ${inter.variable} font-body`}
+        className={`${urbanist.variable} font-body`}
         suppressHydrationWarning
       >
+        <ServiceWorkerRegister />
         {children}
       </body>
     </html>

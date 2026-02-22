@@ -2,19 +2,35 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Home,
+  Calendar,
+  CheckSquare,
+  ShoppingCart,
+  DollarSign,
+  Users,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: "⌂" },
-  { href: "/calendar", label: "Calendar", icon: "📅" },
-  { href: "/tasks", label: "Tasks", icon: "✅" },
-  { href: "/shopping", label: "Shopping", icon: "🛒" },
-  { href: "/finances", label: "Finances", icon: "💰" },
-  { href: "/contacts", label: "Contacts", icon: "👥" },
-] as const;
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}
 
-const BOTTOM_ITEMS = [
-  { href: "/settings", label: "Settings", icon: "⚙" },
-] as const;
+const NAV_ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: Home },
+  { href: "/calendar", label: "Calendar", icon: Calendar },
+  { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/shopping", label: "Shopping", icon: ShoppingCart },
+  { href: "/finances", label: "Finances", icon: DollarSign },
+  { href: "/contacts", label: "Contacts", icon: Users },
+];
+
+const BOTTOM_ITEMS: NavItem[] = [
+  { href: "/settings", label: "Settings", icon: Settings },
+];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -62,7 +78,7 @@ export function Sidebar() {
             }`}
             title={item.label}
           >
-            <span className="text-base">{item.icon}</span>
+            <item.icon className="w-5 h-5" />
             <span className="hidden md:block">{item.label}</span>
             {isActive(item.href) && (
               <span
@@ -87,7 +103,7 @@ export function Sidebar() {
             }`}
             title={item.label}
           >
-            <span className="text-base">{item.icon}</span>
+            <item.icon className="w-5 h-5" />
             <span className="hidden md:block">{item.label}</span>
           </Link>
         ))}

@@ -12,6 +12,7 @@ interface EmptyStateProps {
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
+  compact?: boolean;
 }
 
 export function EmptyState({
@@ -21,29 +22,52 @@ export function EmptyState({
   description,
   actionLabel,
   onAction,
+  compact = false,
 }: EmptyStateProps) {
   const src = `/characters/${character}/full-body-${expression}.svg`;
 
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-      <div className="mb-6 opacity-90">
+    <div
+      className={
+        compact
+          ? "flex flex-col items-center justify-center py-6 px-4 text-center"
+          : "flex flex-col items-center justify-center py-16 px-6 text-center"
+      }
+    >
+      <div className={compact ? "mb-3 opacity-90" : "mb-6 opacity-90"}>
         <Image
           src={src}
           alt={`${character} ${expression}`}
-          width={200}
-          height={300}
+          width={compact ? 80 : 200}
+          height={compact ? 120 : 300}
           className="object-contain"
           priority={false}
         />
       </div>
 
-      <h3 className="text-xl font-semibold text-text mb-2">{title}</h3>
+      <h3
+        className={
+          compact
+            ? "text-sm font-medium text-text mb-1"
+            : "text-xl font-semibold text-text mb-2"
+        }
+      >
+        {title}
+      </h3>
 
       {description && (
-        <p className="text-sm text-text-secondary max-w-xs mb-6">{description}</p>
+        <p
+          className={
+            compact
+              ? "text-xs text-text-secondary max-w-xs"
+              : "text-sm text-text-secondary max-w-xs mb-6"
+          }
+        >
+          {description}
+        </p>
       )}
 
-      {actionLabel && onAction && (
+      {!compact && actionLabel && onAction && (
         <button
           onClick={onAction}
           className="orbyt-button-accent"

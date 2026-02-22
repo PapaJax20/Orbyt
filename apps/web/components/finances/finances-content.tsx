@@ -259,8 +259,8 @@ export function FinancesContent() {
           <EmptyState
             character="rosie"
             expression="thinking"
-            title="No bills tracked yet"
-            description="Add your recurring bills to stay on top of payments"
+            title="No bills being tracked."
+            description="Add your household bills and I'll keep an eye on what's due."
             actionLabel="Add Bill"
             onAction={openCreate}
           />

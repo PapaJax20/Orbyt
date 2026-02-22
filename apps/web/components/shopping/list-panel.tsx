@@ -207,8 +207,8 @@ export function ListPanel({ selectedListId, onSelectList }: ListPanelProps) {
         <EmptyState
           character="rosie"
           expression="happy"
-          title="No shopping lists yet"
-          description="Create your first list to start tracking groceries"
+          title="No shopping lists yet."
+          description="Create a list and I'll make sure nothing gets forgotten."
           actionLabel="Create List"
           onAction={() => setShowNewForm(true)}
         />

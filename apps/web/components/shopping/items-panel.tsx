@@ -453,9 +453,9 @@ export function ItemsPanel({ selectedListId, onBack }: ItemsPanelProps) {
           <div className="flex flex-1 items-center justify-center">
             <EmptyState
               character="rosie"
-              expression="happy"
-              title="List is empty"
-              description="Add your first item below"
+              expression="winking"
+              title="This list is empty — for now."
+              description="Start adding items below."
               actionLabel="Add Item"
               onAction={() => {
                 // Focus the add-item input

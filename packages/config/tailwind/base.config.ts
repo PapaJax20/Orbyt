@@ -188,8 +188,8 @@ export const orbytBaseConfig: Partial<Config> = {
         "cta-hover": "rgb(var(--color-cta-hover) / <alpha-value>)",
       },
       fontFamily: {
-        display: ["Space Grotesk", "sans-serif"],
-        body: ["Inter", "sans-serif"],
+        display: ["var(--font-urbanist)", "Urbanist", "system-ui", "-apple-system", "sans-serif"],
+        body: ["var(--font-urbanist)", "Urbanist", "system-ui", "-apple-system", "sans-serif"],
       },
       keyframes: {
         "orbital-spin": {
