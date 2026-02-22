@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   // Allow imports from workspace packages
@@ -39,4 +40,19 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Sentry organisation / project — set via env or leave blank for DSN-only mode
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+
+  // Disable Sentry build-time telemetry
+  telemetry: false,
+
+  // Only upload source maps in production (CI will have SENTRY_AUTH_TOKEN set)
+  sourcemaps: {
+    disable: process.env.NODE_ENV !== "production",
+  },
+
+  // Suppress the verbose Sentry CLI output during builds
+  silent: true,
+});

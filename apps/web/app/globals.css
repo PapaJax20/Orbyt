@@ -29,9 +29,9 @@
     --color-surface: 255 255 255;
     --color-border: 204 168 0;
     --color-text: 11 25 41;
-    --color-text-muted: 128 128 128;
-    --color-accent: 204 168 0;
-    --color-accent-hover: 153 126 0;
+    --color-text-muted: 117 117 117; /* was 128 128 128 — darkened for WCAG AA (4.52:1 on bg, 4.61:1 on surface) */
+    --color-accent: 140 115 0; /* was 204 168 0 — darkened for WCAG AA (4.52:1 on bg, 4.60:1 on surface) */
+    --color-accent-hover: 110 91 0; /* was 153 126 0 — kept darker than new accent */
     --color-cta: 0 212 255;
     --color-cta-hover: 0 170 204;
   }
@@ -56,8 +56,8 @@
     --color-border: 168 85 247;
     --color-text: 26 11 46;
     --color-text-muted: 128 100 160;
-    --color-accent: 168 85 247;
-    --color-accent-hover: 139 22 232;
+    --color-accent: 150 75 220; /* was 168 85 247 — darkened for WCAG AA (4.51:1 on bg, 4.84:1 on surface) */
+    --color-accent-hover: 139 22 232; /* unchanged — already passes at 5.79:1 on bg */
     --color-cta: 0 212 255;
     --color-cta-hover: 0 170 204;
   }
@@ -81,7 +81,7 @@
     --color-surface: 55 65 81;
     --color-border: 156 163 175;
     --color-text: 249 250 251;
-    --color-text-muted: 156 163 175;
+    --color-text-muted: 165 172 184; /* was 156 163 175 — lightened for WCAG AA on surface (4.51:1 on surface, 7.77:1 on bg) */
     --color-accent: 209 213 219;
     --color-accent-hover: 156 163 175;
     --color-cta: 0 212 255;
@@ -121,8 +121,8 @@
     --color-border: 234 88 12;
     --color-text: 28 10 0;
     --color-text-muted: 154 52 18;
-    --color-accent: 234 88 12;
-    --color-accent-hover: 194 65 12;
+    --color-accent: 198 74 10; /* was 234 88 12 — darkened for WCAG AA (4.51:1 on bg, 4.79:1 on surface) */
+    --color-accent-hover: 194 65 12; /* unchanged — already passes at 4.88:1 on bg */
     --color-cta: 0 212 255;
     --color-cta-hover: 0 170 204;
   }
