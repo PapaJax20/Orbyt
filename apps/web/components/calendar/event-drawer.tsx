@@ -75,7 +75,7 @@ function AttendeePicker({
                 "flex items-center gap-2 rounded-full border px-3 py-1 text-sm transition-colors",
                 selected
                   ? "border-accent bg-accent/20 text-accent"
-                  : "border-border text-text-secondary hover:border-text-secondary hover:text-text",
+                  : "border-border text-text-muted hover:border-text-muted hover:text-text",
               ].join(" ")}
             >
               <div
@@ -238,7 +238,7 @@ function EventFormFields({
       {/* Location */}
       <div>
         <label className="orbyt-label" htmlFor="event-location">
-          Location <span className="text-text-secondary">(optional)</span>
+          Location <span className="text-text-muted">(optional)</span>
         </label>
         <input
           id="event-location"
@@ -254,7 +254,7 @@ function EventFormFields({
       {/* Description */}
       <div>
         <label className="orbyt-label" htmlFor="event-description">
-          Description <span className="text-text-secondary">(optional)</span>
+          Description <span className="text-text-muted">(optional)</span>
         </label>
         <textarea
           id="event-description"
@@ -537,7 +537,7 @@ function ViewEvent({
             className="inline-block h-3 w-3 rounded-full"
             style={{ backgroundColor: getCategoryColor(event.category ?? "other") }}
           />
-          <span className="text-xs capitalize text-text-secondary">{event.category ?? "other"}</span>
+          <span className="text-xs capitalize text-text-muted">{event.category ?? "other"}</span>
           {event.rrule && (
             <span className="ml-auto rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-500">
               Recurring
@@ -545,9 +545,9 @@ function ViewEvent({
           )}
         </div>
         <h3 className="font-display text-xl font-bold text-text">{event.title}</h3>
-        <p className="mt-1 text-sm text-text-secondary">{dateStr}</p>
+        <p className="mt-1 text-sm text-text-muted">{dateStr}</p>
         {event.location && (
-          <p className="mt-2 flex items-center gap-1 text-sm text-text-secondary">
+          <p className="mt-2 flex items-center gap-1 text-sm text-text-muted">
             📍 {event.location}
           </p>
         )}
@@ -559,7 +559,7 @@ function ViewEvent({
       {/* Attendees */}
       {event.attendees && event.attendees.length > 0 && (
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">
             Attendees
           </p>
           <div className="flex flex-wrap gap-2">
@@ -683,7 +683,7 @@ export function EventDrawer({ eventId, defaultDate, open, onClose, dateRange }: 
             />
           )
         ) : (
-          <p className="py-8 text-center text-sm text-text-secondary">Event not found.</p>
+          <p className="py-8 text-center text-sm text-text-muted">Event not found.</p>
         )
       ) : defaultDate ? (
         <CreateEventForm defaultDate={defaultDate} onClose={handleClose} dateRange={dateRange} />

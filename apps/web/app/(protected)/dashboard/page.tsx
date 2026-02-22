@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { DashboardContent } from "@/components/dashboard-content";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
+  title: "Dashboard — Orbyt",
 };
 
 export default function DashboardPage() {

@@ -63,7 +63,7 @@ export function CalendarToolbar({
               "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
               view === v
                 ? "bg-accent text-white"
-                : "text-text-secondary hover:text-text",
+                : "text-text-muted hover:text-text",
             ].join(" ")}
           >
             {VIEW_LABELS[v]}

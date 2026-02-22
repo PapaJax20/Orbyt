@@ -49,7 +49,7 @@ function BirthdayRow({
   if (birthdays.length === 0) return null;
   return (
     <div>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">
         Upcoming Birthdays 🎂
       </p>
       <div className="flex gap-3 overflow-x-auto pb-2">
@@ -111,12 +111,12 @@ function ContactCard({ contact, onClick }: { contact: Contact; onClick: () => vo
             </p>
           </div>
 
-          <span className="mt-0.5 inline-block rounded-full border border-border bg-surface/60 px-2 py-0.5 text-xs capitalize text-text-secondary">
+          <span className="mt-0.5 inline-block rounded-full border border-border bg-surface/60 px-2 py-0.5 text-xs capitalize text-text-muted">
             {labelRelationship(contact.relationshipType)}
           </span>
 
           {contact.phone && (
-            <p className="mt-1.5 text-xs text-text-secondary">{contact.phone}</p>
+            <p className="mt-1.5 text-xs text-text-muted">{contact.phone}</p>
           )}
 
           {contact.daysUntilBirthday !== null && contact.daysUntilBirthday <= 30 && (
@@ -183,7 +183,7 @@ export function ContactsContent() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl font-bold text-text">Contacts</h1>
-            <p className="mt-1 text-text-secondary">Your family&apos;s contact book</p>
+            <p className="mt-1 text-text-muted">Your family&apos;s contact book</p>
           </div>
           <button onClick={openCreate} className="orbyt-button-accent shrink-0 flex items-center gap-2">
             <Plus className="h-4 w-4" />
@@ -194,7 +194,7 @@ export function ContactsContent() {
         {/* Search + Filters */}
         <div className="flex flex-wrap gap-3">
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
             <input
               type="search"
               value={searchQuery}
@@ -207,7 +207,7 @@ export function ContactsContent() {
           <select
             value={selectedRelType}
             onChange={(e) => setSelectedRelType(e.target.value)}
-            className="orbyt-input"
+            className="orbyt-input min-w-[120px]"
             aria-label="Filter by relationship"
           >
             <option value="">All types</option>
@@ -220,7 +220,7 @@ export function ContactsContent() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            className="orbyt-input"
+            className="orbyt-input min-w-[120px]"
             aria-label="Sort contacts"
           >
             <option value="name">Sort: Name</option>

@@ -21,10 +21,10 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
+  { href: "/finances", label: "Finances", icon: DollarSign },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/shopping", label: "Shopping", icon: ShoppingCart },
-  { href: "/finances", label: "Finances", icon: DollarSign },
   { href: "/contacts", label: "Contacts", icon: Users },
 ];
 
@@ -71,6 +71,7 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
+            aria-label={item.label}
             className={`flex items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-medium transition-all lg:px-3 ${
               isActive(item.href)
                 ? "bg-accent/10 text-accent"
@@ -96,6 +97,7 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
+            aria-label={item.label}
             className={`flex items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-medium transition-all lg:px-3 ${
               isActive(item.href)
                 ? "bg-accent/10 text-accent"

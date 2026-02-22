@@ -553,7 +553,7 @@ function ViewContact({
             <h3 className="font-display text-xl font-bold text-text">
               {contact.firstName} {contact.lastName}
             </h3>
-            <p className="text-sm capitalize text-text-secondary">
+            <p className="text-sm capitalize text-text-muted">
               {labelRelationship(contact.relationshipType)}
             </p>
           </div>
@@ -570,12 +570,12 @@ function ViewContact({
             </a>
           )}
           {contact.birthday && (
-            <p className="flex gap-2 text-text-secondary">
+            <p className="flex gap-2 text-text-muted">
               🎂 {new Date(contact.birthday + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </p>
           )}
           {formattedAddress && (
-            <p className="flex gap-2 whitespace-pre-line text-text-secondary">📍 {formattedAddress}</p>
+            <p className="flex gap-2 whitespace-pre-line text-text-muted">📍 {formattedAddress}</p>
           )}
         </div>
         {social && Object.keys(social).length > 0 && (
@@ -602,14 +602,14 @@ function ViewContact({
 
       {/* Notes timeline */}
       <div>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-secondary">Notes</p>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">Notes</p>
         {contact.notes.length === 0 ? (
-          <p className="mb-3 text-sm text-text-secondary">No notes yet.</p>
+          <p className="mb-3 text-sm text-text-muted">No notes yet.</p>
         ) : (
           <div className="mb-4 flex flex-col gap-3">
             {contact.notes.map((note) => (
               <div key={note.id} className="glass-card-subtle rounded-xl p-3">
-                <div className="flex items-center gap-2 text-xs text-text-secondary">
+                <div className="flex items-center gap-2 text-xs text-text-muted">
                   <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-white">
                     {(note.profile?.displayName ?? "?").charAt(0).toUpperCase()}
                   </div>
@@ -707,7 +707,7 @@ export function ContactDrawer({ contactId, open, onClose }: ContactDrawerProps) 
             />
           )
         ) : (
-          <p className="py-8 text-center text-sm text-text-secondary">Contact not found.</p>
+          <p className="py-8 text-center text-sm text-text-muted">Contact not found.</p>
         )
       ) : (
         <CreateContactForm onClose={handleClose} />

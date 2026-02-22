@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { TasksContent } from "@/components/tasks/tasks-content";
 
-export const metadata: Metadata = { title: "Tasks" };
+export const metadata: Metadata = { title: "Tasks — Orbyt" };
 
 export default function TasksPage() {
   return (

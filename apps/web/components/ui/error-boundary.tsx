@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <AlertTriangle size={32} className="text-red-500" />
           </div>
           <h3 className="text-lg font-semibold text-text mb-2">Something went wrong</h3>
-          <p className="text-sm text-text-secondary mb-6 max-w-xs">
+          <p className="text-sm text-text-muted mb-6 max-w-xs">
             An unexpected error occurred. Please refresh the page to try again.
           </p>
           <button

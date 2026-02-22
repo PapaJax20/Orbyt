@@ -115,13 +115,13 @@ export function ProfileTab() {
       {/* Email (read-only) */}
       <div>
         <p className="orbyt-label">Email</p>
-        <p className="mt-1 text-sm text-text-secondary">{profile.email}</p>
+        <p className="mt-1 text-sm text-text-muted">{profile.email}</p>
       </div>
 
       {/* AI Companion */}
       <div>
         <p className="orbyt-label">AI Companion</p>
-        <p className="mb-3 mt-1 text-xs text-text-secondary">
+        <p className="mb-3 mt-1 text-xs text-text-muted">
           Choose your household's AI assistant personality.
         </p>
         <div className="grid grid-cols-2 gap-3">
@@ -138,7 +138,7 @@ export function ProfileTab() {
               ].join(" ")}
             >
               <p className="font-semibold capitalize text-text">{persona}</p>
-              <p className="mt-1 text-xs text-text-secondary">
+              <p className="mt-1 text-xs text-text-muted">
                 {persona === "rosie"
                   ? "Warm, nurturing, and organized"
                   : "Efficient, direct, and analytical"}

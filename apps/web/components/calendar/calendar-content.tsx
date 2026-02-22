@@ -12,6 +12,7 @@ import type { EventInput, DatesSetArg, EventClickArg } from "@fullcalendar/core"
 import type { DateClickArg } from "@fullcalendar/interaction";
 import { trpc } from "@/lib/trpc/client";
 import { useRealtimeInvalidation } from "@/hooks/use-realtime";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { CalendarToolbar } from "./calendar-toolbar";
 import type { CalendarView } from "./calendar-toolbar";
 import { EventDrawer } from "./event-drawer";
@@ -64,6 +65,7 @@ const calendarStyles = `
 // ── CalendarContent ───────────────────────────────────────────────────────────
 
 export function CalendarContent() {
+  const isMobile = useMediaQuery("(max-width: 767px)");
   const utils = trpc.useUtils();
 
   const [view, setView] = useState<CalendarView>("dayGridMonth");
@@ -206,7 +208,7 @@ export function CalendarContent() {
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView={view}
               headerToolbar={false}
-              height="calc(100vh - 280px)"
+              height={isMobile ? "calc(100vh - 344px)" : "calc(100vh - 280px)"}
               events={calendarEvents}
               dateClick={handleDateClick}
               eventClick={handleEventClick}

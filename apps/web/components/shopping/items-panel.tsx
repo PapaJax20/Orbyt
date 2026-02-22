@@ -132,13 +132,13 @@ function ItemRow({
         className={cn(
           "flex-1 text-sm",
           item.checked
-            ? "text-text-secondary line-through opacity-60"
+            ? "text-text-muted line-through opacity-60"
             : "text-text",
         )}
       >
         {item.name}
         {item.checked && item.checkedBy && (
-          <span className="ml-2 text-xs text-text-secondary no-underline" style={{ textDecoration: "none" }}>
+          <span className="ml-2 text-xs text-text-muted no-underline" style={{ textDecoration: "none" }}>
             · checked
           </span>
         )}
@@ -146,7 +146,7 @@ function ItemRow({
 
       {/* Quantity badge */}
       {item.quantity && (
-        <span className="shrink-0 rounded-full border border-border bg-surface px-2 py-0.5 text-xs text-text-secondary">
+        <span className="shrink-0 rounded-full border border-border bg-surface px-2 py-0.5 text-xs text-text-muted">
           {item.quantity}
         </span>
       )}
@@ -159,7 +159,7 @@ function ItemRow({
         onClick={handleDelete}
         disabled={deleteItem.isPending}
         aria-label="Delete item"
-        className="rounded-md p-1 text-text-secondary opacity-100 transition-opacity hover:text-red-400 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100"
+        className="rounded-md p-1 text-text-muted opacity-100 transition-opacity hover:text-red-400 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100"
       >
         <X className="h-3.5 w-3.5" />
       </button>
@@ -187,17 +187,18 @@ function CategoryGroup({
       {/* Category header */}
       <button
         onClick={() => setCollapsed((v) => !v)}
-        className="mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left transition-colors hover:bg-surface/40"
+        aria-expanded={!collapsed}
+        className="mb-1 flex min-h-[44px] w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left transition-colors hover:bg-surface/40"
       >
-        <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+        <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
           {category}
         </span>
-        <span className="rounded-full bg-surface px-1.5 py-0.5 text-[10px] text-text-secondary">
+        <span className="rounded-full bg-surface px-1.5 py-0.5 text-[10px] text-text-muted">
           {items.length}
         </span>
         <svg
           className={cn(
-            "ml-auto h-3.5 w-3.5 text-text-secondary transition-transform",
+            "ml-auto h-3.5 w-3.5 text-text-muted transition-transform",
             collapsed && "-rotate-90",
           )}
           viewBox="0 0 16 16"
@@ -280,7 +281,7 @@ function AddItemForm({ listId }: { listId: string }) {
     >
       <div className="glass-card rounded-2xl p-3">
         <div className="flex items-center gap-2">
-          <Plus className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden="true" />
+          <Plus className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
           <input
             ref={inputRef}
             type="text"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DndContext,
   useDroppable,
@@ -17,6 +17,7 @@ import type { inferRouterOutputs } from "@trpc/server";
 import { trpc } from "@/lib/trpc/client";
 import { TaskDrawer } from "./task-drawer";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { formatFriendlyDate } from "@orbyt/shared/utils";
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -307,10 +308,18 @@ function ListView({
 // ── TasksContent (main export) ─────────────────────────────────────────────────
 
 export function TasksContent() {
-  const [view, setView] = useState<"kanban" | "list">("kanban");
+  const isMobile = useMediaQuery("(max-width: 767px)");
+  const [view, setView] = useState<"kanban" | "list">(
+    typeof window !== "undefined" && window.innerWidth < 768 ? "list" : "kanban",
+  );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [defaultStatus, setDefaultStatus] = useState<string>("todo");
+
+  // Switch to list view automatically on mobile (after hydration)
+  useEffect(() => {
+    if (isMobile) setView("list");
+  }, [isMobile]);
 
   const utils = trpc.useUtils();
 
@@ -393,7 +402,8 @@ export function TasksContent() {
                   ? "bg-white/10 text-text"
                   : "text-text-muted hover:text-text",
               )}
-              title="Kanban view"
+              aria-label="Kanban view"
+              aria-pressed={view === "kanban"}
             >
               <LayoutGrid className="h-4 w-4" />
             </button>
@@ -405,7 +415,8 @@ export function TasksContent() {
                   ? "bg-white/10 text-text"
                   : "text-text-muted hover:text-text",
               )}
-              title="List view"
+              aria-label="List view"
+              aria-pressed={view === "list"}
             >
               <List className="h-4 w-4" />
             </button>

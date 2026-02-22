@@ -101,7 +101,7 @@ function BillFormFields({
         <div>
           <label className="orbyt-label" htmlFor="bill-amount">Amount</label>
           <div className="relative mt-1">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">
               $
             </span>
             <input
@@ -186,7 +186,7 @@ function BillFormFields({
       {/* URL */}
       <div>
         <label className="orbyt-label" htmlFor="bill-url">
-          Payment URL <span className="text-text-secondary">(optional)</span>
+          Payment URL <span className="text-text-muted">(optional)</span>
         </label>
         <input
           id="bill-url"
@@ -201,7 +201,7 @@ function BillFormFields({
       {/* Notes */}
       <div>
         <label className="orbyt-label" htmlFor="bill-notes">
-          Notes <span className="text-text-secondary">(optional)</span>
+          Notes <span className="text-text-muted">(optional)</span>
         </label>
         <textarea
           id="bill-notes"
@@ -438,7 +438,7 @@ function ViewBill({
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="font-display text-xl font-bold text-text">{bill.name}</p>
-            <p className="mt-1 text-sm capitalize text-text-secondary">{bill.category}</p>
+            <p className="mt-1 text-sm capitalize text-text-muted">{bill.category}</p>
           </div>
           <p className="font-display text-2xl font-bold text-accent">
             {formatCurrency(bill.amount, bill.currency)}
@@ -446,22 +446,22 @@ function ViewBill({
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
           <div>
-            <p className="text-text-secondary">Due Day</p>
+            <p className="text-text-muted">Due Day</p>
             <p className="font-medium text-text">{bill.dueDay}</p>
           </div>
           <div>
-            <p className="text-text-secondary">Auto-pay</p>
+            <p className="text-text-muted">Auto-pay</p>
             <p className="font-medium text-text">{bill.autoPay ? "Yes" : "No"}</p>
           </div>
           {bill.currency !== "USD" && (
             <div>
-              <p className="text-text-secondary">Currency</p>
+              <p className="text-text-muted">Currency</p>
               <p className="font-medium text-text">{bill.currency}</p>
             </div>
           )}
         </div>
         {bill.notes && (
-          <p className="mt-3 text-sm text-text-secondary">{bill.notes}</p>
+          <p className="mt-3 text-sm text-text-muted">{bill.notes}</p>
         )}
         {bill.url && (
           <a
@@ -503,11 +503,11 @@ function ViewBill({
 
       {/* Payment history */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text-secondary">
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text-muted">
           Payment History
         </h3>
         {bill.payments.length === 0 ? (
-          <p className="text-sm text-text-secondary">No payments recorded yet.</p>
+          <p className="text-sm text-text-muted">No payments recorded yet.</p>
         ) : (
           <div className="flex flex-col gap-2">
             <AnimatePresence initial={false}>
@@ -525,10 +525,10 @@ function ViewBill({
                       {formatCurrency(payment.amount, bill.currency)}
                     </p>
                     {payment.notes && (
-                      <p className="text-xs text-text-secondary">{payment.notes}</p>
+                      <p className="text-xs text-text-muted">{payment.notes}</p>
                     )}
                   </div>
-                  <p className="text-xs text-text-secondary">
+                  <p className="text-xs text-text-muted">
                     {new Date(payment.paidAt).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
@@ -620,7 +620,7 @@ export function BillDrawer({ isOpen, onClose, billId, currentMonth }: BillDrawer
             />
           )
         ) : (
-          <p className="py-8 text-center text-sm text-text-secondary">Bill not found.</p>
+          <p className="py-8 text-center text-sm text-text-muted">Bill not found.</p>
         )
       ) : (
         <CreateBillForm onClose={handleClose} currentMonth={currentMonth} />

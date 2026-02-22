@@ -59,8 +59,8 @@ export function EmptyState({
         <p
           className={
             compact
-              ? "text-xs text-text-secondary max-w-xs"
-              : "text-sm text-text-secondary max-w-xs mb-6"
+              ? "text-xs text-text-muted max-w-xs"
+              : "text-sm text-text-muted max-w-xs mb-6"
           }
         >
           {description}

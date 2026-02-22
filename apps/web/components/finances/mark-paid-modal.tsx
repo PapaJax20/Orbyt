@@ -102,7 +102,7 @@ export function MarkPaidModal({
                   </Dialog.Title>
                   <Dialog.Description
                     id="mark-paid-description"
-                    className="mt-1 text-sm text-text-secondary"
+                    className="mt-1 text-sm text-text-muted"
                   >
                     Record a payment for{" "}
                     <span className="font-semibold text-text">{billName}</span>.
@@ -115,7 +115,7 @@ export function MarkPaidModal({
                         Amount ({currency})
                       </label>
                       <div className="relative mt-1">
-                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">
                           $
                         </span>
                         <input
@@ -148,7 +148,7 @@ export function MarkPaidModal({
                     {/* Notes */}
                     <div>
                       <label className="orbyt-label" htmlFor="paid-notes">
-                        Notes <span className="text-text-secondary">(optional)</span>
+                        Notes <span className="text-text-muted">(optional)</span>
                       </label>
                       <textarea
                         id="paid-notes"

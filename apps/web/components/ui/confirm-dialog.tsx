@@ -56,19 +56,21 @@ export function ConfirmDialog({
                 <Dialog.Title className="text-lg font-semibold text-text mb-2">
                   {title}
                 </Dialog.Title>
-                <Dialog.Description className="text-sm text-text-secondary mb-6">
+                <Dialog.Description className="text-sm text-text-muted mb-6">
                   {description}
                 </Dialog.Description>
 
                 <div className="flex gap-3 justify-end">
                   <button
                     onClick={onCancel}
+                    aria-label="Cancel"
                     className="orbyt-button-ghost text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={onConfirm}
+                    aria-label={confirmLabel}
                     className={
                       variant === "destructive"
                         ? "px-4 py-2 rounded-xl text-sm font-medium bg-red-500 hover:bg-red-600 text-white transition-colors"

@@ -37,7 +37,7 @@ export function SettingsContent() {
     >
       <div>
         <h1 className="font-display text-3xl font-bold text-text">Settings</h1>
-        <p className="mt-1 text-text-secondary">Manage your profile and household preferences.</p>
+        <p className="mt-1 text-text-muted">Manage your profile and household preferences.</p>
       </div>
 
       <Tabs.Root value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)}>
@@ -50,7 +50,7 @@ export function SettingsContent() {
               className={[
                 "flex-1 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-colors",
                 "data-[state=active]:bg-accent data-[state=active]:text-white",
-                "data-[state=inactive]:text-text-secondary data-[state=inactive]:hover:text-text",
+                "data-[state=inactive]:text-text-muted data-[state=inactive]:hover:text-text",
               ].join(" ")}
             >
               {tab.label}

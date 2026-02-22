@@ -69,7 +69,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   internet: "text-indigo-400",
   water: "text-sky-400",
   phone: "text-green-400",
-  other: "text-text-secondary",
+  other: "text-text-muted",
   healthcare: "text-red-400",
 };
 
@@ -86,7 +86,7 @@ function StatCard({
 }) {
   return (
     <div className="glass-card rounded-2xl p-6 flex flex-col gap-1">
-      <p className="text-xs font-medium uppercase tracking-wider text-text-secondary">{title}</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-text-muted">{title}</p>
       <p className={cn("text-2xl font-bold font-display text-text", valueClassName)}>{value}</p>
     </div>
   );
@@ -102,7 +102,7 @@ function StatCardSkeleton() {
 
 function BillCard({ bill, onClick }: { bill: Bill; onClick: () => void }) {
   const IconComp = CATEGORY_ICONS[bill.category] ?? CreditCard;
-  const iconColor = CATEGORY_COLORS[bill.category] ?? "text-text-secondary";
+  const iconColor = CATEGORY_COLORS[bill.category] ?? "text-text-muted";
   const isOverdue = bill.currentStatus === "overdue";
 
   return (
@@ -125,7 +125,7 @@ function BillCard({ bill, onClick }: { bill: Bill; onClick: () => void }) {
             </span>
           )}
           {bill.currency !== "USD" && (
-            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-text-secondary">
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-text-muted">
               {bill.currency}
             </span>
           )}
@@ -135,7 +135,7 @@ function BillCard({ bill, onClick }: { bill: Bill; onClick: () => void }) {
             </span>
           )}
           {!isOverdue && bill.currentStatus === "upcoming" && (
-            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-text-secondary">
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-text-muted">
               Due soon
             </span>
           )}
@@ -145,7 +145,7 @@ function BillCard({ bill, onClick }: { bill: Bill; onClick: () => void }) {
       {/* Name */}
       <div>
         <p className="font-semibold text-text leading-tight">{bill.name}</p>
-        <p className="text-xs text-text-secondary mt-0.5">Due day {bill.dueDay}</p>
+        <p className="text-xs text-text-muted mt-0.5">Due day {bill.dueDay}</p>
       </div>
 
       {/* Amount */}
@@ -155,7 +155,7 @@ function BillCard({ bill, onClick }: { bill: Bill; onClick: () => void }) {
 
       {/* Last paid */}
       {bill.lastPayment && (
-        <p className="text-xs text-text-secondary">
+        <p className="text-xs text-text-muted">
           Last paid {new Date(bill.lastPayment.paidAt).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
@@ -212,7 +212,7 @@ export function FinancesContent() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl font-bold text-text">Finances</h1>
-            <p className="mt-1 text-text-secondary">
+            <p className="mt-1 text-text-muted">
               Track bills, subscriptions, and your household budget.
             </p>
           </div>

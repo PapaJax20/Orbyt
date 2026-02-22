@@ -73,10 +73,10 @@ export function AppearanceTab() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wider text-text-secondary">
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wider text-text-muted">
           Theme
         </h2>
-        <p className="text-sm text-text-secondary">
+        <p className="text-sm text-text-muted">
           Choose the look and feel of your Orbyt.
         </p>
       </div>

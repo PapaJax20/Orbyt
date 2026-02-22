@@ -18,13 +18,13 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const PRIMARY_TABS = [
   { icon: Home, label: "Home", href: "/dashboard" },
+  { icon: DollarSign, label: "Finances", href: "/finances" },
   { icon: CheckSquare, label: "Tasks", href: "/tasks" },
   { icon: ShoppingCart, label: "Shop", href: "/shopping" },
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
 ];
 
 const MORE_ITEMS = [
-  { icon: DollarSign, label: "Finances", href: "/finances" },
+  { icon: Calendar, label: "Calendar", href: "/calendar" },
   { icon: Users, label: "Contacts", href: "/contacts" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
@@ -59,11 +59,11 @@ export function MobileNav() {
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
           >
             <div className="flex justify-between items-center mb-3">
-              <span className="text-sm font-semibold text-text-secondary uppercase tracking-wider">More</span>
+              <span className="text-sm font-semibold text-text-muted uppercase tracking-wider">More</span>
               <button
                 onClick={() => setMoreOpen(false)}
                 aria-label="Close menu"
-                className="p-1 rounded-lg text-text-secondary hover:text-text"
+                className="p-1 rounded-lg text-text-muted hover:text-text"
               >
                 <X size={18} />
               </button>
@@ -77,7 +77,7 @@ export function MobileNav() {
                   className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-colors ${
                     pathname === item.href
                       ? "bg-accent/10 text-accent"
-                      : "text-text-secondary hover:text-text hover:bg-surface"
+                      : "text-text-muted hover:text-text hover:bg-surface"
                   }`}
                 >
                   <item.icon size={22} />
@@ -104,7 +104,7 @@ export function MobileNav() {
           onClick={() => setMoreOpen((v) => !v)}
           aria-label="More navigation"
           className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors min-w-[44px] min-h-[44px] ${
-            moreOpen ? "text-accent" : "text-text-secondary"
+            moreOpen ? "text-accent" : "text-text-muted"
           }`}
         >
           <Menu size={22} />
@@ -134,7 +134,7 @@ function NavTab({
       href={href}
       aria-label={label}
       className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors min-w-[44px] min-h-[44px] ${
-        active ? "text-accent" : "text-text-secondary hover:text-text"
+        active ? "text-accent" : "text-text-muted hover:text-text"
       }`}
     >
       <Icon size={22} />

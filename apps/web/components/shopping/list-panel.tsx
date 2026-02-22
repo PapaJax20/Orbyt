@@ -134,11 +134,11 @@ function ListCard({
               <div className="flex items-center gap-2">
                 <p className="truncate text-sm font-semibold text-text">{list.name}</p>
                 {/* Item count badge */}
-                <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-xs text-text-secondary">
+                <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-xs text-text-muted">
                   {list.itemCount}
                 </span>
               </div>
-              <p className="mt-0.5 text-xs text-text-secondary">
+              <p className="mt-0.5 text-xs text-text-muted">
                 {unchecked === 0
                   ? "All done!"
                   : `${unchecked} unchecked`}
@@ -157,7 +157,9 @@ function ListCard({
               setShowMenu((v) => !v);
             }}
             aria-label="List options"
-            className="rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-surface hover:text-text"
+            aria-expanded={showMenu}
+            aria-haspopup="menu"
+            className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-surface hover:text-text"
           >
             <MoreVertical className="h-4 w-4" />
           </button>
@@ -170,6 +172,7 @@ function ListCard({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -4 }}
                 transition={{ duration: 0.12 }}
+                role="menu"
                 className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-xl border border-border bg-card shadow-xl"
               >
                 <button

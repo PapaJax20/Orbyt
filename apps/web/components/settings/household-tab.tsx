@@ -124,7 +124,7 @@ export function HouseholdTab() {
           }}
           className="flex flex-col gap-3"
         >
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
             Household
           </h2>
           <div>
@@ -153,7 +153,7 @@ export function HouseholdTab() {
 
       {/* Members */}
       <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text-secondary">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text-muted">
           Members
         </h2>
         <div className="flex flex-col gap-2">
@@ -179,19 +179,19 @@ export function HouseholdTab() {
                     <p className="truncate text-sm font-medium text-text">
                       {label}
                       {member.userId === userId && (
-                        <span className="ml-2 text-xs text-text-secondary">
+                        <span className="ml-2 text-xs text-text-muted">
                           (you)
                         </span>
                       )}
                     </p>
-                    <p className="text-xs text-text-secondary">
+                    <p className="text-xs text-text-muted">
                       {member.profile?.email}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex flex-shrink-0 items-center gap-2">
-                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium capitalize text-text-secondary">
+                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium capitalize text-text-muted">
                     {member.role}
                   </span>
                   {isAdmin && member.userId !== userId && (
@@ -222,7 +222,7 @@ export function HouseholdTab() {
           }}
           className="flex flex-col gap-3"
         >
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
             Invite Member
           </h2>
           <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -264,7 +264,7 @@ export function HouseholdTab() {
                 ? "Copied!"
                 : "Create Invite Link"}
           </button>
-          <p className="text-xs text-text-secondary">
+          <p className="text-xs text-text-muted">
             An invite link will be copied to your clipboard.
           </p>
         </form>

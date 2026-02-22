@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { X, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { toast } from "sonner";
 import type { AppRouter } from "@orbyt/api";
 import type { inferRouterOutputs } from "@trpc/server";
 import { trpc } from "@/lib/trpc/client";
+import { Drawer } from "@/components/ui/drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatFriendlyDate } from "@orbyt/shared/utils";
 
@@ -173,7 +173,7 @@ export function TaskDrawer({
 
   // ── Form fields (shared between create and edit) ──────────────────────────
   const FormFields = (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-6">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {/* Title */}
       <div>
         <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-text-muted">
@@ -305,7 +305,7 @@ export function TaskDrawer({
 
   // ── View mode (read-only) ─────────────────────────────────────────────────
   const ViewMode = task && (
-    <div className="p-6">
+    <div>
       {/* Title */}
       <h3 className="font-display text-xl font-semibold text-text">{task.title}</h3>
 
@@ -378,8 +378,8 @@ export function TaskDrawer({
 
   // ── Comments section ──────────────────────────────────────────────────────
   const CommentsSection = !isCreating && (
-    <div className="border-t border-border">
-      <div className="p-6">
+    <div className="-mx-6 border-t border-border">
+      <div className="px-6 pt-6">
         <p className="mb-4 text-xs font-medium uppercase tracking-wider text-text-muted">
           Comments {comments && comments.length > 0 && `(${comments.length})`}
         </p>
@@ -436,68 +436,29 @@ export function TaskDrawer({
   );
 
   // ── Render ────────────────────────────────────────────────────────────────
+  const drawerTitle = isCreating ? "New Task" : isEditing ? "Edit Task" : "Task Details";
+
   return (
     <>
-      <AnimatePresence>
-        {isOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              key="backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-              onClick={onClose}
-            />
-
-            {/* Drawer panel */}
-            <motion.div
-              key="drawer"
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[480px] flex-col border-l border-border bg-[var(--color-bg)] shadow-2xl"
-            >
-              {/* Drawer header */}
-              <div className="flex items-center justify-between border-b border-border px-6 py-4">
-                <h2 className="font-display text-lg font-semibold text-text">
-                  {isCreating ? "New Task" : isEditing ? "Edit Task" : "Task Details"}
-                </h2>
-                <button
-                  onClick={onClose}
-                  className="rounded-md p-1.5 text-text-muted transition-colors hover:bg-white/5 hover:text-text"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Scrollable body */}
-              <div className="flex-1 overflow-y-auto">
-                {/* Loading skeleton */}
-                {!isCreating && taskLoading && (
-                  <div className="flex flex-col gap-3 p-6">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="h-8 animate-pulse rounded-lg bg-white/5" />
-                    ))}
-                  </div>
-                )}
-
-                {/* Create or Edit form */}
-                {(isCreating || isEditing) && !taskLoading && FormFields}
-
-                {/* View mode */}
-                {!isCreating && !isEditing && !taskLoading && ViewMode}
-
-                {/* Comments */}
-                {!isCreating && !taskLoading && CommentsSection}
-              </div>
-            </motion.div>
-          </>
+      <Drawer open={isOpen} onClose={onClose} title={drawerTitle}>
+        {/* Loading skeleton */}
+        {!isCreating && taskLoading && (
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-8 animate-pulse rounded-lg bg-white/5" />
+            ))}
+          </div>
         )}
-      </AnimatePresence>
+
+        {/* Create or Edit form */}
+        {(isCreating || isEditing) && !taskLoading && FormFields}
+
+        {/* View mode */}
+        {!isCreating && !isEditing && !taskLoading && ViewMode}
+
+        {/* Comments */}
+        {!isCreating && !taskLoading && CommentsSection}
+      </Drawer>
 
       <ConfirmDialog
         open={confirmOpen}
