@@ -26,11 +26,11 @@ Tech stack: Next.js 15 App Router, tRPC v11, TanStack Query v5, Tailwind CSS 3, 
 
 ## File Boundaries (Feature Agents)
 Feature agents (Sprint 4B-4F) can ONLY create/modify files in:
-- `apps/web/app/(dashboard)/[their-feature]/` (e.g., `shopping/`)
+- `apps/web/app/(protected)/[their-feature]/` (e.g., `shopping/`)
 - `apps/web/components/[their-feature]/` (e.g., `components/shopping/`)
 
 Feature agents CANNOT modify:
-- `app/(dashboard)/layout.tsx`, `components/sidebar.tsx`, `components/dashboard-header.tsx`
+- `app/(protected)/layout.tsx`, `components/sidebar.tsx`, `components/dashboard-header.tsx`
 - `components/providers.tsx`, `components/household-guard.tsx`
 - `middleware.ts`, `globals.css` (except adding new classes at END of file)
 - Anything in `packages/` (api, db, shared, config, ui)

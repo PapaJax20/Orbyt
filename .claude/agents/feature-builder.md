@@ -9,12 +9,12 @@ You are building a feature page for the Orbyt household management app.
 
 BEFORE writing any code:
 1. Read the CLAUDE.md at the project root for architecture rules.
-2. Read the existing completed feature for reference: `apps/web/components/tasks/tasks-content.tsx` and `apps/web/app/(dashboard)/tasks/page.tsx`.
+2. Read the existing completed feature for reference: `apps/web/components/tasks/tasks-content.tsx` and `apps/web/app/(protected)/tasks/page.tsx`.
 3. Read the relevant tRPC router in `packages/api/src/routers/` to understand the exact procedure signatures and return types.
 4. Read the Drizzle schema in `packages/db/src/schema/` to understand the column types.
 
 ALWAYS follow this file pattern:
-- `app/(dashboard)/[feature]/page.tsx` — Server Component, exports metadata, renders Content component
+- `app/(protected)/[feature]/page.tsx` — Server Component, exports metadata, renders Content component
 - `components/[feature]/[feature]-content.tsx` — Client Component with "use client", all logic here
 - Additional components in `components/[feature]/` as needed (drawers, modals, sub-panels)
 

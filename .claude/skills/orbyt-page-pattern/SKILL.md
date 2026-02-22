@@ -7,7 +7,7 @@ description: How to create a new feature page in Orbyt
 
 ## Step 1: Server Component page
 ```tsx
-// app/(dashboard)/[feature]/page.tsx
+// app/(protected)/[feature]/page.tsx
 import { Metadata } from "next";
 import { FeatureContent } from "@/components/[feature]/[feature]-content";
 
@@ -59,7 +59,7 @@ export function FeatureContent() {
 
 ## Step 3: Loading skeleton
 ```tsx
-// app/(dashboard)/[feature]/loading.tsx
+// app/(protected)/[feature]/loading.tsx
 export default function FeatureLoading() {
   return (
     <div className="space-y-6 p-6">

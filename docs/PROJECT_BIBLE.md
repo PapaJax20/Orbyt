@@ -311,7 +311,7 @@ C:\Users\jmoon\Orbyt\
 │       │   │   ├── login/login-form.tsx
 │       │   │   ├── register/register-form.tsx
 │       │   │   └── invite/[token]/page.tsx ← [STUB]
-│       │   ├── (dashboard)/
+│       │   ├── (protected)/
 │       │   │   ├── layout.tsx         ← Sidebar + Header + TRPCProvider + HouseholdGuard
 │       │   │   ├── dashboard/
 │       │   │   │   ├── page.tsx       ← ✅ Complete
@@ -462,7 +462,7 @@ Full TypeScript types for all entities. Zod validators for all create/update ope
 
 | File | What it does |
 |---|---|
-| `app/(dashboard)/layout.tsx` | Sidebar + header + TRPCProvider + HouseholdGuard |
+| `app/(protected)/layout.tsx` | Sidebar + header + TRPCProvider + HouseholdGuard |
 | `components/sidebar.tsx` | Collapsible nav (icon-only mobile, full desktop) |
 | `components/dashboard-header.tsx` | Top bar with notification bell + user avatar |
 | `components/providers.tsx` | tRPC + React Query providers; sends `x-household-id` header |
@@ -477,7 +477,7 @@ Full TypeScript types for all entities. Zod validators for all create/update ope
 
 | File | What it does |
 |---|---|
-| `app/(dashboard)/dashboard/page.tsx` | Server component wrapper with metadata |
+| `app/(protected)/dashboard/page.tsx` | Server component wrapper with metadata |
 | `components/dashboard-content.tsx` | All 4 stat cards + 4 widgets wired to real tRPC queries |
 
 Stat cards: tasks due today, bills due this week, upcoming birthdays, unchecked shopping items. Widgets: Upcoming Events (7 days), Financial Snapshot (30 days), Tasks (pending), Shopping Lists. Each widget: skeleton loader → real data rows → empty CTA.
@@ -486,7 +486,7 @@ Stat cards: tasks due today, bills due this week, upcoming birthdays, unchecked 
 
 | File | What it does |
 |---|---|
-| `app/(dashboard)/tasks/page.tsx` | Server component wrapper |
+| `app/(protected)/tasks/page.tsx` | Server component wrapper |
 | `components/tasks/tasks-content.tsx` | Kanban board + list view + all state management |
 | `components/tasks/task-drawer.tsx` | Slide-out panel: create / view / edit / comments |
 
@@ -1057,7 +1057,7 @@ All Playwright E2E tests run at 1280×800 (desktop) and 375×667 (mobile).
 ### 9.1 Page File Pattern (MUST follow for every new page)
 
 ```tsx
-// app/(dashboard)/[feature]/page.tsx — Server Component
+// app/(protected)/[feature]/page.tsx — Server Component
 import { Metadata } from "next";
 import { FeatureContent } from "@/components/[feature]/[feature]-content";
 
@@ -1758,7 +1758,7 @@ Each agent branches from `main` after Sprint 0 merges. Agents work independently
 
 Feature agents (4B–4F) **cannot touch**:
 
-- `app/(dashboard)/layout.tsx`
+- `app/(protected)/layout.tsx`
 - `components/sidebar.tsx`
 - `components/dashboard-header.tsx`
 - `components/providers.tsx`
@@ -2733,7 +2733,7 @@ These 10 events provide enough signal to understand feature adoption, retention,
 
 The Claude Code agents working on this project need the following technical competencies. These aren't optional nice-to-haves — an agent lacking any of these will produce code that appears correct but fails at runtime.
 
-**Next.js 15 App Router:** Understanding of React Server Components vs Client Components, the `"use client"` directive, `app/` directory routing with route groups `(auth)` and `(dashboard)`, `layout.tsx` / `page.tsx` / `loading.tsx` conventions, `metadata` exports for SEO, and the `dynamic()` function for code splitting. The critical pattern is that `page.tsx` is always a Server Component that renders a `*-content.tsx` Client Component. Agents must never put `"use client"` in a `page.tsx` file or use React hooks in a Server Component.
+**Next.js 15 App Router:** Understanding of React Server Components vs Client Components, the `"use client"` directive, `app/` directory routing with route groups `(auth)` and `(protected)`, `layout.tsx` / `page.tsx` / `loading.tsx` conventions, `metadata` exports for SEO, and the `dynamic()` function for code splitting. The critical pattern is that `page.tsx` is always a Server Component that renders a `*-content.tsx` Client Component. Agents must never put `"use client"` in a `page.tsx` file or use React hooks in a Server Component.
 
 **tRPC v11:** Router definitions, the 4-tier procedure chain (`publicProcedure` → `protectedProcedure` → `householdProcedure` → `adminProcedure`), `useQuery`/`useMutation` hooks, `inferRouterOutputs<AppRouter>` for type extraction, cache invalidation via `trpc.useUtils()`. The critical pattern is that every mutation's `onSuccess` must invalidate the relevant query cache, and types must be derived from the router output — never manually typed or inferred from hook return types.
 
@@ -2785,11 +2785,11 @@ Tech stack: Next.js 15 App Router, tRPC v11, TanStack Query v5, Tailwind CSS 3, 
 
 ## File Boundaries (Feature Agents)
 Feature agents (Sprint 4B-4F) can ONLY create/modify files in:
-- `apps/web/app/(dashboard)/[their-feature]/` (e.g., `shopping/`)
+- `apps/web/app/(protected)/[their-feature]/` (e.g., `shopping/`)
 - `apps/web/components/[their-feature]/` (e.g., `components/shopping/`)
 
 Feature agents CANNOT modify:
-- `app/(dashboard)/layout.tsx`, `components/sidebar.tsx`, `components/dashboard-header.tsx`
+- `app/(protected)/layout.tsx`, `components/sidebar.tsx`, `components/dashboard-header.tsx`
 - `components/providers.tsx`, `components/household-guard.tsx`
 - `middleware.ts`, `globals.css` (except adding new classes at END of file)
 - Anything in `packages/` (api, db, shared, config, ui)
@@ -2834,12 +2834,12 @@ You are building a feature page for the Orbyt household management app.
 
 BEFORE writing any code:
 1. Read the CLAUDE.md at the project root for architecture rules.
-2. Read the existing completed feature for reference: `apps/web/components/tasks/tasks-content.tsx` and `apps/web/app/(dashboard)/tasks/page.tsx`.
+2. Read the existing completed feature for reference: `apps/web/components/tasks/tasks-content.tsx` and `apps/web/app/(protected)/tasks/page.tsx`.
 3. Read the relevant tRPC router in `packages/api/src/routers/` to understand the exact procedure signatures and return types.
 4. Read the Drizzle schema in `packages/db/src/schema/` to understand the column types.
 
 ALWAYS follow this file pattern:
-- `app/(dashboard)/[feature]/page.tsx` — Server Component, exports metadata, renders Content component
+- `app/(protected)/[feature]/page.tsx` — Server Component, exports metadata, renders Content component
 - `components/[feature]/[feature]-content.tsx` — Client Component with "use client", all logic here
 - Additional components in `components/[feature]/` as needed (drawers, modals, sub-panels)
 
@@ -2980,7 +2980,7 @@ description: How to create a new feature page in Orbyt
 
 ## Step 1: Server Component page
 ```tsx
-// app/(dashboard)/[feature]/page.tsx
+// app/(protected)/[feature]/page.tsx
 import { Metadata } from "next";
 import { FeatureContent } from "@/components/[feature]/[feature]-content";
 
@@ -3032,7 +3032,7 @@ export function FeatureContent() {
 
 ## Step 3: Loading skeleton
 ```tsx
-// app/(dashboard)/[feature]/loading.tsx
+// app/(protected)/[feature]/loading.tsx
 export default function FeatureLoading() {
   return (
     <div className="space-y-6 p-6">
@@ -3255,32 +3255,32 @@ Each teammate works in its own git worktree to avoid file conflicts.
 
 Teammate 1 — Shopping (Sprint 4B):
 - Worktree: sprint-4b-shopping
-- Scope: apps/web/app/(dashboard)/shopping/ and apps/web/components/shopping/
+- Scope: apps/web/app/(protected)/shopping/ and apps/web/components/shopping/
 - Reference: Section 12 Sprint 4B specs, Section 17.1 Shopping Router API
 - Acceptance criteria from Sprint 4B
 
 Teammate 2 — Finances (Sprint 4C):
 - Worktree: sprint-4c-finances
-- Scope: apps/web/app/(dashboard)/finances/ and apps/web/components/finances/
+- Scope: apps/web/app/(protected)/finances/ and apps/web/components/finances/
 - Reference: Section 12 Sprint 4C specs, Section 17.2 Finances Router API
 - Acceptance criteria from Sprint 4C
 
 Teammate 3 — Calendar (Sprint 4D):
 - Worktree: sprint-4d-calendar
-- Scope: apps/web/app/(dashboard)/calendar/ and apps/web/components/calendar/
+- Scope: apps/web/app/(protected)/calendar/ and apps/web/components/calendar/
 - Must run: pnpm --filter @orbyt/web add @fullcalendar/react @fullcalendar/daygrid @fullcalendar/timegrid @fullcalendar/interaction
 - Reference: Section 12 Sprint 4D specs, Section 17.3 Calendar Router API
 - Acceptance criteria from Sprint 4D
 
 Teammate 4 — Contacts (Sprint 4E):
 - Worktree: sprint-4e-contacts
-- Scope: apps/web/app/(dashboard)/contacts/ and apps/web/components/contacts/
+- Scope: apps/web/app/(protected)/contacts/ and apps/web/components/contacts/
 - Reference: Section 12 Sprint 4E specs, Section 17.4 Contacts Router API
 - Acceptance criteria from Sprint 4E
 
 Teammate 5 — Settings (Sprint 4F):
 - Worktree: sprint-4f-settings
-- Scope: apps/web/app/(dashboard)/settings/ and apps/web/components/settings/
+- Scope: apps/web/app/(protected)/settings/ and apps/web/components/settings/
 - Reference: Section 12 Sprint 4F specs, Section 17.5 Household Router API
 - Acceptance criteria from Sprint 4F
 
