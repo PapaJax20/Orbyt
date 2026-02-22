@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Plus, ShoppingCart } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Plus, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { ShoppingList } from "./shopping-content";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -20,27 +21,94 @@ function ListCard({
   list,
   isSelected,
   onClick,
+  editingListId,
+  onStartEditing,
+  onFinishEditing,
+  onDelete,
 }: {
   list: ShoppingList;
   isSelected: boolean;
   onClick: () => void;
+  editingListId: string | null;
+  onStartEditing: (id: string) => void;
+  onFinishEditing: () => void;
+  onDelete: (id: string) => void;
 }) {
+  const utils = trpc.useUtils();
   const unchecked = list.itemCount - list.checkedCount;
+  const isEditing = editingListId === list.id;
+  const [editName, setEditName] = useState(list.name);
+  const [showMenu, setShowMenu] = useState(false);
+  const editInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const updateList = trpc.shopping.updateList.useMutation({
+    onSuccess: () => {
+      utils.shopping.listLists.invalidate();
+      toast.success("List renamed");
+      onFinishEditing();
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to rename list");
+    },
+  });
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditing) {
+      setEditName(list.name);
+      // Small delay to let the input render
+      setTimeout(() => editInputRef.current?.focus(), 50);
+    }
+  }, [isEditing, list.name]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!showMenu) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showMenu]);
+
+  function handleRenameSubmit() {
+    const trimmed = editName.trim();
+    if (!trimmed || trimmed === list.name) {
+      onFinishEditing();
+      return;
+    }
+    updateList.mutate({ listId: list.id, name: trimmed });
+  }
+
+  function handleEditKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleRenameSubmit();
+    } else if (e.key === "Escape") {
+      onFinishEditing();
+    }
+  }
 
   return (
-    <motion.button
+    <motion.div
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.2 }}
-      onClick={onClick}
       className={cn(
-        "glass-card w-full rounded-2xl p-4 text-left transition-all hover:shadow-lg",
+        "glass-card relative w-full rounded-2xl p-4 text-left transition-all hover:shadow-lg",
         isSelected && "glass-card-active ring-2 ring-accent/50",
       )}
     >
-      <div className="flex items-center gap-3">
+      <button
+        onClick={onClick}
+        className="flex w-full items-center gap-3 text-left"
+        aria-label={`Select ${list.name}`}
+      >
         {/* Emoji */}
         <span className="text-2xl leading-none" aria-hidden="true">
           {list.emoji}
@@ -48,21 +116,90 @@ function ListCard({
 
         {/* Name + meta */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold text-text">{list.name}</p>
-            {/* Item count badge */}
-            <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-xs text-text-secondary">
-              {list.itemCount}
-            </span>
-          </div>
-          <p className="mt-0.5 text-xs text-text-secondary">
-            {unchecked === 0
-              ? "All done!"
-              : `${unchecked} unchecked`}
-          </p>
+          {isEditing ? (
+            <input
+              ref={editInputRef}
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onBlur={handleRenameSubmit}
+              onKeyDown={handleEditKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              className="orbyt-input w-full text-sm font-semibold"
+              maxLength={100}
+              aria-label="Rename list"
+            />
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-semibold text-text">{list.name}</p>
+                {/* Item count badge */}
+                <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-xs text-text-secondary">
+                  {list.itemCount}
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-text-secondary">
+                {unchecked === 0
+                  ? "All done!"
+                  : `${unchecked} unchecked`}
+              </p>
+            </>
+          )}
         </div>
-      </div>
-    </motion.button>
+      </button>
+
+      {/* Options menu trigger */}
+      {!isEditing && (
+        <div className="absolute right-3 top-3" ref={menuRef}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu((v) => !v);
+            }}
+            aria-label="List options"
+            className="rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-surface hover:text-text"
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+
+          {/* Dropdown menu */}
+          <AnimatePresence>
+            {showMenu && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                transition={{ duration: 0.12 }}
+                className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-xl border border-border bg-card shadow-xl"
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(false);
+                    onStartEditing(list.id);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text transition-colors hover:bg-surface"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Rename
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(false);
+                    onDelete(list.id);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-surface"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+    </motion.div>
   );
 }
 
@@ -164,9 +301,26 @@ interface ListPanelProps {
 }
 
 export function ListPanel({ selectedListId, onSelectList }: ListPanelProps) {
+  const utils = trpc.useUtils();
   const [showNewForm, setShowNewForm] = useState(false);
+  const [editingListId, setEditingListId] = useState<string | null>(null);
+  const [deletingListId, setDeletingListId] = useState<string | null>(null);
 
   const { data: lists, isLoading } = trpc.shopping.listLists.useQuery();
+
+  const deleteList = trpc.shopping.deleteList.useMutation({
+    onSuccess: () => {
+      utils.shopping.listLists.invalidate();
+      toast.success("Shopping list deleted");
+      setDeletingListId(null);
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to delete list");
+      setDeletingListId(null);
+    },
+  });
+
+  const deletingList = lists?.find((l) => l.id === deletingListId);
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -224,11 +378,28 @@ export function ListPanel({ selectedListId, onSelectList }: ListPanelProps) {
                 list={list}
                 isSelected={list.id === selectedListId}
                 onClick={() => onSelectList(list.id)}
+                editingListId={editingListId}
+                onStartEditing={setEditingListId}
+                onFinishEditing={() => setEditingListId(null)}
+                onDelete={setDeletingListId}
               />
             ))}
           </AnimatePresence>
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={!!deletingListId}
+        onConfirm={() => {
+          if (deletingListId) deleteList.mutate({ listId: deletingListId });
+        }}
+        onCancel={() => setDeletingListId(null)}
+        title="Delete shopping list?"
+        description={`"${deletingList?.name ?? "This list"}" and all its items will be permanently deleted. This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+      />
     </div>
   );
 }

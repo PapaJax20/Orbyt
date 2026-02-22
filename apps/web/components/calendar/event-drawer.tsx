@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { Drawer } from "@/components/ui/drawer";
@@ -46,61 +46,102 @@ function toISO(datetimeLocal: string): string {
   return new Date(datetimeLocal).toISOString();
 }
 
-// ── Create Form ───────────────────────────────────────────────────────────────
+// ── Attendee Picker ──────────────────────────────────────────────────────────
 
-function CreateEventForm({
-  defaultDate,
-  onClose,
-  dateRange,
+function AttendeePicker({
+  selectedIds,
+  onToggle,
 }: {
-  defaultDate: string;
-  onClose: () => void;
-  dateRange: { start: string; end: string };
+  selectedIds: string[];
+  onToggle: (userId: string) => void;
 }) {
-  const utils = trpc.useUtils();
+  const { data: household } = trpc.household.getCurrent.useQuery();
+  const members = household?.members ?? [];
 
-  const defaultStart = defaultDate.includes("T")
-    ? defaultDate
-    : `${defaultDate}T09:00`;
-
-  const [title, setTitle] = useState("");
-  const [startAt, setStartAt] = useState(defaultStart);
-  const [endAt, setEndAt] = useState(`${defaultDate.slice(0, 10)}T10:00`);
-  const [allDay, setAllDay] = useState(false);
-  const [category, setCategory] = useState<EventCategory>("family");
-  const [description, setDescription] = useState("");
-  const [location, setLocation] = useState("");
-  const [rrule, setRrule] = useState("");
-
-  const createEvent = trpc.calendar.create.useMutation({
-    onSuccess: () => {
-      utils.calendar.list.invalidate({ startDate: dateRange.start, endDate: dateRange.end });
-      toast.success("Event created");
-      onClose();
-    },
-    onError: (err) => {
-      toast.error(err.message ?? "Failed to create event");
-    },
-  });
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) return;
-    createEvent.mutate({
-      title: title.trim(),
-      startAt: toISO(startAt),
-      endAt: allDay ? undefined : toISO(endAt),
-      allDay,
-      category,
-      description: description.trim() || undefined,
-      location: location.trim() || undefined,
-      rrule: rrule || undefined,
-      attendeeIds: [],
-    });
-  }
+  if (members.length === 0) return null;
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 pb-6">
+    <div>
+      <label className="orbyt-label">Attendees</label>
+      <div className="mt-1 flex flex-wrap gap-2">
+        {members.map((m) => {
+          const selected = selectedIds.includes(m.userId);
+          return (
+            <button
+              key={m.userId}
+              type="button"
+              onClick={() => onToggle(m.userId)}
+              className={[
+                "flex items-center gap-2 rounded-full border px-3 py-1 text-sm transition-colors",
+                selected
+                  ? "border-accent bg-accent/20 text-accent"
+                  : "border-border text-text-secondary hover:border-text-secondary hover:text-text",
+              ].join(" ")}
+            >
+              <div
+                className="h-4 w-4 shrink-0 rounded-full"
+                style={{ backgroundColor: m.displayColor }}
+              />
+              {m.profile.displayName}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Event Form Fields (shared between create and edit) ───────────────────────
+
+function EventFormFields({
+  title,
+  setTitle,
+  startAt,
+  setStartAt,
+  endAt,
+  setEndAt,
+  allDay,
+  setAllDay,
+  category,
+  setCategory,
+  location,
+  setLocation,
+  description,
+  setDescription,
+  rrule,
+  setRrule,
+  attendeeIds,
+  toggleAttendee,
+  submitLabel,
+  isPending,
+  onSubmit,
+  onCancel,
+}: {
+  title: string;
+  setTitle: (v: string) => void;
+  startAt: string;
+  setStartAt: (v: string) => void;
+  endAt: string;
+  setEndAt: (v: string) => void;
+  allDay: boolean;
+  setAllDay: (v: boolean) => void;
+  category: EventCategory;
+  setCategory: (v: EventCategory) => void;
+  location: string;
+  setLocation: (v: string) => void;
+  description: string;
+  setDescription: (v: string) => void;
+  rrule: string;
+  setRrule: (v: string) => void;
+  attendeeIds: string[];
+  toggleAttendee: (userId: string) => void;
+  submitLabel: string;
+  isPending: boolean;
+  onSubmit: (e: React.FormEvent) => void;
+  onCancel?: () => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="flex flex-col gap-4 pb-6">
       {/* Title */}
       <div>
         <label className="orbyt-label" htmlFor="event-title">Title</label>
@@ -124,7 +165,7 @@ function CreateEventForm({
           type="button"
           role="switch"
           aria-checked={allDay}
-          onClick={() => setAllDay((v) => !v)}
+          onClick={() => setAllDay(!allDay)}
           className={[
             "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
             allDay ? "bg-accent" : "bg-border",
@@ -240,14 +281,213 @@ function CreateEventForm({
         </select>
       </div>
 
-      <button
-        type="submit"
-        disabled={createEvent.isPending || !title.trim()}
-        className="orbyt-button-accent mt-2"
-      >
-        {createEvent.isPending ? "Creating…" : "Create Event"}
-      </button>
+      {/* Attendees */}
+      <AttendeePicker selectedIds={attendeeIds} onToggle={toggleAttendee} />
+
+      {/* Actions */}
+      <div className="flex gap-3 mt-2">
+        <button
+          type="submit"
+          disabled={isPending || !title.trim()}
+          className="orbyt-button-accent flex-1"
+        >
+          {isPending ? "Saving..." : submitLabel}
+        </button>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="orbyt-button-ghost flex-1"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
+  );
+}
+
+// ── Create Form ───────────────────────────────────────────────────────────────
+
+function CreateEventForm({
+  defaultDate,
+  onClose,
+  dateRange,
+}: {
+  defaultDate: string;
+  onClose: () => void;
+  dateRange: { start: string; end: string };
+}) {
+  const utils = trpc.useUtils();
+
+  const defaultStart = defaultDate.includes("T")
+    ? defaultDate
+    : `${defaultDate}T09:00`;
+
+  const [title, setTitle] = useState("");
+  const [startAt, setStartAt] = useState(defaultStart);
+  const [endAt, setEndAt] = useState(`${defaultDate.slice(0, 10)}T10:00`);
+  const [allDay, setAllDay] = useState(false);
+  const [category, setCategory] = useState<EventCategory>("family");
+  const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("");
+  const [rrule, setRrule] = useState("");
+  const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
+
+  const createEvent = trpc.calendar.create.useMutation({
+    onSuccess: () => {
+      utils.calendar.list.invalidate({ startDate: dateRange.start, endDate: dateRange.end });
+      toast.success("Event created");
+      onClose();
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to create event");
+    },
+  });
+
+  function toggleAttendee(userId: string) {
+    setAttendeeIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    );
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    createEvent.mutate({
+      title: title.trim(),
+      startAt: toISO(startAt),
+      endAt: allDay ? undefined : toISO(endAt),
+      allDay,
+      category,
+      description: description.trim() || undefined,
+      location: location.trim() || undefined,
+      rrule: rrule || undefined,
+      attendeeIds,
+    });
+  }
+
+  return (
+    <EventFormFields
+      title={title}
+      setTitle={setTitle}
+      startAt={startAt}
+      setStartAt={setStartAt}
+      endAt={endAt}
+      setEndAt={setEndAt}
+      allDay={allDay}
+      setAllDay={setAllDay}
+      category={category}
+      setCategory={setCategory}
+      location={location}
+      setLocation={setLocation}
+      description={description}
+      setDescription={setDescription}
+      rrule={rrule}
+      setRrule={setRrule}
+      attendeeIds={attendeeIds}
+      toggleAttendee={toggleAttendee}
+      submitLabel="Create Event"
+      isPending={createEvent.isPending}
+      onSubmit={handleSubmit}
+    />
+  );
+}
+
+// ── Edit Form ─────────────────────────────────────────────────────────────────
+
+function EditEventForm({
+  event,
+  onClose,
+  onCancel,
+  dateRange,
+}: {
+  event: EventDetail;
+  onClose: () => void;
+  onCancel: () => void;
+  dateRange: { start: string; end: string };
+}) {
+  const utils = trpc.useUtils();
+
+  const [title, setTitle] = useState(event.title);
+  const [startAt, setStartAt] = useState(toDatetimeLocal(event.startAt));
+  const [endAt, setEndAt] = useState(
+    event.endAt ? toDatetimeLocal(event.endAt) : toDatetimeLocal(event.startAt),
+  );
+  const [allDay, setAllDay] = useState(event.allDay);
+  const [category, setCategory] = useState<EventCategory>(
+    (event.category as EventCategory) ?? "other",
+  );
+  const [description, setDescription] = useState(event.description ?? "");
+  const [location, setLocation] = useState(event.location ?? "");
+  const [rrule, setRrule] = useState(event.rrule ?? "");
+  const [attendeeIds, setAttendeeIds] = useState<string[]>(
+    event.attendees?.map((a) => a.userId).filter((id): id is string => id !== null) ?? [],
+  );
+
+  const updateEvent = trpc.calendar.update.useMutation({
+    onSuccess: () => {
+      utils.calendar.list.invalidate({ startDate: dateRange.start, endDate: dateRange.end });
+      utils.calendar.getById.invalidate({ id: event.id });
+      toast.success("Event updated");
+      onCancel(); // Switch back to view mode
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to update event");
+    },
+  });
+
+  function toggleAttendee(userId: string) {
+    setAttendeeIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    );
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    updateEvent.mutate({
+      id: event.id,
+      updateMode: "all",
+      data: {
+        title: title.trim(),
+        startAt: toISO(startAt),
+        endAt: allDay ? undefined : toISO(endAt),
+        allDay,
+        category,
+        description: description.trim() || undefined,
+        location: location.trim() || undefined,
+        rrule: rrule || undefined,
+        attendeeIds,
+      },
+    });
+  }
+
+  return (
+    <EventFormFields
+      title={title}
+      setTitle={setTitle}
+      startAt={startAt}
+      setStartAt={setStartAt}
+      endAt={endAt}
+      setEndAt={setEndAt}
+      allDay={allDay}
+      setAllDay={setAllDay}
+      category={category}
+      setCategory={setCategory}
+      location={location}
+      setLocation={setLocation}
+      description={description}
+      setDescription={setDescription}
+      rrule={rrule}
+      setRrule={setRrule}
+      attendeeIds={attendeeIds}
+      toggleAttendee={toggleAttendee}
+      submitLabel="Save Changes"
+      isPending={updateEvent.isPending}
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+    />
   );
 }
 
@@ -256,10 +496,12 @@ function CreateEventForm({
 function ViewEvent({
   event,
   onClose,
+  onEdit,
   dateRange,
 }: {
   event: EventDetail;
   onClose: () => void;
+  onEdit: () => void;
   dateRange: { start: string; end: string };
 }) {
   const utils = trpc.useUtils();
@@ -342,14 +584,23 @@ function ViewEvent({
         </div>
       )}
 
-      {/* Delete */}
-      <button
-        onClick={() => setShowDelete(true)}
-        className="orbyt-button-ghost flex items-center gap-2 text-red-400 hover:bg-red-500/10"
-      >
-        <Trash2 className="h-4 w-4" />
-        Delete Event
-      </button>
+      {/* Actions */}
+      <div className="flex gap-3">
+        <button
+          onClick={onEdit}
+          className="orbyt-button-ghost flex flex-1 items-center justify-center gap-2"
+        >
+          <Pencil className="h-4 w-4" />
+          Edit Event
+        </button>
+        <button
+          onClick={() => setShowDelete(true)}
+          className="orbyt-button-ghost flex items-center gap-2 text-red-400 hover:bg-red-500/10"
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete
+        </button>
+      </div>
 
       <ConfirmDialog
         open={showDelete}
@@ -387,15 +638,27 @@ interface EventDrawerProps {
 }
 
 export function EventDrawer({ eventId, defaultDate, open, onClose, dateRange }: EventDrawerProps) {
+  const [isEditing, setIsEditing] = useState(false);
+
   const { data: event, isLoading } = trpc.calendar.getById.useQuery(
     { id: eventId! },
     { enabled: !!eventId },
   );
 
-  const title = eventId ? (event?.title ?? "Event Details") : "New Event";
+  // Reset editing state when drawer closes or event changes
+  const handleClose = () => {
+    setIsEditing(false);
+    onClose();
+  };
+
+  const title = eventId
+    ? isEditing
+      ? "Edit Event"
+      : (event?.title ?? "Event Details")
+    : "New Event";
 
   return (
-    <Drawer open={open} onClose={onClose} title={title}>
+    <Drawer open={open} onClose={handleClose} title={title}>
       {eventId ? (
         isLoading ? (
           <div className="flex flex-col gap-4 py-4">
@@ -404,12 +667,26 @@ export function EventDrawer({ eventId, defaultDate, open, onClose, dateRange }: 
             ))}
           </div>
         ) : event ? (
-          <ViewEvent event={event} onClose={onClose} dateRange={dateRange} />
+          isEditing ? (
+            <EditEventForm
+              event={event}
+              onClose={handleClose}
+              onCancel={() => setIsEditing(false)}
+              dateRange={dateRange}
+            />
+          ) : (
+            <ViewEvent
+              event={event}
+              onClose={handleClose}
+              onEdit={() => setIsEditing(true)}
+              dateRange={dateRange}
+            />
+          )
         ) : (
           <p className="py-8 text-center text-sm text-text-secondary">Event not found.</p>
         )
       ) : defaultDate ? (
-        <CreateEventForm defaultDate={defaultDate} onClose={onClose} dateRange={dateRange} />
+        <CreateEventForm defaultDate={defaultDate} onClose={handleClose} dateRange={dateRange} />
       ) : null}
     </Drawer>
   );

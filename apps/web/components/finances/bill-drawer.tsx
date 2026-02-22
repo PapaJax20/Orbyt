@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { CheckCircle2, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -33,6 +33,209 @@ const CATEGORIES = [
 ] as const;
 
 type BillCategory = (typeof CATEGORIES)[number];
+
+// ── Bill Form Fields (shared between create and edit) ─────────────────────────
+
+function BillFormFields({
+  name,
+  setName,
+  amount,
+  setAmount,
+  dueDay,
+  setDueDay,
+  category,
+  setCategory,
+  autoPay,
+  setAutoPay,
+  currency,
+  setCurrency,
+  notes,
+  setNotes,
+  url,
+  setUrl,
+  submitLabel,
+  isPending,
+  onSubmit,
+  onCancel,
+}: {
+  name: string;
+  setName: (v: string) => void;
+  amount: string;
+  setAmount: (v: string) => void;
+  dueDay: number;
+  setDueDay: (v: number) => void;
+  category: BillCategory;
+  setCategory: (v: BillCategory) => void;
+  autoPay: boolean;
+  setAutoPay: (v: boolean) => void;
+  currency: string;
+  setCurrency: (v: string) => void;
+  notes: string;
+  setNotes: (v: string) => void;
+  url: string;
+  setUrl: (v: string) => void;
+  submitLabel: string;
+  isPending: boolean;
+  onSubmit: (e: React.FormEvent) => void;
+  onCancel?: () => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="flex flex-col gap-5 pb-6">
+      {/* Name */}
+      <div>
+        <label className="orbyt-label" htmlFor="bill-name">Bill Name</label>
+        <input
+          id="bill-name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="orbyt-input mt-1 w-full"
+          placeholder="e.g. Rent, Netflix"
+          required
+          maxLength={255}
+        />
+      </div>
+
+      {/* Amount + Currency */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="orbyt-label" htmlFor="bill-amount">Amount</label>
+          <div className="relative mt-1">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
+              $
+            </span>
+            <input
+              id="bill-amount"
+              type="text"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="orbyt-input w-full pl-7"
+              placeholder="0.00"
+              required
+            />
+          </div>
+        </div>
+        <div>
+          <label className="orbyt-label" htmlFor="bill-currency">Currency</label>
+          <select
+            id="bill-currency"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="orbyt-input mt-1 w-full"
+          >
+            {["USD", "EUR", "GBP", "CAD", "AUD"].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Due Day + Category */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="orbyt-label" htmlFor="bill-due-day">Due Day (1-31)</label>
+          <input
+            id="bill-due-day"
+            type="number"
+            min={1}
+            max={31}
+            value={dueDay}
+            onChange={(e) => setDueDay(Number(e.target.value))}
+            className="orbyt-input mt-1 w-full"
+            required
+          />
+        </div>
+        <div>
+          <label className="orbyt-label" htmlFor="bill-category">Category</label>
+          <select
+            id="bill-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as BillCategory)}
+            className="orbyt-input mt-1 w-full capitalize"
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c} className="capitalize">{c}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Auto-pay toggle */}
+      <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border bg-surface/50 px-4 py-3">
+        <span className="text-sm font-medium text-text">Auto-pay</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={autoPay}
+          onClick={() => setAutoPay(!autoPay)}
+          className={[
+            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2",
+            autoPay ? "bg-accent" : "bg-border",
+          ].join(" ")}
+        >
+          <span
+            className={[
+              "inline-block h-4 w-4 translate-x-1 rounded-full bg-white shadow transition-transform",
+              autoPay ? "translate-x-6" : "translate-x-1",
+            ].join(" ")}
+          />
+        </button>
+      </label>
+
+      {/* URL */}
+      <div>
+        <label className="orbyt-label" htmlFor="bill-url">
+          Payment URL <span className="text-text-secondary">(optional)</span>
+        </label>
+        <input
+          id="bill-url"
+          type="url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          className="orbyt-input mt-1 w-full"
+          placeholder="https://pay.example.com"
+        />
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="orbyt-label" htmlFor="bill-notes">
+          Notes <span className="text-text-secondary">(optional)</span>
+        </label>
+        <textarea
+          id="bill-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="orbyt-input mt-1 w-full resize-none"
+          rows={2}
+          maxLength={2000}
+          placeholder="Any additional notes..."
+        />
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        <button
+          type="submit"
+          disabled={isPending || !name.trim() || !amount.trim()}
+          className="orbyt-button-accent flex-1"
+        >
+          {isPending ? "Saving..." : submitLabel}
+        </button>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="orbyt-button-ghost flex-1"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
 
 // ── Create Form ───────────────────────────────────────────────────────────────
 
@@ -87,148 +290,113 @@ function CreateBillForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5 pb-6">
-      {/* Name */}
-      <div>
-        <label className="orbyt-label" htmlFor="bill-name">Bill Name</label>
-        <input
-          id="bill-name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="orbyt-input mt-1 w-full"
-          placeholder="e.g. Rent, Netflix"
-          required
-          maxLength={255}
-        />
-      </div>
+    <BillFormFields
+      name={name}
+      setName={setName}
+      amount={amount}
+      setAmount={setAmount}
+      dueDay={dueDay}
+      setDueDay={setDueDay}
+      category={category}
+      setCategory={setCategory}
+      autoPay={autoPay}
+      setAutoPay={setAutoPay}
+      currency={currency}
+      setCurrency={setCurrency}
+      notes={notes}
+      setNotes={setNotes}
+      url={url}
+      setUrl={setUrl}
+      submitLabel="Add Bill"
+      isPending={createBill.isPending}
+      onSubmit={handleSubmit}
+    />
+  );
+}
 
-      {/* Amount + Currency */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="orbyt-label" htmlFor="bill-amount">Amount</label>
-          <div className="relative mt-1">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
-              $
-            </span>
-            <input
-              id="bill-amount"
-              type="text"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="orbyt-input w-full pl-7"
-              placeholder="0.00"
-              required
-            />
-          </div>
-        </div>
-        <div>
-          <label className="orbyt-label" htmlFor="bill-currency">Currency</label>
-          <select
-            id="bill-currency"
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            className="orbyt-input mt-1 w-full"
-          >
-            {["USD", "EUR", "GBP", "CAD", "AUD"].map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+// ── Edit Form ─────────────────────────────────────────────────────────────────
 
-      {/* Due Day + Category */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="orbyt-label" htmlFor="bill-due-day">Due Day (1–31)</label>
-          <input
-            id="bill-due-day"
-            type="number"
-            min={1}
-            max={31}
-            value={dueDay}
-            onChange={(e) => setDueDay(Number(e.target.value))}
-            className="orbyt-input mt-1 w-full"
-            required
-          />
-        </div>
-        <div>
-          <label className="orbyt-label" htmlFor="bill-category">Category</label>
-          <select
-            id="bill-category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value as BillCategory)}
-            className="orbyt-input mt-1 w-full capitalize"
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c} className="capitalize">{c}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+function EditBillForm({
+  bill,
+  onCancel,
+  currentMonth,
+}: {
+  bill: BillDetail;
+  onCancel: () => void;
+  currentMonth: string;
+}) {
+  const utils = trpc.useUtils();
 
-      {/* Auto-pay toggle */}
-      <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border bg-surface/50 px-4 py-3">
-        <span className="text-sm font-medium text-text">Auto-pay</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={autoPay}
-          onClick={() => setAutoPay((v) => !v)}
-          className={[
-            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2",
-            autoPay ? "bg-accent" : "bg-border",
-          ].join(" ")}
-        >
-          <span
-            className={[
-              "inline-block h-4 w-4 translate-x-1 rounded-full bg-white shadow transition-transform",
-              autoPay ? "translate-x-6" : "translate-x-1",
-            ].join(" ")}
-          />
-        </button>
-      </label>
+  const [name, setName] = useState(bill.name);
+  const [amount, setAmount] = useState(bill.amount ?? "");
+  const [dueDay, setDueDay] = useState<number>(bill.dueDay);
+  const [category, setCategory] = useState<BillCategory>(
+    (bill.category as BillCategory) ?? "other",
+  );
+  const [autoPay, setAutoPay] = useState(bill.autoPay);
+  const [currency, setCurrency] = useState(bill.currency ?? "USD");
+  const [notes, setNotes] = useState(bill.notes ?? "");
+  const [url, setUrl] = useState(bill.url ?? "");
 
-      {/* URL */}
-      <div>
-        <label className="orbyt-label" htmlFor="bill-url">
-          Payment URL <span className="text-text-secondary">(optional)</span>
-        </label>
-        <input
-          id="bill-url"
-          type="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          className="orbyt-input mt-1 w-full"
-          placeholder="https://pay.example.com"
-        />
-      </div>
+  const updateBill = trpc.finances.updateBill.useMutation({
+    onSuccess: () => {
+      utils.finances.listBills.invalidate();
+      utils.finances.getBillById.invalidate({ id: bill.id });
+      utils.finances.getMonthlyOverview.invalidate({ month: currentMonth });
+      toast.success("Bill updated");
+      onCancel(); // Switch back to view mode
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to update bill");
+    },
+  });
 
-      {/* Notes */}
-      <div>
-        <label className="orbyt-label" htmlFor="bill-notes">
-          Notes <span className="text-text-secondary">(optional)</span>
-        </label>
-        <textarea
-          id="bill-notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="orbyt-input mt-1 w-full resize-none"
-          rows={2}
-          maxLength={2000}
-          placeholder="Any additional notes…"
-        />
-      </div>
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmedAmount = amount.trim();
+    if (!trimmedAmount || !/^\d+(\.\d{1,2})?$/.test(trimmedAmount)) {
+      toast.error("Enter a valid amount (e.g., 150.00)");
+      return;
+    }
+    updateBill.mutate({
+      id: bill.id,
+      data: {
+        name: name.trim(),
+        amount: trimmedAmount,
+        dueDay,
+        category,
+        rrule: "FREQ=MONTHLY",
+        autoPay,
+        currency,
+        notes: notes.trim() || null,
+        url: url.trim() || null,
+      },
+    });
+  }
 
-      <button
-        type="submit"
-        disabled={createBill.isPending || !name.trim() || !amount.trim()}
-        className="orbyt-button-accent"
-      >
-        {createBill.isPending ? "Adding…" : "Add Bill"}
-      </button>
-    </form>
+  return (
+    <BillFormFields
+      name={name}
+      setName={setName}
+      amount={amount}
+      setAmount={setAmount}
+      dueDay={dueDay}
+      setDueDay={setDueDay}
+      category={category}
+      setCategory={setCategory}
+      autoPay={autoPay}
+      setAutoPay={setAutoPay}
+      currency={currency}
+      setCurrency={setCurrency}
+      notes={notes}
+      setNotes={setNotes}
+      url={url}
+      setUrl={setUrl}
+      submitLabel="Save Changes"
+      isPending={updateBill.isPending}
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+    />
   );
 }
 
@@ -237,10 +405,12 @@ function CreateBillForm({
 function ViewBill({
   bill,
   onClose,
+  onEdit,
   currentMonth,
 }: {
   bill: BillDetail;
   onClose: () => void;
+  onEdit: () => void;
   currentMonth: string;
 }) {
   const utils = trpc.useUtils();
@@ -313,6 +483,13 @@ function ViewBill({
         >
           <CheckCircle2 className="h-4 w-4" />
           Mark Paid
+        </button>
+        <button
+          onClick={onEdit}
+          className="orbyt-button-ghost flex items-center gap-2"
+        >
+          <Pencil className="h-4 w-4" />
+          Edit
         </button>
         <button
           onClick={() => setShowArchiveConfirm(true)}
@@ -400,15 +577,26 @@ interface BillDrawerProps {
 }
 
 export function BillDrawer({ isOpen, onClose, billId, currentMonth }: BillDrawerProps) {
+  const [isEditing, setIsEditing] = useState(false);
+
   const { data: bill, isLoading } = trpc.finances.getBillById.useQuery(
     { id: billId! },
     { enabled: !!billId },
   );
 
-  const title = billId ? (bill?.name ?? "Bill Details") : "Add Bill";
+  const handleClose = () => {
+    setIsEditing(false);
+    onClose();
+  };
+
+  const title = billId
+    ? isEditing
+      ? "Edit Bill"
+      : (bill?.name ?? "Bill Details")
+    : "Add Bill";
 
   return (
-    <Drawer open={isOpen} onClose={onClose} title={title}>
+    <Drawer open={isOpen} onClose={handleClose} title={title}>
       {billId ? (
         isLoading ? (
           <div className="flex flex-col gap-4 py-4">
@@ -417,12 +605,25 @@ export function BillDrawer({ isOpen, onClose, billId, currentMonth }: BillDrawer
             ))}
           </div>
         ) : bill ? (
-          <ViewBill bill={bill} onClose={onClose} currentMonth={currentMonth} />
+          isEditing ? (
+            <EditBillForm
+              bill={bill}
+              onCancel={() => setIsEditing(false)}
+              currentMonth={currentMonth}
+            />
+          ) : (
+            <ViewBill
+              bill={bill}
+              onClose={handleClose}
+              onEdit={() => setIsEditing(true)}
+              currentMonth={currentMonth}
+            />
+          )
         ) : (
           <p className="py-8 text-center text-sm text-text-secondary">Bill not found.</p>
         )
       ) : (
-        <CreateBillForm onClose={onClose} currentMonth={currentMonth} />
+        <CreateBillForm onClose={handleClose} currentMonth={currentMonth} />
       )}
     </Drawer>
   );

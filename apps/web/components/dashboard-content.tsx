@@ -106,19 +106,19 @@ export function DashboardContent() {
       {/* Quick stats row */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
-          { label: "Tasks Due Today",     value: sv(l1, tasksToday?.length),   accent: "teal"   },
-          { label: "Bills Due This Week", value: sv(l2, billsWeek?.length),    accent: "gold"   },
-          { label: "Upcoming Birthdays",  value: sv(l3, birthdays?.length),    accent: "violet" },
-          { label: "Shopping Items",      value: sv(l4, uncheckedItems),       accent: "teal"   },
+          { label: "Tasks Due Today",     value: sv(l1, tasksToday?.length),   accent: "teal",   href: "/tasks"    },
+          { label: "Bills Due This Week", value: sv(l2, billsWeek?.length),    accent: "gold",   href: "/finances" },
+          { label: "Upcoming Birthdays",  value: sv(l3, birthdays?.length),    accent: "violet", href: "/contacts" },
+          { label: "Shopping Items",      value: sv(l4, uncheckedItems),       accent: "teal",   href: "/shopping" },
         ].map((stat) => (
-          <div key={stat.label} className="glass-card p-4">
+          <Link key={stat.label} href={stat.href} className="glass-card glass-card-hover p-4 block">
             <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
               {stat.label}
             </p>
             <p className="mt-2 font-display text-2xl font-bold text-accent">
               {stat.value}
             </p>
-          </div>
+          </Link>
         ))}
       </div>
 

@@ -6,6 +6,8 @@ import {
   CreateShoppingListSchema,
   AddShoppingItemSchema,
   CheckShoppingItemSchema,
+  UpdateShoppingListSchema,
+  DeleteShoppingListSchema,
 } from "@orbyt/shared/validators";
 import { router, householdProcedure } from "../trpc";
 
@@ -132,6 +134,47 @@ export const shoppingRouter = router({
       const result = await ctx.db
         .delete(shoppingItems)
         .where(and(eq(shoppingItems.listId, input.listId), eq(shoppingItems.checked, true)));
+      return { success: true };
+    }),
+
+  /**
+   * Update (rename) a shopping list.
+   */
+  updateList: householdProcedure
+    .input(UpdateShoppingListSchema)
+    .mutation(async ({ ctx, input }) => {
+      const list = await ctx.db.query.shoppingLists.findFirst({
+        where: and(
+          eq(shoppingLists.id, input.listId),
+          eq(shoppingLists.householdId, ctx.householdId),
+        ),
+      });
+      if (!list) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const { listId, ...updates } = input;
+      const [updated] = await ctx.db
+        .update(shoppingLists)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(shoppingLists.id, listId))
+        .returning();
+      return updated;
+    }),
+
+  /**
+   * Delete a shopping list and all its items (cascade).
+   */
+  deleteList: householdProcedure
+    .input(DeleteShoppingListSchema)
+    .mutation(async ({ ctx, input }) => {
+      const list = await ctx.db.query.shoppingLists.findFirst({
+        where: and(
+          eq(shoppingLists.id, input.listId),
+          eq(shoppingLists.householdId, ctx.householdId),
+        ),
+      });
+      if (!list) throw new TRPCError({ code: "NOT_FOUND" });
+
+      await ctx.db.delete(shoppingLists).where(eq(shoppingLists.id, input.listId));
       return { success: true };
     }),
 });

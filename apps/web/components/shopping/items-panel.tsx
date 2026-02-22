@@ -51,9 +51,11 @@ function InitialAvatar({ id, name }: { id: string; name: string }) {
 function ItemRow({
   item,
   listId,
+  getMemberName,
 }: {
   item: ShoppingItem;
   listId: string;
+  getMemberName: (userId: string) => string;
 }) {
   const utils = trpc.useUtils();
 
@@ -93,7 +95,7 @@ function ItemRow({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.2 }}
-      className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-surface/50"
+      className="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-surface/50"
     >
       {/* Checkbox */}
       <button
@@ -150,14 +152,14 @@ function ItemRow({
       )}
 
       {/* Added-by avatar */}
-      <InitialAvatar id={item.addedBy} name={item.addedBy.slice(0, 6)} />
+      <InitialAvatar id={item.addedBy} name={getMemberName(item.addedBy)} />
 
       {/* Delete button */}
       <button
         onClick={handleDelete}
         disabled={deleteItem.isPending}
         aria-label="Delete item"
-        className="rounded-md p-1 text-text-secondary opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100 focus:opacity-100"
+        className="rounded-md p-1 text-text-secondary opacity-100 transition-opacity hover:text-red-400 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100"
       >
         <X className="h-3.5 w-3.5" />
       </button>
@@ -171,10 +173,12 @@ function CategoryGroup({
   category,
   items,
   listId,
+  getMemberName,
 }: {
   category: string;
   items: ShoppingItem[];
   listId: string;
+  getMemberName: (userId: string) => string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -220,10 +224,10 @@ function CategoryGroup({
             transition={{ duration: 0.15 }}
             className="overflow-hidden"
           >
-            <div className="group flex flex-col">
+            <div className="flex flex-col">
               <AnimatePresence initial={false}>
                 {items.map((item) => (
-                  <ItemRow key={item.id} item={item} listId={listId} />
+                  <ItemRow key={item.id} item={item} listId={listId} getMemberName={getMemberName} />
                 ))}
               </AnimatePresence>
             </div>
@@ -344,6 +348,11 @@ interface ItemsPanelProps {
 
 export function ItemsPanel({ selectedListId, onBack }: ItemsPanelProps) {
   const utils = trpc.useUtils();
+
+  // Fetch household members to resolve user UUIDs to display names
+  const { data: household } = trpc.household.getCurrent.useQuery();
+  const getMemberName = (userId: string) =>
+    household?.members.find((m) => m.userId === userId)?.profile?.displayName ?? "Unknown";
 
   // Real-time subscription
   useRealtimeInvalidation(
@@ -478,6 +487,7 @@ export function ItemsPanel({ selectedListId, onBack }: ItemsPanelProps) {
                   category={cat}
                   items={grouped[cat]!}
                   listId={selectedListId}
+                  getMemberName={getMemberName}
                 />
               ))}
             </AnimatePresence>

@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Send } from "lucide-react";
+import { toast } from "sonner";
 import type { AppRouter } from "@orbyt/api";
 import type { inferRouterOutputs } from "@trpc/server";
 import { trpc } from "@/lib/trpc/client";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatFriendlyDate } from "@orbyt/shared/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -66,13 +68,24 @@ export function TaskDrawer({
   );
 
   // ── Mutations ────────────────────────────────────────────────────────────────
-  const createTask = trpc.tasks.create.useMutation({ onSuccess });
-  const updateTask = trpc.tasks.update.useMutation({ onSuccess });
+  const createTask = trpc.tasks.create.useMutation({
+    onSuccess: () => {
+      toast.success("Task created");
+      onSuccess();
+    },
+  });
+  const updateTask = trpc.tasks.update.useMutation({
+    onSuccess: () => {
+      toast.success("Task updated");
+      onSuccess();
+    },
+  });
   const addComment = trpc.tasks.addComment.useMutation({
     onSuccess: () => utils.tasks.listComments.invalidate({ taskId: taskId! }),
   });
   const deleteTask = trpc.tasks.delete.useMutation({
     onSuccess: () => {
+      toast.success("Task deleted");
       utils.tasks.list.invalidate();
       onClose();
     },
@@ -87,6 +100,7 @@ export function TaskDrawer({
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [newComment, setNewComment]   = useState("");
   const [isEditing, setIsEditing]     = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Populate form when switching tasks or modes
   useEffect(() => {
@@ -279,11 +293,7 @@ export function TaskDrawer({
         {!isCreating && (
           <button
             type="button"
-            onClick={() => {
-              if (confirm("Delete this task?")) {
-                deleteTask.mutate({ id: taskId! });
-              }
-            }}
+            onClick={() => setConfirmOpen(true)}
             className="orbyt-button-ghost px-3 text-red-400 hover:bg-red-400/10"
           >
             Delete
@@ -427,65 +437,80 @@ export function TaskDrawer({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            key="backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-            onClick={onClose}
-          />
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+              onClick={onClose}
+            />
 
-          {/* Drawer panel */}
-          <motion.div
-            key="drawer"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 28, stiffness: 280 }}
-            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[480px] flex-col border-l border-border bg-[var(--color-bg)] shadow-2xl"
-          >
-            {/* Drawer header */}
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <h2 className="font-display text-lg font-semibold text-text">
-                {isCreating ? "New Task" : isEditing ? "Edit Task" : "Task Details"}
-              </h2>
-              <button
-                onClick={onClose}
-                className="rounded-md p-1.5 text-text-muted transition-colors hover:bg-white/5 hover:text-text"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+            {/* Drawer panel */}
+            <motion.div
+              key="drawer"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[480px] flex-col border-l border-border bg-[var(--color-bg)] shadow-2xl"
+            >
+              {/* Drawer header */}
+              <div className="flex items-center justify-between border-b border-border px-6 py-4">
+                <h2 className="font-display text-lg font-semibold text-text">
+                  {isCreating ? "New Task" : isEditing ? "Edit Task" : "Task Details"}
+                </h2>
+                <button
+                  onClick={onClose}
+                  className="rounded-md p-1.5 text-text-muted transition-colors hover:bg-white/5 hover:text-text"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
 
-            {/* Scrollable body */}
-            <div className="flex-1 overflow-y-auto">
-              {/* Loading skeleton */}
-              {!isCreating && taskLoading && (
-                <div className="flex flex-col gap-3 p-6">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-8 animate-pulse rounded-lg bg-white/5" />
-                  ))}
-                </div>
-              )}
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto">
+                {/* Loading skeleton */}
+                {!isCreating && taskLoading && (
+                  <div className="flex flex-col gap-3 p-6">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="h-8 animate-pulse rounded-lg bg-white/5" />
+                    ))}
+                  </div>
+                )}
 
-              {/* Create or Edit form */}
-              {(isCreating || isEditing) && !taskLoading && FormFields}
+                {/* Create or Edit form */}
+                {(isCreating || isEditing) && !taskLoading && FormFields}
 
-              {/* View mode */}
-              {!isCreating && !isEditing && !taskLoading && ViewMode}
+                {/* View mode */}
+                {!isCreating && !isEditing && !taskLoading && ViewMode}
 
-              {/* Comments */}
-              {!isCreating && !taskLoading && CommentsSection}
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+                {/* Comments */}
+                {!isCreating && !taskLoading && CommentsSection}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete this task?"
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          setConfirmOpen(false);
+          deleteTask.mutate({ id: taskId! });
+        }}
+        onCancel={() => setConfirmOpen(false)}
+      />
+    </>
   );
 }

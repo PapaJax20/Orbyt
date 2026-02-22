@@ -4,12 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { trpcVanilla } from "@/lib/trpc/vanilla";
+import { toast } from "sonner";
 
 export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -42,6 +46,34 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
 
     router.push(redirectTo ?? "/dashboard");
     router.refresh();
+  }
+
+  async function handleForgotPassword() {
+    // If the login email field already has a value, use it directly
+    if (email) {
+      setResetLoading(true);
+      await supabase.auth.resetPasswordForEmail(email);
+      toast.success(
+        "If an account exists with that email, a password reset link has been sent."
+      );
+      setResetLoading(false);
+      setShowReset(false);
+      return;
+    }
+    // Otherwise show the inline reset form
+    setShowReset(true);
+  }
+
+  async function handleResetSubmit() {
+    if (!resetEmail) return;
+    setResetLoading(true);
+    await supabase.auth.resetPasswordForEmail(resetEmail);
+    toast.success(
+      "If an account exists with that email, a password reset link has been sent."
+    );
+    setResetLoading(false);
+    setShowReset(false);
+    setResetEmail("");
   }
 
   return (
@@ -84,6 +116,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           </label>
           <button
             type="button"
+            onClick={handleForgotPassword}
             className="text-xs text-accent hover:text-accent-hover transition-colors"
           >
             Forgot password?
@@ -101,6 +134,44 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
         />
       </div>
 
+      {/* Inline password reset form (shown when no email was filled in) */}
+      {showReset && (
+        <div className="flex flex-col gap-2 rounded-lg border border-accent/20 bg-accent/5 p-3">
+          <p className="text-xs text-text-muted">
+            Enter your email to receive a password reset link.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+              autoComplete="email"
+              className="orbyt-input flex-1 text-sm"
+            />
+            <button
+              type="button"
+              onClick={handleResetSubmit}
+              disabled={resetLoading || !resetEmail}
+              className="orbyt-button-primary whitespace-nowrap px-3 py-1.5 text-xs"
+            >
+              {resetLoading ? "Sending..." : "Send Link"}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowReset(false);
+              setResetEmail("");
+            }}
+            className="self-start text-xs text-text-muted hover:text-text transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
       <button
         type="submit"
         disabled={loading}
@@ -109,7 +180,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
         {loading ? (
           <span className="flex items-center justify-center gap-2">
             <span className="orbital-ring h-4 w-4 animate-orbital-medium" />
-            Signing in…
+            Signing in...
           </span>
         ) : (
           "Sign In"

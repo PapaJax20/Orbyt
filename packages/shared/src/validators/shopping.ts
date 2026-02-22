@@ -21,5 +21,17 @@ export const CheckShoppingItemSchema = z.object({
 
 export const UpdateShoppingItemSchema = AddShoppingItemSchema.omit({ listId: true }).partial();
 
+export const UpdateShoppingListSchema = z.object({
+  listId: z.string().uuid(),
+  name: z.string().min(1, "Name is required").max(100).optional(),
+  emoji: z.string().max(10).optional(),
+});
+
+export const DeleteShoppingListSchema = z.object({
+  listId: z.string().uuid(),
+});
+
 export type CreateShoppingListInput = z.infer<typeof CreateShoppingListSchema>;
 export type AddShoppingItemInput = z.infer<typeof AddShoppingItemSchema>;
+export type UpdateShoppingListInput = z.infer<typeof UpdateShoppingListSchema>;
+export type DeleteShoppingListInput = z.infer<typeof DeleteShoppingListSchema>;

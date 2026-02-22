@@ -42,7 +42,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="flex w-16 flex-col items-center gap-2 border-r py-4 md:w-56 md:items-start md:px-3"
+      className="hidden md:flex w-16 flex-col items-center gap-2 border-r py-4 lg:w-56 lg:items-start lg:px-3"
       style={{
         borderColor: "rgb(var(--color-border) / 0.15)",
         background: "rgb(var(--color-bg-subtle) / 0.5)",
@@ -50,7 +50,7 @@ export function Sidebar() {
       }}
     >
       {/* Logo */}
-      <div className="mb-4 flex w-full items-center gap-3 px-2 md:px-3">
+      <div className="mb-4 flex w-full items-center gap-3 px-2 lg:px-3">
         <div
           className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
           style={{
@@ -60,7 +60,7 @@ export function Sidebar() {
         >
           <span className="font-display text-sm font-bold text-bg">O</span>
         </div>
-        <span className="hidden font-display text-lg font-bold text-text md:block glow-text">
+        <span className="hidden font-display text-lg font-bold text-text lg:block glow-text">
           Orbyt
         </span>
       </div>
@@ -71,7 +71,7 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
-            className={`flex items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-medium transition-all md:px-3 ${
+            className={`flex items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-medium transition-all lg:px-3 ${
               isActive(item.href)
                 ? "bg-accent/10 text-accent"
                 : "text-text-muted hover:bg-surface/50 hover:text-text"
@@ -79,10 +79,10 @@ export function Sidebar() {
             title={item.label}
           >
             <item.icon className="w-5 h-5" />
-            <span className="hidden md:block">{item.label}</span>
+            <span className="hidden lg:block">{item.label}</span>
             {isActive(item.href) && (
               <span
-                className="ml-auto hidden h-1.5 w-1.5 rounded-full md:block"
+                className="ml-auto hidden h-1.5 w-1.5 rounded-full lg:block"
                 style={{ background: "rgb(var(--color-accent))" }}
               />
             )}
@@ -96,7 +96,7 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
-            className={`flex items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-medium transition-all md:px-3 ${
+            className={`flex items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-medium transition-all lg:px-3 ${
               isActive(item.href)
                 ? "bg-accent/10 text-accent"
                 : "text-text-muted hover:bg-surface/50 hover:text-text"
@@ -104,7 +104,7 @@ export function Sidebar() {
             title={item.label}
           >
             <item.icon className="w-5 h-5" />
-            <span className="hidden md:block">{item.label}</span>
+            <span className="hidden lg:block">{item.label}</span>
           </Link>
         ))}
       </div>
