@@ -118,7 +118,7 @@ function DrawerHeader({ title, onClose }: { title: string; onClose: () => void }
       <button
         onClick={onClose}
         aria-label="Close drawer"
-        className="p-2 rounded-lg text-text-secondary hover:text-text hover:bg-surface transition-colors"
+        className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface transition-colors"
       >
         <X size={18} />
       </button>

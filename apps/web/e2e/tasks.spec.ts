@@ -5,8 +5,12 @@ test.describe("Tasks", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/tasks");
-    // Wait for board to render
-    await expect(page.getByText(/tasks/i).first()).toBeVisible({ timeout: 10000 });
+    // Wait for board to render.
+    // Use getByRole("heading") to target the visible <h1>Tasks</h1> in the page
+    // content. getByText(/tasks/i).first() would match the sidebar nav label
+    // first, which is hidden on mobile (hidden md:block) and causes
+    // toBeVisible() to fail at 375px viewport.
+    await expect(page.getByRole("heading", { name: /tasks/i })).toBeVisible({ timeout: 10000 });
   });
 
   // ── Board ────────────────────────────────────────────────────────────────────
@@ -19,7 +23,7 @@ test.describe("Tasks", () => {
 
   test("can switch between kanban and list view", async ({ page }) => {
     // Look for view toggle buttons (Board / List)
-    const listViewBtn = page.getByRole("button", { name: /list/i });
+    const listViewBtn = page.getByRole("button", { name: /list view/i });
     if (await listViewBtn.isVisible({ timeout: 3000 })) {
       await listViewBtn.click();
       // Table/list rows should be visible

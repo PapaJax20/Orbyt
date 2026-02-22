@@ -5,8 +5,12 @@ test.describe("Finances", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/finances");
-    // Wait for page to load
-    await expect(page.getByText(/finances/i).first()).toBeVisible({ timeout: 10000 });
+    // Wait for page to load.
+    // Use getByRole("heading") to target the visible <h1>Finances</h1> in the
+    // page content. getByText(/finances/i).first() would match the sidebar nav
+    // label first, which is hidden on mobile (hidden md:block) and causes
+    // toBeVisible() to fail at 375px viewport.
+    await expect(page.getByRole("heading", { name: /finances/i })).toBeVisible({ timeout: 10000 });
   });
 
   // ── Stat cards ───────────────────────────────────────────────────────────────

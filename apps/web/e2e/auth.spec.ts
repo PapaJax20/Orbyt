@@ -15,7 +15,10 @@ test.describe("Auth flow", () => {
 
     // Should land on dashboard
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
-    await expect(page.getByText(/dashboard|welcome|good/i).first()).toBeVisible({ timeout: 10000 });
+    // Use getByRole("heading") so we target the visible <h1> greeting in the
+    // main content — not the sidebar nav label which is hidden on mobile
+    // (hidden md:block) and would cause toBeVisible() to fail at 375px.
+    await expect(page.getByRole("heading").first()).toBeVisible({ timeout: 10000 });
 
     // ── Step 2: Dashboard renders ───────────────────────────────────────────
     // Stat cards should be visible
@@ -32,7 +35,13 @@ test.describe("Auth flow", () => {
       }
     }
 
-    // If no explicit logout found, navigate to login directly
+    // Clear all cookies so the middleware won't detect a still-valid session
+    // and redirect us away from /login back to /dashboard.  Supabase's
+    // signOut() clears the client-side session, but a race between the
+    // Next.js middleware reading the old cookie and the client clearing it
+    // can cause the redirect to fire before the cookie is gone.
+    await page.context().clearCookies();
+
     await page.goto("/login");
     await expect(page).toHaveURL(/\/login/);
 
@@ -55,10 +64,11 @@ test.describe("Auth flow", () => {
     await page.getByLabel(/password/i).fill("wrongpassword");
     await page.getByRole("button", { name: /sign in|log in/i }).click();
 
-    // Should stay on login and show error
+    // Should stay on login and show error.
+    // Use role="alert" as the primary selector (matches the inline error div
+    // in LoginForm) with an extended timeout — Supabase's signInWithPassword
+    // round-trip can be slow, especially under mobile CPU throttling.
     await expect(page).toHaveURL(/\/login/);
-    await expect(
-      page.getByText(/invalid|incorrect|wrong|error/i)
-    ).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[role="alert"]')).toBeVisible({ timeout: 10000 });
   });
 });

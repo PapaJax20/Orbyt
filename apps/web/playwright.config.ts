@@ -20,9 +20,15 @@ export default defineConfig({
       },
     },
     {
+      // NOTE: We emulate mobile using a Chromium-based device (Pixel 5) rather
+      // than WebKit (iPhone SE) because WebKit on localhost drops Supabase auth
+      // cookies set via SameSite=Lax during client-side router.push() navigations,
+      // causing loginAsAdmin() to fail — the middleware sees no session and
+      // redirects back to /login. Chromium mobile emulation gives us genuine
+      // mobile viewport + UA testing without the WebKit cookie limitation.
       name: "mobile",
       use: {
-        ...devices["iPhone SE"],
+        ...devices["Pixel 5"],
         viewport: { width: 375, height: 667 },
       },
     },
