@@ -1,0 +1,429 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { CheckCircle2, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
+import { trpc } from "@/lib/trpc/client";
+import { Drawer } from "@/components/ui/drawer";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { MarkPaidModal } from "./mark-paid-modal";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@orbyt/api";
+
+type RouterOutput = inferRouterOutputs<AppRouter>;
+type BillDetail = NonNullable<RouterOutput["finances"]["getBillById"]>;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatCurrency(amount: number | string, currency = "USD"): string {
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(num);
+}
+
+const CATEGORIES = [
+  "housing",
+  "utilities",
+  "insurance",
+  "transportation",
+  "subscriptions",
+  "food",
+  "healthcare",
+  "other",
+] as const;
+
+type BillCategory = (typeof CATEGORIES)[number];
+
+// ── Create Form ───────────────────────────────────────────────────────────────
+
+function CreateBillForm({
+  onClose,
+  currentMonth,
+}: {
+  onClose: () => void;
+  currentMonth: string;
+}) {
+  const utils = trpc.useUtils();
+
+  const [name, setName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [dueDay, setDueDay] = useState<number>(1);
+  const [category, setCategory] = useState<BillCategory>("other");
+  const [autoPay, setAutoPay] = useState(false);
+  const [currency, setCurrency] = useState("USD");
+  const [notes, setNotes] = useState("");
+  const [url, setUrl] = useState("");
+
+  const createBill = trpc.finances.createBill.useMutation({
+    onSuccess: () => {
+      utils.finances.listBills.invalidate();
+      utils.finances.getMonthlyOverview.invalidate({ month: currentMonth });
+      toast.success("Bill added");
+      onClose();
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to create bill");
+    },
+  });
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmedAmount = amount.trim();
+    if (!trimmedAmount || !/^\d+(\.\d{1,2})?$/.test(trimmedAmount)) {
+      toast.error("Enter a valid amount (e.g., 150.00)");
+      return;
+    }
+    createBill.mutate({
+      name: name.trim(),
+      amount: trimmedAmount,
+      dueDay,
+      category,
+      rrule: "FREQ=MONTHLY",
+      autoPay,
+      currency,
+      notes: notes.trim() || null,
+      url: url.trim() || null,
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5 pb-6">
+      {/* Name */}
+      <div>
+        <label className="orbyt-label" htmlFor="bill-name">Bill Name</label>
+        <input
+          id="bill-name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="orbyt-input mt-1 w-full"
+          placeholder="e.g. Rent, Netflix"
+          required
+          maxLength={255}
+        />
+      </div>
+
+      {/* Amount + Currency */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="orbyt-label" htmlFor="bill-amount">Amount</label>
+          <div className="relative mt-1">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
+              $
+            </span>
+            <input
+              id="bill-amount"
+              type="text"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="orbyt-input w-full pl-7"
+              placeholder="0.00"
+              required
+            />
+          </div>
+        </div>
+        <div>
+          <label className="orbyt-label" htmlFor="bill-currency">Currency</label>
+          <select
+            id="bill-currency"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="orbyt-input mt-1 w-full"
+          >
+            {["USD", "EUR", "GBP", "CAD", "AUD"].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Due Day + Category */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="orbyt-label" htmlFor="bill-due-day">Due Day (1–31)</label>
+          <input
+            id="bill-due-day"
+            type="number"
+            min={1}
+            max={31}
+            value={dueDay}
+            onChange={(e) => setDueDay(Number(e.target.value))}
+            className="orbyt-input mt-1 w-full"
+            required
+          />
+        </div>
+        <div>
+          <label className="orbyt-label" htmlFor="bill-category">Category</label>
+          <select
+            id="bill-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as BillCategory)}
+            className="orbyt-input mt-1 w-full capitalize"
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c} className="capitalize">{c}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Auto-pay toggle */}
+      <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border bg-surface/50 px-4 py-3">
+        <span className="text-sm font-medium text-text">Auto-pay</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={autoPay}
+          onClick={() => setAutoPay((v) => !v)}
+          className={[
+            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2",
+            autoPay ? "bg-accent" : "bg-border",
+          ].join(" ")}
+        >
+          <span
+            className={[
+              "inline-block h-4 w-4 translate-x-1 rounded-full bg-white shadow transition-transform",
+              autoPay ? "translate-x-6" : "translate-x-1",
+            ].join(" ")}
+          />
+        </button>
+      </label>
+
+      {/* URL */}
+      <div>
+        <label className="orbyt-label" htmlFor="bill-url">
+          Payment URL <span className="text-text-secondary">(optional)</span>
+        </label>
+        <input
+          id="bill-url"
+          type="url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          className="orbyt-input mt-1 w-full"
+          placeholder="https://pay.example.com"
+        />
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="orbyt-label" htmlFor="bill-notes">
+          Notes <span className="text-text-secondary">(optional)</span>
+        </label>
+        <textarea
+          id="bill-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="orbyt-input mt-1 w-full resize-none"
+          rows={2}
+          maxLength={2000}
+          placeholder="Any additional notes…"
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={createBill.isPending || !name.trim() || !amount.trim()}
+        className="orbyt-button-accent"
+      >
+        {createBill.isPending ? "Adding…" : "Add Bill"}
+      </button>
+    </form>
+  );
+}
+
+// ── View / Edit Bill ──────────────────────────────────────────────────────────
+
+function ViewBill({
+  bill,
+  onClose,
+  currentMonth,
+}: {
+  bill: BillDetail;
+  onClose: () => void;
+  currentMonth: string;
+}) {
+  const utils = trpc.useUtils();
+
+  const [showMarkPaid, setShowMarkPaid] = useState(false);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+
+  const deleteBill = trpc.finances.deleteBill.useMutation({
+    onSuccess: () => {
+      utils.finances.listBills.invalidate();
+      utils.finances.getMonthlyOverview.invalidate({ month: currentMonth });
+      toast.success("Bill archived");
+      onClose();
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to archive bill");
+    },
+  });
+
+
+  return (
+    <div className="flex flex-col gap-6 pb-6">
+      {/* Bill info */}
+      <div className="glass-card rounded-2xl p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-display text-xl font-bold text-text">{bill.name}</p>
+            <p className="mt-1 text-sm capitalize text-text-secondary">{bill.category}</p>
+          </div>
+          <p className="font-display text-2xl font-bold text-accent">
+            {formatCurrency(bill.amount, bill.currency)}
+          </p>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-text-secondary">Due Day</p>
+            <p className="font-medium text-text">{bill.dueDay}</p>
+          </div>
+          <div>
+            <p className="text-text-secondary">Auto-pay</p>
+            <p className="font-medium text-text">{bill.autoPay ? "Yes" : "No"}</p>
+          </div>
+          {bill.currency !== "USD" && (
+            <div>
+              <p className="text-text-secondary">Currency</p>
+              <p className="font-medium text-text">{bill.currency}</p>
+            </div>
+          )}
+        </div>
+        {bill.notes && (
+          <p className="mt-3 text-sm text-text-secondary">{bill.notes}</p>
+        )}
+        {bill.url && (
+          <a
+            href={bill.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 block text-sm text-accent underline-offset-2 hover:underline"
+          >
+            Pay online ↗
+          </a>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => setShowMarkPaid(true)}
+          className="orbyt-button-accent flex flex-1 items-center justify-center gap-2"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          Mark Paid
+        </button>
+        <button
+          onClick={() => setShowArchiveConfirm(true)}
+          aria-label="Archive bill"
+          className="orbyt-button-ghost flex items-center gap-2 text-red-400 hover:bg-red-500/10"
+        >
+          <Trash2 className="h-4 w-4" />
+          Archive
+        </button>
+      </div>
+
+      {/* Payment history */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text-secondary">
+          Payment History
+        </h3>
+        {bill.payments.length === 0 ? (
+          <p className="text-sm text-text-secondary">No payments recorded yet.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <AnimatePresence initial={false}>
+              {bill.payments.map((payment) => (
+                <motion.div
+                  key={payment.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.15 }}
+                  className="glass-card-subtle flex items-center justify-between rounded-xl px-4 py-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-text">
+                      {formatCurrency(payment.amount, bill.currency)}
+                    </p>
+                    {payment.notes && (
+                      <p className="text-xs text-text-secondary">{payment.notes}</p>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-secondary">
+                    {new Date(payment.paidAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+
+      {/* Mark Paid Modal */}
+      <MarkPaidModal
+        billId={bill.id}
+        billName={bill.name}
+        defaultAmount={bill.amount}
+        currency={bill.currency}
+        open={showMarkPaid}
+        onClose={() => setShowMarkPaid(false)}
+        currentMonth={currentMonth}
+      />
+
+      {/* Archive Confirm Dialog */}
+      <ConfirmDialog
+        open={showArchiveConfirm}
+        title="Archive this bill?"
+        description="It will be removed from your active bills. You can still view its payment history."
+        confirmLabel="Archive"
+        variant="destructive"
+        onConfirm={() => deleteBill.mutate({ id: bill.id })}
+        onCancel={() => setShowArchiveConfirm(false)}
+      />
+    </div>
+  );
+}
+
+// ── BillDrawer (main export) ──────────────────────────────────────────────────
+
+interface BillDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  billId: string | null;
+  currentMonth: string;
+}
+
+export function BillDrawer({ isOpen, onClose, billId, currentMonth }: BillDrawerProps) {
+  const { data: bill, isLoading } = trpc.finances.getBillById.useQuery(
+    { id: billId! },
+    { enabled: !!billId },
+  );
+
+  const title = billId ? (bill?.name ?? "Bill Details") : "Add Bill";
+
+  return (
+    <Drawer open={isOpen} onClose={onClose} title={title}>
+      {billId ? (
+        isLoading ? (
+          <div className="flex flex-col gap-4 py-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-12 animate-pulse rounded-xl bg-surface" />
+            ))}
+          </div>
+        ) : bill ? (
+          <ViewBill bill={bill} onClose={onClose} currentMonth={currentMonth} />
+        ) : (
+          <p className="py-8 text-center text-sm text-text-secondary">Bill not found.</p>
+        )
+      ) : (
+        <CreateBillForm onClose={onClose} currentMonth={currentMonth} />
+      )}
+    </Drawer>
+  );
+}
