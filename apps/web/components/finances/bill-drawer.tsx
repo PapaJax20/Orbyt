@@ -161,27 +161,37 @@ function BillFormFields({
         </div>
       </div>
 
-      {/* Auto-pay toggle */}
-      <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border bg-surface/50 px-4 py-3">
-        <span className="text-sm font-medium text-text">Auto-pay</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={autoPay}
-          onClick={() => setAutoPay(!autoPay)}
-          className={[
-            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2",
-            autoPay ? "bg-accent" : "bg-border",
-          ].join(" ")}
-        >
-          <span
-            className={[
-              "inline-block h-4 w-4 translate-x-1 rounded-full bg-white shadow transition-transform",
-              autoPay ? "translate-x-6" : "translate-x-1",
-            ].join(" ")}
-          />
-        </button>
-      </label>
+      {/* Auto-pay (external) toggle */}
+      <div className="rounded-xl border border-border bg-surface/50 px-4 py-3">
+        <label className="flex cursor-pointer items-center justify-between">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-text">Auto-pay (external)</span>
+            <span className="text-xs text-text-muted">Track bills your bank pays automatically</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={["text-xs font-medium", autoPay ? "text-accent" : "text-text-muted"].join(" ")}>
+              {autoPay ? "ON" : "OFF"}
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoPay}
+              onClick={() => setAutoPay(!autoPay)}
+              className={[
+                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2",
+                autoPay ? "bg-accent" : "bg-white/10",
+              ].join(" ")}
+            >
+              <span
+                className={[
+                  "inline-block h-4 w-4 rounded-full shadow transition-transform",
+                  autoPay ? "translate-x-6 bg-white" : "translate-x-1 bg-white/60",
+                ].join(" ")}
+              />
+            </button>
+          </div>
+        </label>
+      </div>
 
       {/* URL */}
       <div>
@@ -450,7 +460,7 @@ function ViewBill({
             <p className="font-medium text-text">{bill.dueDay}</p>
           </div>
           <div>
-            <p className="text-text-muted">Auto-pay</p>
+            <p className="text-text-muted">Auto-pay (external)</p>
             <p className="font-medium text-text">{bill.autoPay ? "Yes" : "No"}</p>
           </div>
           {bill.currency !== "USD" && (
