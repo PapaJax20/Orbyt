@@ -12,7 +12,7 @@ test.describe("Tasks", () => {
   // ── Board ────────────────────────────────────────────────────────────────────
 
   test("renders kanban columns", async ({ page }) => {
-    await expect(page.getByText(/todo/i).first()).toBeVisible();
+    await expect(page.getByText(/to do/i).first()).toBeVisible();
     await expect(page.getByText(/in progress/i).first()).toBeVisible();
     await expect(page.getByText(/done/i).first()).toBeVisible();
   });
@@ -29,7 +29,7 @@ test.describe("Tasks", () => {
       const boardBtn = page.getByRole("button", { name: /board/i });
       if (await boardBtn.isVisible()) {
         await boardBtn.click();
-        await expect(page.getByText(/todo/i).first()).toBeVisible({ timeout: 5000 });
+        await expect(page.getByText(/to do/i).first()).toBeVisible({ timeout: 5000 });
       }
     }
   });

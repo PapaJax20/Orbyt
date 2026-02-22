@@ -4,6 +4,8 @@ import { appRouter } from "@orbyt/api";
 import { createClient } from "@/lib/supabase/server";
 import { createDbClient } from "@orbyt/db/client";
 
+const db = createDbClient(process.env["DATABASE_URL"]!);
+
 /**
  * tRPC route handler for Next.js App Router.
  * Handles all tRPC requests at /api/trpc/[procedure].
@@ -19,8 +21,6 @@ const handler = (req: NextRequest) =>
       const {
         data: { user: authUser },
       } = await supabase.auth.getUser();
-
-      const db = createDbClient(process.env["DATABASE_URL"]!);
 
       let profile = null;
       if (authUser) {
@@ -38,6 +38,10 @@ const handler = (req: NextRequest) =>
         req.headers.get("x-household-id") ??
         req.cookies.get("orbyt-household-id")?.value ??
         null;
+
+      if (process.env["NODE_ENV"] === "development") {
+        console.log("[tRPC ctx]", { authUser: authUser?.id ?? "null", profile: profile?.id ?? "null", householdId });
+      }
 
       return {
         db,

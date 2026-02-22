@@ -15,7 +15,7 @@ test.describe("Auth flow", () => {
 
     // Should land on dashboard
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
-    await expect(page.getByText(/dashboard|welcome|good/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/dashboard|welcome|good/i).first()).toBeVisible({ timeout: 10000 });
 
     // ── Step 2: Dashboard renders ───────────────────────────────────────────
     // Stat cards should be visible

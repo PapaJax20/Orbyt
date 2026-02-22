@@ -72,7 +72,7 @@ async function seed() {
     password: "password123",
     email_confirm: true,
   });
-  if (alexErr && !alexErr.message.includes("already registered")) {
+  if (alexErr && alexErr.code !== "email_exists" && !alexErr.message.includes("already been registered")) {
     throw new Error(`Failed to create Alex: ${alexErr.message}`);
   }
 
@@ -81,7 +81,7 @@ async function seed() {
     password: "password123",
     email_confirm: true,
   });
-  if (samErr && !samErr.message.includes("already registered")) {
+  if (samErr && samErr.code !== "email_exists" && !samErr.message.includes("already been registered")) {
     throw new Error(`Failed to create Sam: ${samErr.message}`);
   }
 

@@ -87,13 +87,13 @@ test.describe("Finances", () => {
 
     // Open mark paid modal
     await page.getByRole("button", { name: /mark paid/i }).click();
-    await expect(page.getByText(/record payment/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/mark as paid/i)).toBeVisible({ timeout: 5000 });
 
     // Click inside the modal — should stay open
     const amountField = page.getByLabel(/amount/i).last();
     if (await amountField.isVisible()) {
       await amountField.click();
-      await expect(page.getByText(/record payment/i)).toBeVisible();
+      await expect(page.getByText(/mark as paid/i)).toBeVisible();
     }
   });
 });

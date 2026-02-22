@@ -25,6 +25,7 @@ export function Drawer({ open, onClose, title, children, width = 480 }: DrawerPr
             <Dialog.Overlay asChild>
               <motion.div
                 className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+                onClick={onClose}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -33,7 +34,7 @@ export function Drawer({ open, onClose, title, children, width = 480 }: DrawerPr
             </Dialog.Overlay>
 
             {/* Panel */}
-            <Dialog.Content asChild>
+            <Dialog.Content asChild onInteractOutside={(e) => e.preventDefault()}>
               {isMobile ? (
                 <MobileSheet onClose={onClose} title={title}>
                   {children}

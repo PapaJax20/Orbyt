@@ -43,8 +43,8 @@ const calendarStyles = `
   .fc-theme-standard td, .fc-theme-standard th { border-color: var(--color-border, rgba(255,255,255,0.1)); }
   .fc .fc-daygrid-day { background: transparent; }
   .fc .fc-col-header-cell { background: var(--color-surface, rgba(255,255,255,0.06)); padding: 8px 0; }
-  .fc .fc-col-header-cell-cushion { color: var(--color-text-secondary, rgba(255,255,255,0.5)); font-size: 0.75rem; font-weight: 500; text-decoration: none; }
-  .fc .fc-daygrid-day-number { color: var(--color-text-secondary, rgba(255,255,255,0.5)); font-size: 0.8125rem; text-decoration: none; }
+  .fc .fc-col-header-cell-cushion { color: var(--color-text-muted, rgba(255,255,255,0.5)); font-size: 0.75rem; font-weight: 500; text-decoration: none; }
+  .fc .fc-daygrid-day-number { color: var(--color-text-muted, rgba(255,255,255,0.5)); font-size: 0.8125rem; text-decoration: none; }
   .fc .fc-daygrid-day.fc-day-today { background: var(--color-surface, rgba(255,255,255,0.04)); }
   .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number { color: var(--color-accent, #06B6D4); font-weight: 700; }
   .fc .fc-daygrid-day:hover { background: var(--color-surface, rgba(255,255,255,0.04)); cursor: pointer; }
@@ -52,13 +52,13 @@ const calendarStyles = `
   .fc-event .fc-event-title { font-weight: 500; }
   .fc .fc-timegrid-slot { border-color: var(--color-border, rgba(255,255,255,0.06)); }
   .fc .fc-timegrid-col.fc-day-today { background: transparent; }
-  .fc .fc-timegrid-slot-label { color: var(--color-text-secondary, rgba(255,255,255,0.5)); font-size: 0.75rem; }
+  .fc .fc-timegrid-slot-label { color: var(--color-text-muted, rgba(255,255,255,0.5)); font-size: 0.75rem; }
   .fc .fc-scrollgrid { border: none; }
   .fc .fc-scrollgrid-section-body td { border-bottom: none; }
   .fc-list-event:hover td { background: var(--color-surface); }
   .fc-list-empty { background: transparent; }
   .fc-list-event-title a { color: var(--color-text); text-decoration: none; }
-  .fc-list-day-cushion { background: var(--color-surface) !important; color: var(--color-text-secondary); font-size: 0.8125rem; }
+  .fc-list-day-cushion { background: var(--color-surface) !important; color: var(--color-text-muted); font-size: 0.8125rem; }
 `;
 
 // ── CalendarContent ───────────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ export function CalendarContent() {
 
   // Event handlers
   const handleDatesSet = useCallback((dateInfo: DatesSetArg) => {
-    setDateRange({ start: dateInfo.startStr, end: dateInfo.endStr });
+    setDateRange({ start: dateInfo.start.toISOString(), end: dateInfo.end.toISOString() });
     setCalendarTitle(dateInfo.view.title);
     setView(dateInfo.view.type as CalendarView);
   }, []);
@@ -167,7 +167,7 @@ export function CalendarContent() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl font-bold text-text">Calendar</h1>
-            <p className="mt-1 text-text-secondary">Shared family schedule</p>
+            <p className="mt-1 text-text-muted">Shared family schedule</p>
           </div>
           <button
             onClick={() => {

@@ -18,6 +18,9 @@ test.describe("Shopping", () => {
   test("can create a new shopping list", async ({ page }) => {
     const listName = `E2E Groceries ${Date.now()}`;
 
+    // Open new list form
+    await page.getByRole("button", { name: /new list/i }).click();
+
     // Fill list name input
     const listNameInput = page.getByPlaceholder(/list name/i);
     await expect(listNameInput).toBeVisible({ timeout: 8000 });
@@ -33,6 +36,8 @@ test.describe("Shopping", () => {
   test("can select a list and add an item", async ({ page }) => {
     // Create a list first to ensure one exists
     const listName = `Test List ${Date.now()}`;
+    // Open new list form
+    await page.getByRole("button", { name: /new list/i }).click();
     const listNameInput = page.getByPlaceholder(/list name/i);
     await expect(listNameInput).toBeVisible({ timeout: 8000 });
     await listNameInput.fill(listName);
@@ -58,6 +63,8 @@ test.describe("Shopping", () => {
   test("can check an item as bought", async ({ page }) => {
     // Create list + item
     const listName = `Check Test ${Date.now()}`;
+    // Open new list form
+    await page.getByRole("button", { name: /new list/i }).click();
     const listNameInput = page.getByPlaceholder(/list name/i);
     await listNameInput.fill(listName);
     await page.keyboard.press("Enter");
