@@ -4,7 +4,15 @@ import { appRouter } from "@orbyt/api";
 import { createClient } from "@/lib/supabase/server";
 import { createDbClient } from "@orbyt/db/client";
 
-const db = createDbClient(process.env["DATABASE_URL"]!);
+export const dynamic = "force-dynamic";
+
+let db: ReturnType<typeof createDbClient>;
+function getDb() {
+  if (!db) {
+    db = createDbClient(process.env["DATABASE_URL"]!);
+  }
+  return db;
+}
 
 /**
  * tRPC route handler for Next.js App Router.
@@ -25,7 +33,7 @@ const handler = (req: NextRequest) =>
       let profile = null;
       if (authUser) {
         // Fetch or create the user profile
-        const { profile: fetchedProfile } = await db.query.profiles
+        const { profile: fetchedProfile } = await getDb().query.profiles
           .findFirst({
             where: (p, { eq }) => eq(p.id, authUser.id),
           })
@@ -44,7 +52,7 @@ const handler = (req: NextRequest) =>
       }
 
       return {
-        db,
+        db: getDb(),
         user: profile,
         householdId,
       };
