@@ -1,0 +1,5 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
+    <rect width='512' height='512' rx='102.4' fill='#0B1929'/>
+    <circle cx='256' cy='256' r='153.6' fill='none' stroke='#06B6D4' stroke-width='30.72'/>
+    <text x='256' y='317.44' text-anchor='middle' font-family='system-ui' font-weight='900' font-size='153.6' fill='#06B6D4'>O</text>
+  </svg>

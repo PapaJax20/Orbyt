@@ -6,11 +6,13 @@ export const metadata: Metadata = {
   title: "Sign In",
 };
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ redirectTo?: string; error?: string }>;
 }) {
+  const { redirectTo } = await searchParams;
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -20,7 +22,7 @@ export default function LoginPage({
         </p>
       </div>
 
-      <LoginForm />
+      <LoginForm redirectTo={redirectTo} />
 
       <p className="text-center text-sm text-text-muted">
         New to Orbyt?{" "}

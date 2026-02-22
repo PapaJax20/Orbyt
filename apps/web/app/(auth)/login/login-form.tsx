@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { trpcVanilla } from "@/lib/trpc/vanilla";
 
-export function LoginForm() {
+export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +40,7 @@ export function LoginForm() {
       console.warn("Failed to fetch households on login");
     }
 
-    router.push("/dashboard");
+    router.push(redirectTo ?? "/dashboard");
     router.refresh();
   }
 
