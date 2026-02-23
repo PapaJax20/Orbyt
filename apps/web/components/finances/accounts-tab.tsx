@@ -121,8 +121,19 @@ function AccountCardSkeleton() {
 export function AccountsTab() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [filterOwnership, setFilterOwnership] = useState("");
+  const [filterMemberId, setFilterMemberId] = useState("");
 
-  const { data, isLoading } = trpc.finances.listAccounts.useQuery();
+  const { data: membersData } = trpc.finances.listHouseholdMembers.useQuery();
+  const members = membersData ?? [];
+
+  const queryInput: { ownership?: "mine" | "theirs" | "ours"; memberId?: string } = {};
+  if (filterOwnership) queryInput.ownership = filterOwnership as "mine" | "theirs" | "ours";
+  if (filterMemberId) queryInput.memberId = filterMemberId;
+
+  const { data, isLoading } = trpc.finances.listAccounts.useQuery(
+    Object.keys(queryInput).length > 0 ? queryInput : undefined
+  );
 
   function openCreate() {
     setSelectedAccountId(null);
@@ -167,6 +178,30 @@ export function AccountsTab() {
             </p>
           </div>
         )}
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3">
+          <select
+            value={filterOwnership}
+            onChange={(e) => setFilterOwnership(e.target.value)}
+            className="orbyt-input text-sm"
+          >
+            <option value="">All Ownership</option>
+            <option value="mine">Mine</option>
+            <option value="theirs">Partner's</option>
+            <option value="ours">Shared</option>
+          </select>
+          <select
+            value={filterMemberId}
+            onChange={(e) => setFilterMemberId(e.target.value)}
+            className="orbyt-input text-sm"
+          >
+            <option value="">All Members</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        </div>
 
         {/* Account Grid */}
         {isLoading ? (

@@ -31,6 +31,7 @@ export const bills = pgTable("bills", {
   notes: text("notes"),
   url: text("url"),
   isActive: boolean("is_active").default(true).notNull(),
+  assignedTo: uuid("assigned_to").references(() => profiles.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -97,6 +98,7 @@ export const transactions = pgTable("transactions", {
     .array()
     .default(sql`'{}'::text[]`),
   splitWith: jsonb("split_with"),
+  ownership: varchar("ownership", { length: 10 }).default("ours").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -136,6 +138,27 @@ export const savingsGoals = pgTable("savings_goals", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// --- Expense Splits ---
+export const expenseSplits = pgTable("expense_splits", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  householdId: uuid("household_id")
+    .references(() => households.id, { onDelete: "cascade" })
+    .notNull(),
+  transactionId: uuid("transaction_id")
+    .references(() => transactions.id, { onDelete: "cascade" })
+    .notNull(),
+  owedBy: uuid("owed_by")
+    .references(() => profiles.id)
+    .notNull(),
+  owedTo: uuid("owed_to")
+    .references(() => profiles.id)
+    .notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  settled: boolean("settled").default(false).notNull(),
+  settledAt: timestamp("settled_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type Bill = typeof bills.$inferSelect;
 export type NewBill = typeof bills.$inferInsert;
 export type BillPayment = typeof billPayments.$inferSelect;
@@ -147,3 +170,5 @@ export type Budget = typeof budgets.$inferSelect;
 export type NewBudget = typeof budgets.$inferInsert;
 export type SavingsGoal = typeof savingsGoals.$inferSelect;
 export type NewSavingsGoal = typeof savingsGoals.$inferInsert;
+export type ExpenseSplit = typeof expenseSplits.$inferSelect;
+export type NewExpenseSplit = typeof expenseSplits.$inferInsert;

@@ -10,6 +10,7 @@ import {
   Receipt,
   Target,
 } from "lucide-react";
+import { toast } from "sonner";
 import type { AppRouter } from "@orbyt/api";
 import type { inferRouterOutputs } from "@trpc/server";
 import { trpc } from "@/lib/trpc/client";
@@ -92,6 +93,18 @@ function OverviewTab() {
 
   const { data: goals, isLoading: goalsLoading } =
     trpc.finances.listGoals.useQuery();
+
+  const { data: balances, isLoading: balancesLoading } =
+    trpc.finances.getBalanceBetweenMembers.useQuery({});
+
+  const utils = trpc.useUtils();
+  const settleAllMutation = trpc.finances.settleAllBetween.useMutation({
+    onSuccess: () => {
+      utils.finances.getBalanceBetweenMembers.invalidate();
+      toast.success("Settled up!");
+    },
+    onError: (err) => toast.error(err.message ?? "Failed to settle"),
+  });
 
   const recentTransactions = recentTxData?.transactions ?? [];
   const topBudgets = (budgetProgress ?? []).slice(0, 4);
@@ -229,6 +242,44 @@ function OverviewTab() {
           )}
         </div>
       </div>
+
+      {/* Settle Up Card */}
+      {!balancesLoading && balances && balances.length > 0 && (
+        <div className="glass-card rounded-2xl p-5">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-text-muted">
+            Settle Up
+          </h3>
+          <div className="flex flex-col gap-3">
+            {balances.map((balance, i) => (
+              <div
+                key={i}
+                className="glass-card-subtle flex items-center justify-between rounded-xl px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium text-text">
+                    {balance.owedByName} owes {balance.owedToName}
+                  </p>
+                  <p className="text-lg font-bold text-accent">
+                    {formatCurrency(balance.amount)}
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                    settleAllMutation.mutate({
+                      memberId1: balance.owedBy,
+                      memberId2: balance.owedTo,
+                    })
+                  }
+                  disabled={settleAllMutation.isPending}
+                  className="orbyt-button-accent text-sm px-4 py-2"
+                >
+                  {settleAllMutation.isPending ? "Settling..." : "Settle"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Bottom row: Recent transactions + Savings goals */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

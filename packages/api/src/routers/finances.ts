@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { eq, and, gte, lte, desc, asc, sql, count, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { bills, billPayments, accounts, transactions, budgets, savingsGoals } from "@orbyt/db/schema";
+import { bills, billPayments, accounts, transactions, budgets, savingsGoals, expenseSplits, profiles, householdMembers } from "@orbyt/db/schema";
 import {
   CreateBillSchema,
   UpdateBillSchema,
@@ -17,6 +17,9 @@ import {
   CreateSavingsGoalSchema,
   UpdateSavingsGoalSchema,
   ContributeToGoalSchema,
+  CreateExpenseSplitSchema,
+  SettleUpSchema,
+  GetBalanceSchema,
 } from "@orbyt/shared/validators";
 import { getNextBillDueDate } from "@orbyt/shared/utils";
 import { router, householdProcedure } from "../trpc";
@@ -212,25 +215,39 @@ export const financesRouter = router({
    * List all active accounts for the household, ordered by type then name.
    * Includes total balance sum.
    */
-  listAccounts: householdProcedure.query(async ({ ctx }) => {
-    const allAccounts = await ctx.db.query.accounts.findMany({
-      where: and(
+  listAccounts: householdProcedure
+    .input(z.object({
+      ownership: z.enum(["mine", "theirs", "ours"]).optional(),
+      memberId: z.string().uuid().optional(),
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      const conditions = [
         eq(accounts.householdId, ctx.householdId),
-        eq(accounts.isActive, true)
-      ),
-      orderBy: [asc(accounts.type), asc(accounts.name)],
-    });
+        eq(accounts.isActive, true),
+      ];
 
-    const totalBalance = allAccounts.reduce(
-      (sum, a) => sum + parseFloat(a.balance ?? "0"),
-      0
-    );
+      if (input?.ownership) {
+        conditions.push(eq(accounts.ownership, input.ownership));
+      }
+      if (input?.memberId) {
+        conditions.push(eq(accounts.ownerId, input.memberId));
+      }
 
-    return {
-      accounts: allAccounts,
-      totalBalance,
-    };
-  }),
+      const allAccounts = await ctx.db.query.accounts.findMany({
+        where: and(...conditions),
+        orderBy: [asc(accounts.type), asc(accounts.name)],
+      });
+
+      const totalBalance = allAccounts.reduce(
+        (sum, a) => sum + parseFloat(a.balance ?? "0"),
+        0
+      );
+
+      return {
+        accounts: allAccounts,
+        totalBalance,
+      };
+    }),
 
   /**
    * Get a single account by ID with recent transactions (last 10).
@@ -355,6 +372,12 @@ export const financesRouter = router({
       }
       if (input.accountId) {
         conditions.push(eq(transactions.accountId, input.accountId));
+      }
+      if (input.ownership) {
+        conditions.push(eq(transactions.ownership, input.ownership));
+      }
+      if (input.memberId) {
+        conditions.push(eq(transactions.createdBy, input.memberId));
       }
 
       const whereClause = and(...conditions);
@@ -945,4 +968,248 @@ export const financesRouter = router({
         billsDueThisMonth,
       };
     }),
+
+  // ================================================================
+  // Expense Splitting Procedures
+  // ================================================================
+
+  /**
+   * Create expense splits for a transaction.
+   * Takes a transaction ID and an array of splits (owedBy, owedTo, amount).
+   */
+  createExpenseSplits: householdProcedure
+    .input(CreateExpenseSplitSchema)
+    .mutation(async ({ ctx, input }) => {
+      // Verify transaction belongs to this household
+      const transaction = await ctx.db.query.transactions.findFirst({
+        where: and(
+          eq(transactions.id, input.transactionId),
+          eq(transactions.householdId, ctx.householdId)
+        ),
+      });
+      if (!transaction) throw new TRPCError({ code: "NOT_FOUND", message: "Transaction not found" });
+
+      const created = await Promise.all(
+        input.splits.map((split) =>
+          ctx.db
+            .insert(expenseSplits)
+            .values({
+              householdId: ctx.householdId,
+              transactionId: input.transactionId,
+              owedBy: split.owedBy,
+              owedTo: split.owedTo,
+              amount: split.amount,
+            })
+            .returning()
+        )
+      );
+
+      return created.flat();
+    }),
+
+  /**
+   * List expense splits for a transaction.
+   */
+  listExpenseSplits: householdProcedure
+    .input(z.object({ transactionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const splits = await ctx.db.query.expenseSplits.findMany({
+        where: and(
+          eq(expenseSplits.transactionId, input.transactionId),
+          eq(expenseSplits.householdId, ctx.householdId)
+        ),
+        orderBy: (s, { desc }) => [desc(s.createdAt)],
+      });
+      return splits;
+    }),
+
+  /**
+   * Get balance between household members.
+   * Returns net amounts: who owes whom across all unsettled splits.
+   */
+  getBalanceBetweenMembers: householdProcedure
+    .input(GetBalanceSchema)
+    .query(async ({ ctx, input }) => {
+      const conditions = [
+        eq(expenseSplits.householdId, ctx.householdId),
+        eq(expenseSplits.settled, false),
+      ];
+
+      if (input.memberId) {
+        // Show only splits involving this member
+        conditions.push(
+          sql`(${expenseSplits.owedBy} = ${input.memberId} OR ${expenseSplits.owedTo} = ${input.memberId})`
+        );
+      }
+
+      const unsettledSplits = await ctx.db.query.expenseSplits.findMany({
+        where: and(...conditions),
+      });
+
+      // Calculate net balances between each pair
+      const balanceMap = new Map<string, number>();
+
+      for (const split of unsettledSplits) {
+        const key = [split.owedBy, split.owedTo].sort().join(":");
+        const amount = parseFloat(split.amount ?? "0");
+        const existing = balanceMap.get(key) ?? 0;
+
+        // If owedBy < owedTo (sorted), positive means first person owes second
+        if (split.owedBy < split.owedTo) {
+          balanceMap.set(key, existing + amount);
+        } else {
+          balanceMap.set(key, existing - amount);
+        }
+      }
+
+      // Fetch member profiles for display names
+      const members = await ctx.db.query.householdMembers.findMany({
+        where: eq(householdMembers.householdId, ctx.householdId),
+        with: { profile: true },
+      });
+      const profileMap = new Map(
+        members.map((m) => [m.userId, m.profile])
+      );
+
+      const balances = Array.from(balanceMap.entries()).map(([key, netAmount]) => {
+        const [id1, id2] = key.split(":") as [string, string];
+        const owedBy = netAmount > 0 ? id1 : id2;
+        const owedTo = netAmount > 0 ? id2 : id1;
+        const absAmount = Math.abs(netAmount);
+
+        return {
+          owedBy,
+          owedTo,
+          owedByName: profileMap.get(owedBy)?.displayName ?? "Unknown",
+          owedToName: profileMap.get(owedTo)?.displayName ?? "Unknown",
+          amount: absAmount.toFixed(2),
+        };
+      }).filter((b) => parseFloat(b.amount) > 0);
+
+      return balances;
+    }),
+
+  /**
+   * Settle up: mark specific splits as settled.
+   */
+  settleUp: householdProcedure
+    .input(SettleUpSchema)
+    .mutation(async ({ ctx, input }) => {
+      const now = new Date();
+
+      await Promise.all(
+        input.splitIds.map((splitId) =>
+          ctx.db
+            .update(expenseSplits)
+            .set({ settled: true, settledAt: now })
+            .where(
+              and(
+                eq(expenseSplits.id, splitId),
+                eq(expenseSplits.householdId, ctx.householdId)
+              )
+            )
+        )
+      );
+
+      return { success: true, settledCount: input.splitIds.length };
+    }),
+
+  /**
+   * Settle all unsettled splits between two members.
+   */
+  settleAllBetween: householdProcedure
+    .input(z.object({
+      memberId1: z.string().uuid(),
+      memberId2: z.string().uuid(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const now = new Date();
+
+      // Find all unsettled splits between these two members
+      const unsettled = await ctx.db.query.expenseSplits.findMany({
+        where: and(
+          eq(expenseSplits.householdId, ctx.householdId),
+          eq(expenseSplits.settled, false),
+          sql`(
+            (${expenseSplits.owedBy} = ${input.memberId1} AND ${expenseSplits.owedTo} = ${input.memberId2})
+            OR
+            (${expenseSplits.owedBy} = ${input.memberId2} AND ${expenseSplits.owedTo} = ${input.memberId1})
+          )`
+        ),
+      });
+
+      if (unsettled.length === 0) {
+        return { success: true, settledCount: 0 };
+      }
+
+      await Promise.all(
+        unsettled.map((split) =>
+          ctx.db
+            .update(expenseSplits)
+            .set({ settled: true, settledAt: now })
+            .where(eq(expenseSplits.id, split.id))
+        )
+      );
+
+      return { success: true, settledCount: unsettled.length };
+    }),
+
+  /**
+   * Get spending breakdown by household member for a given month.
+   */
+  getSpendingByMember: householdProcedure
+    .input(z.object({
+      month: z.string().regex(/^\d{4}-\d{2}$/, "Must be YYYY-MM format"),
+    }))
+    .query(async ({ ctx, input }) => {
+      const [year, month] = input.month.split("-").map(Number) as [number, number];
+      const startStr = new Date(year, month - 1, 1).toISOString().split("T")[0]!;
+      const endStr = new Date(year, month, 0).toISOString().split("T")[0]!;
+
+      // Get all expense transactions for the month
+      const monthExpenses = await ctx.db.query.transactions.findMany({
+        where: and(
+          eq(transactions.householdId, ctx.householdId),
+          eq(transactions.type, "expense"),
+          gte(transactions.date, startStr),
+          lte(transactions.date, endStr)
+        ),
+      });
+
+      // Get member profiles
+      const members = await ctx.db.query.householdMembers.findMany({
+        where: eq(householdMembers.householdId, ctx.householdId),
+        with: { profile: true },
+      });
+
+      // Group spending by member (createdBy)
+      const spendingByMember = new Map<string, number>();
+      for (const tx of monthExpenses) {
+        const current = spendingByMember.get(tx.createdBy) ?? 0;
+        spendingByMember.set(tx.createdBy, current + parseFloat(tx.amount ?? "0"));
+      }
+
+      return members.map((m) => ({
+        memberId: m.userId,
+        memberName: m.profile?.displayName ?? "Unknown",
+        totalSpent: (spendingByMember.get(m.userId) ?? 0).toFixed(2),
+        transactionCount: monthExpenses.filter((tx) => tx.createdBy === m.userId).length,
+      }));
+    }),
+
+  /**
+   * List household members (for member filter dropdowns on the frontend).
+   */
+  listHouseholdMembers: householdProcedure.query(async ({ ctx }) => {
+    const members = await ctx.db.query.householdMembers.findMany({
+      where: eq(householdMembers.householdId, ctx.householdId),
+      with: { profile: true },
+    });
+    return members.map((m) => ({
+      id: m.userId,
+      name: m.profile?.displayName ?? "Unknown",
+      avatarUrl: m.profile?.avatarUrl ?? null,
+      role: m.role,
+    }));
+  }),
 });

@@ -21,6 +21,7 @@ export const CreateBillSchema = z.object({
   autoPay: z.boolean().default(false),
   notes: z.string().max(2000).nullable().optional(),
   url: z.string().url().nullable().optional(),
+  assignedTo: z.string().uuid().nullable().optional(),
 });
 
 export const UpdateBillSchema = CreateBillSchema.partial();
@@ -99,6 +100,7 @@ export const CreateTransactionSchema = z.object({
   isRecurring: z.boolean().default(false),
   recurringFrequency: z.string().max(20).nullable().optional(),
   tags: z.array(z.string()).default([]),
+  ownership: z.enum(["mine", "theirs", "ours"]).default("ours"),
 });
 
 export const UpdateTransactionSchema = CreateTransactionSchema.partial();
@@ -109,6 +111,8 @@ export const ListTransactionsFilterSchema = z.object({
   category: TransactionCategorySchema.optional(),
   type: TransactionTypeSchema.optional(),
   accountId: z.string().uuid().optional(),
+  ownership: z.enum(["mine", "theirs", "ours"]).optional(),
+  memberId: z.string().uuid().optional(),
   limit: z.number().int().min(1).max(200).default(50),
   offset: z.number().int().min(0).default(0),
 });
@@ -164,6 +168,25 @@ export const ContributeToGoalSchema = z.object({
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount"),
 });
 
+// --- Expense Split Validators ---
+
+export const CreateExpenseSplitSchema = z.object({
+  transactionId: z.string().uuid(),
+  splits: z.array(z.object({
+    owedBy: z.string().uuid(),
+    owedTo: z.string().uuid(),
+    amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount"),
+  })).min(1, "At least one split is required"),
+});
+
+export const SettleUpSchema = z.object({
+  splitIds: z.array(z.string().uuid()).min(1),
+});
+
+export const GetBalanceSchema = z.object({
+  memberId: z.string().uuid().optional(),
+});
+
 export type CreateBillInput = z.infer<typeof CreateBillSchema>;
 export type MarkBillPaidInput = z.infer<typeof MarkBillPaidSchema>;
 export type CreateAccountInput = z.infer<typeof CreateAccountSchema>;
@@ -176,3 +199,5 @@ export type UpdateBudgetInput = z.infer<typeof UpdateBudgetSchema>;
 export type CreateSavingsGoalInput = z.infer<typeof CreateSavingsGoalSchema>;
 export type UpdateSavingsGoalInput = z.infer<typeof UpdateSavingsGoalSchema>;
 export type ContributeToGoalInput = z.infer<typeof ContributeToGoalSchema>;
+export type CreateExpenseSplitInput = z.infer<typeof CreateExpenseSplitSchema>;
+export type SettleUpInput = z.infer<typeof SettleUpSchema>;

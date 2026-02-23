@@ -134,15 +134,36 @@ function TransactionDrawer({
     transaction?.recurringFrequency ?? ""
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [ownership, setOwnership] = useState<"mine" | "theirs" | "ours">(
+    (transaction?.ownership as "mine" | "theirs" | "ours") ?? "ours"
+  );
+  const [isSplit, setIsSplit] = useState(false);
+  const [splitMembers, setSplitMembers] = useState<string[]>([]);
 
   const { data: accountsData } = trpc.finances.listAccounts.useQuery();
+  const { data: membersData } = trpc.finances.listHouseholdMembers.useQuery();
+  const members = membersData ?? [];
   const accounts = accountsData?.accounts ?? [];
 
   const createTransaction = trpc.finances.createTransaction.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       utils.finances.listTransactions.invalidate();
       utils.finances.listAccounts.invalidate();
       utils.finances.getFinancialOverview.invalidate();
+
+      // Create splits if enabled
+      if (isSplit && splitMembers.length > 0 && data) {
+        const perPerson = (parseFloat(amount.trim()) / (splitMembers.length + 1)).toFixed(2);
+        createSplits.mutate({
+          transactionId: data.id,
+          splits: splitMembers.map((memberId) => ({
+            owedBy: memberId,
+            owedTo: data.createdBy,
+            amount: perPerson,
+          })),
+        });
+      }
+
       toast.success("Transaction added");
       onClose();
     },
@@ -177,6 +198,12 @@ function TransactionDrawer({
     },
   });
 
+  const createSplits = trpc.finances.createExpenseSplits.useMutation({
+    onSuccess: () => {
+      utils.finances.getBalanceBetweenMembers.invalidate();
+    },
+  });
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmedAmount = amount.trim();
@@ -200,6 +227,7 @@ function TransactionDrawer({
           notes: notes.trim() || null,
           isRecurring,
           recurringFrequency: isRecurring ? recurringFrequency || null : null,
+          ownership,
         },
       });
     } else {
@@ -213,6 +241,7 @@ function TransactionDrawer({
         notes: notes.trim() || null,
         isRecurring,
         recurringFrequency: isRecurring ? recurringFrequency || null : null,
+        ownership,
       });
     }
   }
@@ -398,6 +427,97 @@ function TransactionDrawer({
             )}
           </div>
 
+          {/* Ownership */}
+          <div>
+            <label className="orbyt-label">Who is this for?</label>
+            <div className="mt-1 flex gap-2">
+              {(["mine", "theirs", "ours"] as const).map((o) => (
+                <button
+                  key={o}
+                  type="button"
+                  onClick={() => setOwnership(o)}
+                  className={cn(
+                    "flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all capitalize",
+                    ownership === o
+                      ? "bg-accent/15 text-accent ring-1 ring-accent/30"
+                      : "bg-surface/50 text-text-muted hover:text-text"
+                  )}
+                >
+                  {o === "mine" ? "Mine" : o === "theirs" ? "Partner's" : "Shared"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Expense Splitting */}
+          {type === "expense" && (
+            <div className="rounded-xl border border-border bg-surface/50 px-4 py-3">
+              <label className="flex cursor-pointer items-center justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium text-text">Split this expense</span>
+                  <span className="text-xs text-text-muted">Divide the cost with household members</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-xs font-medium", isSplit ? "text-accent" : "text-text-muted")}>
+                    {isSplit ? "ON" : "OFF"}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isSplit}
+                    onClick={() => setIsSplit(!isSplit)}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2",
+                      isSplit ? "bg-accent" : "bg-white/10"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "inline-block h-4 w-4 rounded-full shadow transition-transform",
+                        isSplit ? "translate-x-6 bg-white" : "translate-x-1 bg-white/60"
+                      )}
+                    />
+                  </button>
+                </div>
+              </label>
+              {isSplit && members.length > 0 && (
+                <div className="mt-3 flex flex-col gap-2">
+                  <p className="text-xs text-text-muted">Split evenly among:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {members.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setSplitMembers((prev) =>
+                            prev.includes(m.id)
+                              ? prev.filter((id) => id !== m.id)
+                              : [...prev, m.id]
+                          );
+                        }}
+                        className={cn(
+                          "rounded-full px-3 py-1.5 text-xs font-medium transition-all",
+                          splitMembers.includes(m.id)
+                            ? "bg-accent/15 text-accent ring-1 ring-accent/30"
+                            : "bg-white/10 text-text-muted hover:text-text"
+                        )}
+                      >
+                        {m.name}
+                      </button>
+                    ))}
+                  </div>
+                  {splitMembers.length > 0 && amount.trim() && (
+                    <p className="text-xs text-accent">
+                      Each pays: {formatCurrency(
+                        (parseFloat(amount) / (splitMembers.length + 1)).toFixed(2)
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex gap-3">
             <button
@@ -446,7 +566,12 @@ export function TransactionsTab() {
   const [endDate, setEndDate] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterType, setFilterType] = useState("");
+  const [filterMemberId, setFilterMemberId] = useState("");
+  const [filterOwnership, setFilterOwnership] = useState("");
   const [page, setPage] = useState(0);
+
+  const { data: membersData } = trpc.finances.listHouseholdMembers.useQuery();
+  const members = membersData ?? [];
 
   const queryInput: {
     limit: number;
@@ -455,6 +580,8 @@ export function TransactionsTab() {
     endDate?: string;
     category?: TransactionCategory;
     type?: TransactionType;
+    memberId?: string;
+    ownership?: "mine" | "theirs" | "ours";
   } = {
     limit: PAGE_SIZE,
     offset: page * PAGE_SIZE,
@@ -471,6 +598,12 @@ export function TransactionsTab() {
   }
   if (filterType) {
     queryInput.type = filterType as TransactionType;
+  }
+  if (filterMemberId) {
+    queryInput.memberId = filterMemberId;
+  }
+  if (filterOwnership) {
+    queryInput.ownership = filterOwnership as "mine" | "theirs" | "ours";
   }
 
   const { data, isLoading } = trpc.finances.listTransactions.useQuery(queryInput);
@@ -552,6 +685,26 @@ export function TransactionsTab() {
               <option value="expense">Expense</option>
               <option value="income">Income</option>
               <option value="transfer">Transfer</option>
+            </select>
+            <select
+              value={filterMemberId}
+              onChange={(e) => { setFilterMemberId(e.target.value); setPage(0); }}
+              className="orbyt-input text-sm"
+            >
+              <option value="">All Members</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+            <select
+              value={filterOwnership}
+              onChange={(e) => { setFilterOwnership(e.target.value); setPage(0); }}
+              className="orbyt-input text-sm"
+            >
+              <option value="">All Ownership</option>
+              <option value="mine">Mine</option>
+              <option value="theirs">Partner's</option>
+              <option value="ours">Shared</option>
             </select>
           </div>
         </div>

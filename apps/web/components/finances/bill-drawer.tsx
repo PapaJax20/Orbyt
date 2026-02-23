@@ -53,6 +53,9 @@ function BillFormFields({
   setNotes,
   url,
   setUrl,
+  assignedTo,
+  setAssignedTo,
+  members,
   submitLabel,
   isPending,
   onSubmit,
@@ -74,6 +77,9 @@ function BillFormFields({
   setNotes: (v: string) => void;
   url: string;
   setUrl: (v: string) => void;
+  assignedTo: string;
+  setAssignedTo: (v: string) => void;
+  members: { id: string; name: string }[];
   submitLabel: string;
   isPending: boolean;
   onSubmit: (e: React.FormEvent) => void;
@@ -193,6 +199,24 @@ function BillFormFields({
         </label>
       </div>
 
+      {/* Assigned To */}
+      <div>
+        <label className="orbyt-label" htmlFor="bill-assigned-to">
+          Assigned To <span className="text-text-muted">(optional)</span>
+        </label>
+        <select
+          id="bill-assigned-to"
+          value={assignedTo}
+          onChange={(e) => setAssignedTo(e.target.value)}
+          className="orbyt-input mt-1 w-full"
+        >
+          <option value="">Anyone</option>
+          {members.map((m) => (
+            <option key={m.id} value={m.id}>{m.name}</option>
+          ))}
+        </select>
+      </div>
+
       {/* URL */}
       <div>
         <label className="orbyt-label" htmlFor="bill-url">
@@ -266,6 +290,10 @@ function CreateBillForm({
   const [currency, setCurrency] = useState("USD");
   const [notes, setNotes] = useState("");
   const [url, setUrl] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
+
+  const { data: membersData } = trpc.finances.listHouseholdMembers.useQuery();
+  const members = membersData ?? [];
 
   const createBill = trpc.finances.createBill.useMutation({
     onSuccess: () => {
@@ -296,6 +324,7 @@ function CreateBillForm({
       currency,
       notes: notes.trim() || null,
       url: url.trim() || null,
+      assignedTo: assignedTo || null,
     });
   }
 
@@ -317,6 +346,9 @@ function CreateBillForm({
       setNotes={setNotes}
       url={url}
       setUrl={setUrl}
+      assignedTo={assignedTo}
+      setAssignedTo={setAssignedTo}
+      members={members}
       submitLabel="Add Bill"
       isPending={createBill.isPending}
       onSubmit={handleSubmit}
@@ -347,6 +379,10 @@ function EditBillForm({
   const [currency, setCurrency] = useState(bill.currency ?? "USD");
   const [notes, setNotes] = useState(bill.notes ?? "");
   const [url, setUrl] = useState(bill.url ?? "");
+  const [assignedTo, setAssignedTo] = useState(bill.assignedTo ?? "");
+
+  const { data: membersData } = trpc.finances.listHouseholdMembers.useQuery();
+  const members = membersData ?? [];
 
   const updateBill = trpc.finances.updateBill.useMutation({
     onSuccess: () => {
@@ -380,6 +416,7 @@ function EditBillForm({
         currency,
         notes: notes.trim() || null,
         url: url.trim() || null,
+        assignedTo: assignedTo || null,
       },
     });
   }
@@ -402,6 +439,9 @@ function EditBillForm({
       setNotes={setNotes}
       url={url}
       setUrl={setUrl}
+      assignedTo={assignedTo}
+      setAssignedTo={setAssignedTo}
+      members={members}
       submitLabel="Save Changes"
       isPending={updateBill.isPending}
       onSubmit={handleSubmit}
