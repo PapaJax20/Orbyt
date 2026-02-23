@@ -266,7 +266,7 @@ export const notificationsRouter = router({
   checkReminders: publicProcedure.mutation(async ({ ctx }) => {
     const now = new Date();
     // Look-back window: 5 minutes
-    const windowMs = 5 * 60 * 1000;
+    const windowMs = 24 * 60 * 60 * 1000;
 
     // Fetch future events that have at least one reminderMinutes value.
     // We use a broad query and filter in JS to avoid complex SQL on array columns.
