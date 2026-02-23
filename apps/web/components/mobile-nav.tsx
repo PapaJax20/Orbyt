@@ -19,12 +19,12 @@ import { motion, AnimatePresence } from "framer-motion";
 const PRIMARY_TABS = [
   { icon: Home, label: "Home", href: "/dashboard" },
   { icon: DollarSign, label: "Finances", href: "/finances" },
+  { icon: Calendar, label: "Calendar", href: "/calendar" },
   { icon: CheckSquare, label: "Tasks", href: "/tasks" },
-  { icon: ShoppingCart, label: "Shop", href: "/shopping" },
 ];
 
 const MORE_ITEMS = [
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
+  { icon: ShoppingCart, label: "Shop", href: "/shopping" },
   { icon: Users, label: "Contacts", href: "/contacts" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];

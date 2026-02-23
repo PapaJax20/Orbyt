@@ -27,6 +27,7 @@ export const CreateEventSchema = z.object({
     .nullable()
     .optional(),
   attendeeIds: z.array(z.string().uuid()).default([]),
+  reminderMinutes: z.array(z.number().int().min(0).max(10080)).optional(),
 });
 
 export const UpdateEventSchema = CreateEventSchema.partial();

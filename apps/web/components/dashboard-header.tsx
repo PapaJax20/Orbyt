@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Settings as SettingsIcon, LogOut } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { createClient } from "@/lib/supabase/client";
+import { NotificationCenter } from "@/components/notifications/notification-center";
 
 export function DashboardHeader() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -67,6 +68,7 @@ export function DashboardHeader() {
 
       {/* Right actions */}
       <div className="flex items-center gap-3">
+        <NotificationCenter />
         {/* User avatar + dropdown menu */}
         <div className="relative" ref={menuRef}>
           {isLoading ? (

@@ -11,6 +11,7 @@ import {
 } from "@orbyt/shared/validators";
 import { expandRecurringEvents } from "@orbyt/shared/utils";
 import { router, householdProcedure } from "../trpc";
+import { createNotification } from "./notifications";
 
 export const calendarRouter = router({
   /**
@@ -90,7 +91,7 @@ export const calendarRouter = router({
    * Create a new event.
    */
   create: householdProcedure.input(CreateEventSchema).mutation(async ({ ctx, input }) => {
-    const { attendeeIds, ...eventData } = input;
+    const { attendeeIds, reminderMinutes, ...eventData } = input;
 
     const [event] = await ctx.db
       .insert(events)
@@ -98,6 +99,7 @@ export const calendarRouter = router({
         ...eventData,
         startAt: new Date(input.startAt),
         endAt: input.endAt ? new Date(input.endAt) : null,
+        reminderMinutes: reminderMinutes ?? [],
         householdId: ctx.householdId,
         createdBy: ctx.user.id,
       })
@@ -113,6 +115,26 @@ export const calendarRouter = router({
           userId,
           rsvpStatus: userId === ctx.user.id ? "accepted" : "pending",
         }))
+      );
+
+      // Notify attendees (except the creator) about the new event
+      const otherAttendees = attendeeIds.filter((userId) => userId !== ctx.user.id);
+      await Promise.all(
+        otherAttendees.map((userId) =>
+          createNotification(ctx.db, {
+            userId,
+            householdId: ctx.householdId,
+            type: "event_invite",
+            title: `New event: ${event.title}`,
+            body: `You've been added to "${event.title}".`,
+            data: {
+              entityType: "event",
+              entityId: event.id,
+              route: `/calendar`,
+            },
+            channels: ["in_app"],
+          })
+        )
       );
     }
 

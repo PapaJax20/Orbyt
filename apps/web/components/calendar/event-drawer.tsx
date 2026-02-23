@@ -49,6 +49,22 @@ const COLOR_SWATCHES = [
   "#F97316",
 ];
 
+const REMINDER_OPTIONS = [
+  { label: "5 min", value: 5 },
+  { label: "15 min", value: 15 },
+  { label: "30 min", value: 30 },
+  { label: "1 hour", value: 60 },
+  { label: "1 day", value: 1440 },
+] as const;
+
+function formatReminderMinutes(minutes: number): string {
+  if (minutes < 60) return `${minutes} min before`;
+  if (minutes === 60) return "1 hour before";
+  if (minutes < 1440) return `${Math.round(minutes / 60)} hours before`;
+  if (minutes === 1440) return "1 day before";
+  return `${Math.round(minutes / 1440)} days before`;
+}
+
 function toDatetimeLocal(iso: string | Date): string {
   const d = new Date(iso);
   // Format: YYYY-MM-DDTHH:mm
@@ -84,6 +100,7 @@ function AttendeePicker({
             <button
               key={m.userId}
               type="button"
+              aria-pressed={selected}
               onClick={() => onToggle(m.userId)}
               className={[
                 "flex items-center gap-2 rounded-full border px-3 py-1 text-sm transition-colors",
@@ -168,6 +185,8 @@ function EventFormFields({
   setColor,
   attendeeIds,
   toggleAttendee,
+  reminderMinutes,
+  toggleReminder,
   submitLabel,
   isPending,
   onSubmit,
@@ -193,6 +212,8 @@ function EventFormFields({
   setColor: (v: string) => void;
   attendeeIds: string[];
   toggleAttendee: (userId: string) => void;
+  reminderMinutes: number[];
+  toggleReminder: (minutes: number) => void;
   submitLabel: string;
   isPending: boolean;
   onSubmit: (e: React.FormEvent) => void;
@@ -345,6 +366,32 @@ function EventFormFields({
       {/* Attendees */}
       <AttendeePicker selectedIds={attendeeIds} onToggle={toggleAttendee} />
 
+      {/* Remind Me */}
+      <div>
+        <label className="orbyt-label">Remind me</label>
+        <div className="mt-1 flex flex-wrap gap-2">
+          {REMINDER_OPTIONS.map((opt) => {
+            const selected = reminderMinutes.includes(opt.value);
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => toggleReminder(opt.value)}
+                className={[
+                  "rounded-full border px-3 py-1.5 text-sm transition-colors",
+                  selected
+                    ? "border-accent bg-accent/20 text-accent"
+                    : "border-border text-text-muted hover:border-text-muted hover:text-text",
+                ].join(" ")}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Actions */}
       <div className="flex gap-3 mt-2">
         <button
@@ -395,6 +442,7 @@ function CreateEventForm({
   const [rrule, setRrule] = useState("");
   const [color, setColor] = useState("");
   const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
+  const [reminderMinutes, setReminderMinutes] = useState<number[]>([]);
 
   const createEvent = trpc.calendar.create.useMutation({
     onSuccess: () => {
@@ -413,6 +461,12 @@ function CreateEventForm({
     );
   }
 
+  function toggleReminder(minutes: number) {
+    setReminderMinutes((prev) =>
+      prev.includes(minutes) ? prev.filter((m) => m !== minutes) : [...prev, minutes],
+    );
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
@@ -427,6 +481,7 @@ function CreateEventForm({
       rrule: rrule || undefined,
       color: color || undefined,
       attendeeIds,
+      reminderMinutes: reminderMinutes.length > 0 ? reminderMinutes : undefined,
     });
   }
 
@@ -452,6 +507,8 @@ function CreateEventForm({
       setColor={setColor}
       attendeeIds={attendeeIds}
       toggleAttendee={toggleAttendee}
+      reminderMinutes={reminderMinutes}
+      toggleReminder={toggleReminder}
       submitLabel="Create Event"
       isPending={createEvent.isPending}
       onSubmit={handleSubmit}
@@ -490,6 +547,9 @@ function EditEventForm({
   const [attendeeIds, setAttendeeIds] = useState<string[]>(
     event.attendees?.map((a) => a.userId).filter((id): id is string => id !== null) ?? [],
   );
+  const [reminderMinutes, setReminderMinutes] = useState<number[]>(
+    ((event as Record<string, unknown>).reminderMinutes as number[]) ?? [],
+  );
 
   const updateEvent = trpc.calendar.update.useMutation({
     onSuccess: () => {
@@ -506,6 +566,12 @@ function EditEventForm({
   function toggleAttendee(userId: string) {
     setAttendeeIds((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    );
+  }
+
+  function toggleReminder(minutes: number) {
+    setReminderMinutes((prev) =>
+      prev.includes(minutes) ? prev.filter((m) => m !== minutes) : [...prev, minutes],
     );
   }
 
@@ -526,6 +592,7 @@ function EditEventForm({
         rrule: rrule || undefined,
         color: color || undefined,
         attendeeIds,
+        reminderMinutes: reminderMinutes.length > 0 ? reminderMinutes : undefined,
       },
     });
   }
@@ -552,6 +619,8 @@ function EditEventForm({
       setColor={setColor}
       attendeeIds={attendeeIds}
       toggleAttendee={toggleAttendee}
+      reminderMinutes={reminderMinutes}
+      toggleReminder={toggleReminder}
       submitLabel="Save Changes"
       isPending={updateEvent.isPending}
       onSubmit={handleSubmit}
@@ -649,6 +718,12 @@ function ViewEvent({
         {event.description && (
           <p className="mt-3 text-sm text-text">{event.description}</p>
         )}
+        {/* Reminder info */}
+        {((event as Record<string, unknown>).reminderMinutes as number[] | undefined)?.length ? (
+          <p className="mt-3 text-sm text-text-muted">
+            Reminder: {((event as Record<string, unknown>).reminderMinutes as number[]).map(formatReminderMinutes).join(", ")}
+          </p>
+        ) : null}
       </div>
 
       {/* Attendees with RSVP status */}

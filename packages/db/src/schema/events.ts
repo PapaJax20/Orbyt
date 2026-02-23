@@ -6,6 +6,7 @@ import {
   timestamp,
   boolean,
   jsonb,
+  integer,
   unique,
 } from "drizzle-orm/pg-core";
 import { households } from "./households";
@@ -30,6 +31,7 @@ export const events = pgTable("events", {
   parentEventId: uuid("parent_event_id"), // self-reference for recurrence exceptions
   color: varchar("color", { length: 7 }),
   metadata: jsonb("metadata").default({}),
+  reminderMinutes: integer("reminder_minutes").array().notNull().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

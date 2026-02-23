@@ -38,6 +38,15 @@ export const UpdateProfileSchema = z.object({
     debtPlanner: z.boolean().optional(),
     analytics: z.boolean().optional(),
   }).optional(),
+  notificationPreferences: z.object({
+    billDue: z.boolean().optional(),
+    taskAssigned: z.boolean().optional(),
+    taskCompleted: z.boolean().optional(),
+    eventReminder: z.boolean().optional(),
+    birthdayReminder: z.boolean().optional(),
+    memberJoined: z.boolean().optional(),
+    pushEnabled: z.boolean().optional(),
+  }).optional(),
 });
 
 export const UpdateMemberColorSchema = z.object({

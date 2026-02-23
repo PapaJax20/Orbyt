@@ -8,7 +8,7 @@
 | **Last updated** | February 23, 2026 |
 | **GitHub** | https://github.com/PapaJax20/Orbyt |
 | **Local path** | `C:\Users\jmoon\Orbyt` |
-| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprint 13 (Fix Open Issues & Known Issues Cleanup) complete. Sprint 14 (Calendar UX Polish) complete. Sprint 15 (Notifications & Reminders) next. |
+| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprint 13 (Fix Open Issues & Known Issues Cleanup) complete. Sprint 14 (Calendar UX Polish) complete. Sprint 15 (Notifications & Reminders) in progress. |
 | **Project Lead** | J. Moon |
 | **Development Environment** | Claude Code Agent Teams (see Section 26) |
 
@@ -1743,9 +1743,25 @@ Sprint 13 addresses remaining open issues and cleans up the Known Issues table (
 
 ---
 
-### Sprint 15 — Notifications & Reminders 🔜
+### Sprint 15 — Notifications & Reminders 🔄 IN PROGRESS — February 2026
 
-In-app notification center, push notifications (service worker), email notifications (Resend), event reminders, bill due date reminders, notification preferences UI.
+| Task | Scope |
+|------|-------|
+| **15A** | Schema: `notificationPreferences` JSONB on profiles, `reminderMinutes` on events |
+| **15B** | API: `createNotification` internal util, `getPreferences`/`updatePreferences`, `sendPush` (web-push), `checkReminders` cron |
+| **15C** | DevOps: web-push install, VAPID keys, Vercel cron for reminder dispatch |
+| **15D** | Frontend: NotificationCenter (Radix Popover, bell icon + badge in header), real NotificationsTab with preference toggles |
+| **15E** | Frontend: `reminderMinutes` field in event drawer, push/notificationclick handlers in sw.js |
+| **15F** | E2E: notifications.spec.ts — settings toggles, bell badge, mark-all-read |
+
+#### Push Notification Architecture
+
+1. **Frontend**: User enables push via Settings > Notifications > "Enable Push". This calls `PushManager.subscribe()` with the VAPID public key, then stores the subscription token via `notifications.registerPushToken`.
+2. **Service Worker** (`sw.js`): Handles `push` events (displays OS notification) and `notificationclick` events (navigates to relevant page).
+3. **Backend**: `sendPush()` utility reads push tokens from `push_tokens` table, calls `web-push.sendNotification()` for each. Expired tokens (410 responses) are auto-deleted.
+4. **Reminders**: Vercel cron (`/api/cron/reminders`) runs every 5 minutes. Queries events where `startAt` minus `reminderMinutes` falls within the current 5-minute window. Creates notifications + sends push for each matching attendee.
+5. **Preferences**: `notificationPreferences` JSONB on profiles follows opt-out model (same as `financeModules`): `{}` = all enabled, set `false` to disable a type.
+6. **Email (Resend)**: Deferred to Phase 2.
 
 ### Sprint 16 — Calendar Intelligence 🔜
 

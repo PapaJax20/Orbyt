@@ -27,6 +27,18 @@ export const profiles = pgTable("profiles", {
       analytics?: boolean;
     }>()
     .default({}),
+  notificationPreferences: jsonb("notification_preferences")
+    .$type<{
+      billDue?: boolean;
+      taskAssigned?: boolean;
+      taskCompleted?: boolean;
+      eventReminder?: boolean;
+      birthdayReminder?: boolean;
+      memberJoined?: boolean;
+      pushEnabled?: boolean;
+    }>()
+    .notNull()
+    .default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
