@@ -8,7 +8,7 @@
 | **Last updated** | February 23, 2026 |
 | **GitHub** | https://github.com/PapaJax20/Orbyt |
 | **Local path** | `C:\Users\jmoon\Orbyt` |
-| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprint 11 complete. Sprint 12 (Analytics, CSV Import, Polish) in progress. |
+| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprint 12 (Analytics, CSV Import, Polish) complete. Sprint 13 (Fix Open Issues & Known Issues Cleanup) in progress. |
 | **Project Lead** | J. Moon |
 | **Development Environment** | Claude Code Agent Teams (see Section 26) |
 
@@ -505,9 +505,13 @@ Built the full finance module with 29+ tRPC procedures across accounts, transact
 
 Feature toggles infrastructure (finance_modules JSONB on profiles, opt-out model), net worth tracking (snapshots table, calculateNetWorth/takeSnapshot/getHistory), enhanced goals tab (edit mode, sinking fund summary, status badges), and debt payoff planner (pure frontend snowball vs avalanche calculator). Settings page: Finance Modules toggle section. Finances page: conditional tab rendering.
 
-### Web App — Sprint 12: Analytics Charts, CSV Import & Final Polish — 🔄 In Progress
+### Web App — Sprint 12: Analytics Charts, CSV Import & Final Polish — ✅ Complete
 
 Sprint 12 is the final Phase 1 sprint. Adds recharts-powered analytics (spending by category, income vs expenses, monthly trends), CSV transaction import, and fixes the `removeMember` last-admin bug.
+
+### Web App — Sprint 13: Fix Open Issues & Known Issues Cleanup — 🔄 In Progress
+
+Sprint 13 adds an illustrated avatar picker to Settings, expands E2E test coverage to 7 files, and updates the Known Issues table to reflect actual resolved status.
 
 ---
 
@@ -1644,9 +1648,10 @@ Sprint 11 adds three **optional/toggleable** finance modules (Goals enhancement,
 
 ---
 
-### Sprint 12 — Analytics Charts, CSV Import & Final Polish (IN PROGRESS)
+### Sprint 12 — Analytics Charts, CSV Import & Final Polish (COMPLETED)
 
 **Estimated effort:** 2-3 days
+**Completed:** February 2026
 **Branch:** `main`
 
 Sprint 12 is the final Phase 1 sprint. It adds visual analytics charts (spending breakdown, income/expense trends, budget comparison) powered by recharts, a CSV transaction import feature, and fixes remaining HIGH-priority tech debt items.
@@ -1685,6 +1690,36 @@ Sprint 12 is the final Phase 1 sprint. It adds visual analytics charts (spending
 - [ ] CSV import validates and previews before inserting
 - [ ] removeMember prevents removing last admin
 - [ ] All new UI responsive at 375px mobile
+- [ ] `pnpm turbo typecheck` passes
+
+---
+
+### Sprint 13 — Fix Open Issues & Known Issues Cleanup (IN PROGRESS)
+
+**Estimated effort:** 1 day
+**Branch:** `main`
+
+Sprint 13 addresses remaining open issues and cleans up the Known Issues table (Section 23) to reflect actual codebase state. An audit found 12 of 17 listed issues were already resolved.
+
+#### 13A — Avatar Selection in Settings
+- Add illustrated avatar picker grid to Settings → Profile tab
+- 5 illustrated avatar options from `/public/characters/avatars/illustrated/`
+- Click to select → saves via `updateProfile` mutation
+
+#### 13B — E2E Test Expansion
+- Add contacts.spec.ts and settings.spec.ts (new files)
+- Expand tasks, shopping, and finances test files with additional flows
+- Coverage: 7 test files across all major features
+
+#### 13C — Known Issues Table Cleanup
+- Updated all 25 rows in Section 23 to reflect actual status
+- 16 items marked as Fixed, 2 as Partial, 7 as Tech Debt/Phase 2
+
+#### Acceptance Criteria
+
+- [ ] Settings → Profile → illustrated avatar picker visible and functional
+- [ ] E2E tests cover contacts and settings pages
+- [ ] Section 23 accurately reflects codebase state
 - [ ] `pnpm turbo typecheck` passes
 
 ---
@@ -2765,33 +2800,31 @@ Financial savings goals (already built in the Finances module) would automatical
 
 | Issue | Status | Priority | Sprint | Notes |
 |---|---|---|---|---|
-| Resend email for invitations | Not wired | Medium | Sprint 5B (optional) | TODO at `household.ts`. Clipboard invite is the Phase 1 fallback. |
-| Avatar upload | Not built | Medium | Sprint 4F | Storage bucket needs creation |
-| PWA icons | Missing | Medium | Sprint 5C | 192/512 PNGs don't exist |
-| Theme persistence | Not wired in UI | Medium | Sprint 4F | CSS ready, settings UI needed |
-| Invite acceptance page | Not built | High | Sprint 5A | `/invite/[token]` empty |
-| No service worker | Not built | Low | Sprint 5C | PWA won't install properly |
-| No tests | Not built | High | Sprint 0K + 5G | Zero coverage |
-| No CI pipeline | Not built | High | Sprint 0F | No checks on PR |
-| No error tracking | Not built | Medium | Sprint 5D | No Sentry |
-| No database seeds | Not built | High | Sprint 0D | Empty DB for new devs |
-| No `.env.local.example` | Missing | High | Sprint 0E | Must read docs to set up |
-| Mobile navigation | Not built | High | Sprint 0H | No bottom tab bar |
-| Rosie/Eddie illustrations | Not created | High | Sprint 0I (placeholders) | Design team producing finals |
-| Illustrated user avatars | Not created | Medium | Sprint 4F (placeholders) | Design team deliverable |
-| Font not yet Urbanist | Not implemented | Medium | Sprint 0 | Currently system font |
-| FullCalendar bundle size | Risk | Medium | Sprint 4D | Must use `dynamic()` import |
-| `profiles.theme` default mismatch | Note | Low | Sprint 4F | DB default is `"cosmic"`, should map to `"orbit"` |
-| `removeMember` no last-admin check | Fixed | Done | Sprint 12C | Backend now validates: prevents self-removal, last-admin removal, and missing members |
-| `bills.amount` is string from Drizzle | Gotcha | Medium | Sprint 4C | Must `parseFloat()` before arithmetic |
-| `getMonthlyOverview` payment join | Bug risk | Medium | Sprint 4C | Uses `bills.id` in where clause for `billPayments` which may not work as expected for cross-table filtering — verify at runtime |
-| No rate limiting on tRPC | Tech debt | Low | Phase 2 | Acceptable for launch |
+| Resend email for invitations | Deferred | Low | Phase 2 | Clipboard invite is the Phase 1 fallback. User confirmed skip. |
+| Avatar upload (photo) | Not built | Low | Phase 2 | Storage bucket needed. Illustrated avatar picker added Sprint 13. |
+| PWA icons | Fixed | Done | Sprint 6 | 192/512 SVG icons + manifest configured |
+| Theme persistence | Fixed | Done | Sprint 6 | Saved to profile, persisted across sessions |
+| Invite acceptance page | Fixed | Done | Sprint 5A | Full UI for logged-in + new-user paths |
+| No service worker | Fixed | Done | Sprint 5C | `sw.js` with cache-first strategy |
+| E2E tests | Partial | Medium | Sprint 13 | 7 test files covering auth, tasks, shopping, finances, contacts, settings, realtime |
+| CI pipeline | Fixed | Done | Sprint 5 | `.github/workflows/ci.yml` — typecheck + lint + test + e2e |
+| Database seeds | Fixed | Done | Sprint 0D | `packages/db/src/seed.ts` (457 lines) |
+| `.env.local.example` | Fixed | Done | Sprint 0E | Documented with all required vars |
+| Mobile navigation | Fixed | Done | Sprint 0H | Bottom tab bar with 4 primary tabs + More sheet |
+| Rosie/Eddie illustrations | Fixed | Done | Sprint 6 | 30 SVGs: 2 characters × 5 expressions × 3 formats |
+| Illustrated user avatars | Fixed | Done | Sprint 6 | 5 illustrated options in `/public/characters/avatars/illustrated/` |
+| Font: Urbanist | Fixed | Done | Sprint 6 | Google Fonts, weights 400-700 |
+| FullCalendar bundle size | Fixed | Done | Sprint 4D | `dynamic()` import with `ssr: false` |
+| `removeMember` last-admin check | Fixed | Done | Sprint 12C | Backend validates self-removal, last-admin, member exists |
+| `bills.amount` is string from Drizzle | Gotcha | — | — | Must `parseFloat()` before arithmetic |
+| `getMonthlyOverview` payment join | Bug risk | Medium | — | Verify at runtime |
+| No rate limiting on tRPC | Tech debt | Low | Phase 2 | Acceptable for invite-only launch |
 | No structured logging | Tech debt | Low | Phase 2 | See Section 25 |
 | No product analytics | Tech debt | Medium | Phase 2 | No usage metrics |
-| No offline PWA support | Tech debt | Low | Phase 2 | Shopping lists are the key offline use case |
+| No offline PWA support | Tech debt | Low | Phase 2 | Shopping lists key offline use case |
 | No first-run onboarding tour | Tech debt | Low | Phase 2 | Empty dashboard may confuse new users |
-| `calendar.update` recurrence exceptions | Incomplete | Low | Phase 2 | "this" and "this_and_future" modes have TODO |
-| AI schema tables exist but unused | Intentional | N/A | Phase 3 | `ai_conversations`, `ai_messages` — do not modify |
+| `calendar.update` recurrence exceptions | Incomplete | Low | Phase 2 | "this" / "this_and_future" have TODO |
+| AI schema tables unused | Intentional | N/A | Phase 3 | `ai_conversations`, `ai_messages` — do not modify |
 | Mobile app | Phase 2 | N/A | — | `apps/mobile/` empty |
 
 ---

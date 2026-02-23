@@ -34,6 +34,16 @@ const TIMEZONES = [
   "Pacific/Honolulu",
 ];
 
+// ── Illustrated avatar options ───────────────────────────────────────────────
+
+const ILLUSTRATED_AVATARS = [
+  "/characters/avatars/illustrated/avatar-01.svg",
+  "/characters/avatars/illustrated/avatar-02.svg",
+  "/characters/avatars/illustrated/avatar-03.svg",
+  "/characters/avatars/illustrated/avatar-04.svg",
+  "/characters/avatars/illustrated/avatar-05.svg",
+];
+
 // ── Finance module toggle config ─────────────────────────────────────────────
 
 const FINANCE_MODULES = [
@@ -160,6 +170,7 @@ export function ProfileTab() {
   const profile = me?.profile;
 
   const [displayName, setDisplayName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState(ILLUSTRATED_AVATARS[0]);
   const [aiPersona, setAiPersona] = useState<"rosie" | "eddie">("rosie");
   const [timezone, setTimezone] = useState("UTC");
   const [synced, setSynced] = useState(false);
@@ -168,6 +179,7 @@ export function ProfileTab() {
   useEffect(() => {
     if (profile && !synced) {
       setDisplayName(profile.displayName ?? "");
+      setAvatarUrl(profile.avatarUrl ?? ILLUSTRATED_AVATARS[0]);
       setAiPersona((profile.aiPersona as "rosie" | "eddie") ?? "rosie");
       setTimezone(profile.timezone ?? "UTC");
       setSynced(true);
@@ -226,6 +238,49 @@ export function ProfileTab() {
       <div>
         <p className="orbyt-label">Email</p>
         <p className="mt-1 text-sm text-text-muted">{profile.email}</p>
+      </div>
+
+      {/* Avatar */}
+      <div>
+        <p className="orbyt-label">Avatar</p>
+        <div className="mt-2 flex flex-col items-start gap-3">
+          {/* Current avatar preview */}
+          <img
+            src={avatarUrl}
+            alt="Current avatar"
+            className="h-16 w-16 rounded-full object-cover"
+          />
+          {/* Avatar selection grid */}
+          <div className="glass-card-subtle grid w-full grid-cols-5 gap-3 rounded-2xl p-3">
+            {ILLUSTRATED_AVATARS.map((url) => {
+              const isSelected = avatarUrl === url;
+              return (
+                <button
+                  key={url}
+                  type="button"
+                  onClick={() => {
+                    if (!isSelected) {
+                      setAvatarUrl(url);
+                      updateProfile.mutate({ avatarUrl: url });
+                    }
+                  }}
+                  className={[
+                    "flex items-center justify-center rounded-full transition-all",
+                    isSelected
+                      ? "ring-2 ring-accent scale-105"
+                      : "hover:ring-1 hover:ring-accent/30",
+                  ].join(" ")}
+                >
+                  <img
+                    src={url}
+                    alt={`Avatar option ${url.slice(-6, -4)}`}
+                    className="h-12 w-12 rounded-full object-cover"
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* AI Companion */}

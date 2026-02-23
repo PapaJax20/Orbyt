@@ -64,6 +64,63 @@ test.describe("Finances", () => {
     await expect(page.getByText(billName)).toBeVisible({ timeout: 10000 });
   });
 
+  // ── Tab navigation ──────────────────────────────────────────────────────────
+
+  test("can navigate to Accounts tab", async ({ page }) => {
+    const accountsTab = page.getByRole("button", { name: /^accounts$/i });
+    await expect(accountsTab).toBeVisible({ timeout: 5000 });
+    await accountsTab.click();
+
+    // Accounts section should render — look for "Add Account" button or "Total Balance" text
+    await expect(
+      page.getByRole("button", { name: /add account/i })
+        .or(page.getByText(/total balance/i))
+        .first()
+    ).toBeVisible({ timeout: 8000 });
+  });
+
+  test("can navigate to Transactions tab", async ({ page }) => {
+    const transactionsTab = page.getByRole("button", { name: /^transactions$/i });
+    await expect(transactionsTab).toBeVisible({ timeout: 5000 });
+    await transactionsTab.click();
+
+    // Transactions section should render — look for "Add Transaction" button or transaction-related content
+    await expect(
+      page.getByRole("button", { name: /add transaction/i })
+        .or(page.getByText(/no transactions/i))
+        .first()
+    ).toBeVisible({ timeout: 8000 });
+  });
+
+  test("can navigate to Analytics tab", async ({ page }) => {
+    const analyticsTab = page.getByRole("button", { name: /^analytics$/i });
+    if (await analyticsTab.isVisible({ timeout: 3000 })) {
+      await analyticsTab.click();
+
+      // Analytics section should render — look for chart-related content
+      await expect(
+        page.getByText(/spending by category/i)
+          .or(page.getByText(/income vs expenses/i))
+          .or(page.getByText(/no transaction data/i))
+          .first()
+      ).toBeVisible({ timeout: 8000 });
+    }
+    // Analytics tab may be hidden if the module is disabled — defensive check
+  });
+
+  test("can navigate to Budgets tab", async ({ page }) => {
+    const budgetsTab = page.getByRole("button", { name: /^budgets$/i });
+    await expect(budgetsTab).toBeVisible({ timeout: 5000 });
+    await budgetsTab.click();
+
+    // Budgets section should render — look for "Add Budget" button or budget-related content
+    await expect(
+      page.getByRole("button", { name: /add budget/i })
+        .or(page.getByText(/no budgets/i))
+        .first()
+    ).toBeVisible({ timeout: 8000 });
+  });
+
   // ── Bill detail ──────────────────────────────────────────────────────────────
 
   test("clicking a bill card opens the detail drawer", async ({ page }) => {
