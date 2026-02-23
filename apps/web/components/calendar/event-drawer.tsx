@@ -136,27 +136,89 @@ function ColorPicker({
       <label className="orbyt-label">
         Color <span className="text-text-muted">(optional)</span>
       </label>
-      <div className="mt-1 flex gap-2">
+      <div className="mt-1 flex gap-1">
         {COLOR_SWATCHES.map((c) => (
           <button
             key={c}
             type="button"
             onClick={() => setColor(c)}
             className={[
-              "h-7 w-7 rounded-full border-2 transition-transform",
-              color === c
-                ? "scale-110 border-white"
-                : "border-transparent hover:scale-105",
-              !c ? "bg-surface" : "",
+              "flex h-11 w-11 items-center justify-center rounded-full transition-transform",
+              color === c ? "scale-110" : "hover:scale-105",
             ].join(" ")}
-            style={c ? { backgroundColor: c } : undefined}
             title={c || "Default (category color)"}
           >
-            {!c && (
-              <span className="text-[10px] text-text-muted">Auto</span>
-            )}
+            <span
+              className={[
+                "flex h-7 w-7 items-center justify-center rounded-full border-2",
+                color === c ? "border-white" : "border-transparent",
+                !c ? "bg-surface" : "",
+              ].join(" ")}
+              style={c ? { backgroundColor: c } : undefined}
+            >
+              {!c && (
+                <span className="text-[10px] text-text-muted">Auto</span>
+              )}
+            </span>
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Recurrence Mode Picker ────────────────────────────────────────────────────
+
+function RecurrenceModePicker({
+  action,
+  open,
+  onSelect,
+  onCancel,
+}: {
+  action: "edit" | "delete";
+  open: boolean;
+  onSelect: (mode: "this" | "this_and_future" | "all") => void;
+  onCancel: () => void;
+}) {
+  if (!open) return null;
+
+  const title = action === "edit" ? "Edit recurring event" : "Delete recurring event";
+  const options = [
+    { mode: "this" as const, label: "This event only", description: "Only change this occurrence" },
+    { mode: "this_and_future" as const, label: "This and future events", description: "Change this and all following occurrences" },
+    { mode: "all" as const, label: "All events", description: "Change all occurrences in the series" },
+  ];
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="recurrence-picker-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+    >
+      <div className="glass-card-elevated mx-4 w-full max-w-sm rounded-2xl p-5">
+        <h3 id="recurrence-picker-title" className="mb-4 font-display text-lg font-bold text-text">{title}</h3>
+        <div className="flex flex-col gap-2">
+          {options.map((opt, idx) => (
+            <button
+              key={opt.mode}
+              type="button"
+              autoFocus={idx === 0}
+              onClick={() => onSelect(opt.mode)}
+              className="flex flex-col items-start rounded-xl border border-border px-4 py-3 text-left transition-colors hover:bg-surface/50"
+            >
+              <span className="text-sm font-medium text-text">{opt.label}</span>
+              <span className="text-xs text-text-muted">{opt.description}</span>
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="orbyt-button-ghost mt-3 w-full text-sm"
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );
@@ -550,6 +612,7 @@ function EditEventForm({
   const [reminderMinutes, setReminderMinutes] = useState<number[]>(
     ((event as Record<string, unknown>).reminderMinutes as number[]) ?? [],
   );
+  const [showRecurrenceEdit, setShowRecurrenceEdit] = useState(false);
 
   const updateEvent = trpc.calendar.update.useMutation({
     onSuccess: () => {
@@ -578,9 +641,22 @@ function EditEventForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
+
+    // If recurring, prompt for mode
+    if (event.rrule) {
+      setShowRecurrenceEdit(true);
+      return;
+    }
+
+    // Non-recurring — just save
+    doUpdate("all");
+  }
+
+  function doUpdate(mode: "this" | "this_and_future" | "all") {
     updateEvent.mutate({
       id: event.id,
-      updateMode: "all",
+      updateMode: mode,
+      instanceDate: new Date(event.startAt).toISOString(),
       data: {
         title: title.trim(),
         startAt: toISO(startAt),
@@ -598,6 +674,7 @@ function EditEventForm({
   }
 
   return (
+    <>
     <EventFormFields
       title={title}
       setTitle={setTitle}
@@ -626,6 +703,16 @@ function EditEventForm({
       onSubmit={handleSubmit}
       onCancel={onCancel}
     />
+    <RecurrenceModePicker
+      action="edit"
+      open={showRecurrenceEdit}
+      onSelect={(mode) => {
+        setShowRecurrenceEdit(false);
+        doUpdate(mode);
+      }}
+      onCancel={() => setShowRecurrenceEdit(false)}
+    />
+    </>
   );
 }
 
@@ -644,6 +731,7 @@ function ViewEvent({
 }) {
   const utils = trpc.useUtils();
   const [showDelete, setShowDelete] = useState(false);
+  const [showRecurrenceDelete, setShowRecurrenceDelete] = useState(false);
 
   // Get current user ID for RSVP
   const [userId, setUserId] = useState<string | null>(null);
@@ -797,12 +885,6 @@ function ViewEvent({
         </div>
       )}
 
-      {event.rrule && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600">
-          Changes will apply to all occurrences of this recurring event.
-        </div>
-      )}
-
       {/* Actions */}
       <div className="flex gap-3">
         <button
@@ -813,7 +895,7 @@ function ViewEvent({
           Edit Event
         </button>
         <button
-          onClick={() => setShowDelete(true)}
+          onClick={() => event.rrule ? setShowRecurrenceDelete(true) : setShowDelete(true)}
           className="orbyt-button-ghost flex items-center gap-2 text-red-400 hover:bg-red-500/10"
         >
           <Trash2 className="h-4 w-4" />
@@ -829,6 +911,20 @@ function ViewEvent({
         variant="destructive"
         onConfirm={() => deleteEvent.mutate({ id: event.id })}
         onCancel={() => setShowDelete(false)}
+      />
+
+      <RecurrenceModePicker
+        action="delete"
+        open={showRecurrenceDelete}
+        onSelect={(mode) => {
+          setShowRecurrenceDelete(false);
+          deleteEvent.mutate({
+            id: event.id,
+            deleteMode: mode,
+            instanceDate: new Date(event.startAt).toISOString(),
+          });
+        }}
+        onCancel={() => setShowRecurrenceDelete(false)}
       />
     </div>
   );

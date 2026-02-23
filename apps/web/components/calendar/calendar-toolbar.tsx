@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
-export type CalendarView = "dayGridMonth" | "timeGridWeek" | "timeGridDay" | "listWeek";
+export type CalendarView = "dayGridMonth" | "timeGridWeek" | "timeGridDay" | "listWeek" | "agenda";
 
 interface CalendarToolbarProps {
   view: CalendarView;
@@ -20,9 +20,10 @@ const VIEW_LABELS: Record<CalendarView, string> = {
   timeGridWeek: "Week",
   timeGridDay: "Day",
   listWeek: "List",
+  agenda: "Agenda",
 };
 
-const VIEWS: CalendarView[] = ["dayGridMonth", "timeGridWeek", "timeGridDay", "listWeek"];
+const VIEWS: CalendarView[] = ["dayGridMonth", "timeGridWeek", "timeGridDay", "listWeek", "agenda"];
 
 export function CalendarToolbar({
   view,

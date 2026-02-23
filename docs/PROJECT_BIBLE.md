@@ -8,7 +8,7 @@
 | **Last updated** | February 23, 2026 |
 | **GitHub** | https://github.com/PapaJax20/Orbyt |
 | **Local path** | `C:\Users\jmoon\Orbyt` |
-| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprint 13 (Fix Open Issues & Known Issues Cleanup) complete. Sprint 14 (Calendar UX Polish) complete. Sprint 15 (Notifications & Reminders) in progress. |
+| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprint 13 (Fix Open Issues & Known Issues Cleanup) complete. Sprint 14 (Calendar UX Polish) complete. Sprint 15 (Notifications & Reminders) complete. Sprint 16 (Calendar Intelligence) in progress. |
 | **Project Lead** | J. Moon |
 | **Development Environment** | Claude Code Agent Teams (see Section 26) |
 
@@ -516,6 +516,14 @@ Sprint 13 adds an illustrated avatar picker to Settings, expands E2E test covera
 ### Web App — Sprint 14: Calendar UX Polish — ✅ Complete
 
 Sprint 14 delivers a fully polished calendar experience: drag-and-drop event management, agenda/list view, 9 category colors, event hover popovers, RSVP status display, custom color picker, event search, and week start preference synced across the app.
+
+### Web App — Sprint 15: Notifications & Reminders — ✅ Complete
+
+Sprint 15 adds push notification infrastructure (web-push + VAPID, Vercel cron for reminder dispatch, service worker push/notificationclick handlers), a NotificationCenter bell in the header with unread badge, per-event `reminderMinutes` field, and a full Notifications settings tab with opt-out preference toggles.
+
+### Web App — Sprint 16: Calendar Intelligence — 🔄 In Progress
+
+Sprint 16 delivers a unified Smart Agenda view aggregating events, bills, tasks, and contact birthdays/anniversaries into a single day-grouped feed with typed icons. Adds `calendar.getAgendaItems` procedure, recurring event exception handling (edit/delete "this only" and "this and future"), member color coding via `displayColor`, and a recurrence mode picker in the event drawer.
 
 ---
 
@@ -1743,7 +1751,7 @@ Sprint 13 addresses remaining open issues and cleans up the Known Issues table (
 
 ---
 
-### Sprint 15 — Notifications & Reminders 🔄 IN PROGRESS — February 2026
+### Sprint 15 — Notifications & Reminders ✅ COMPLETED — February 2026
 
 | Task | Scope |
 |------|-------|
@@ -1763,9 +1771,52 @@ Sprint 13 addresses remaining open issues and cleans up the Known Issues table (
 5. **Preferences**: `notificationPreferences` JSONB on profiles follows opt-out model (same as `financeModules`): `{}` = all enabled, set `false` to disable a type.
 6. **Email (Resend)**: Deferred to Phase 2.
 
-### Sprint 16 — Calendar Intelligence 🔜
+### Sprint 16 — Calendar Intelligence 🔄 IN PROGRESS — February 2026
 
-Bill due dates on calendar, contact birthdays/anniversaries on calendar, task-calendar integration, member color coding, recurrence exception handling, recurring event delete modes.
+**Estimated effort:** 2 days
+**Branch:** `main`
+
+Sprint 16 transforms the calendar into a true household intelligence hub by unifying events, bills, tasks, and contact milestones into a single agenda feed, adding proper recurring event exception handling, and surfacing member identities through color coding.
+
+#### 16A — Unified Agenda API (`calendar.getAgendaItems`)
+- New tRPC procedure aggregating four data sources: calendar events, upcoming bills (by due date), open tasks (by due date), and contact birthdays/anniversaries
+- Returns a flat list of typed agenda items sorted chronologically, scoped to the requesting household
+- Each item carries a `type` discriminator: `"event"` | `"bill"` | `"task"` | `"birthday"` | `"anniversary"`
+
+#### 16B — Smart Agenda View (Frontend)
+- Dedicated agenda view in the calendar toolbar alongside existing Month/Week/Day/List views
+- Items grouped by day with a sticky date header
+- Typed icons per item: `$` (DollarSign) for bills, checkbox for tasks, cake icon for birthdays/anniversaries, calendar icon for events
+- Empty state illustration when no items exist in the selected date range
+
+#### 16C — Member Color Coding
+- Household members each carry a `displayColor` field sourced from `household_members`
+- Events created by or assigned to a member render with that member's `displayColor` as the left border accent in all calendar views
+- Color legend chip row in calendar toolbar showing member name + color swatch
+
+#### 16D — Recurring Event Exception Handling
+- **Edit "this only":** Creates a child event record with `parentEventId` + `exceptionDate`. Writes an `EXDATE` entry on the parent's `rrule` field so that occurrence is suppressed in future expansions.
+- **Delete "this only":** Adds an `EXDATE` to the parent's `rrule` field without creating a child record.
+- **Edit/Delete "this and future":** Truncates the parent's recurrence by setting `UNTIL` to the day before the selected occurrence, then creates a new series starting from the selected date (for edits) or stops the series entirely (for deletes).
+- All three modes are non-destructive to past occurrences.
+
+#### 16E — Recurrence Mode Picker in Event Drawer
+- When opening an edit or delete action on a recurring event, a modal/sheet presents three options: "This event only", "This and following events", "All events"
+- Selection drives which exception path (16D) is executed
+- "All events" continues to update/delete the parent record directly (existing behavior)
+
+#### Acceptance Criteria
+
+- [ ] `calendar.getAgendaItems` returns merged, sorted, typed agenda items for the household
+- [ ] Smart Agenda view renders correctly at desktop (1280x800) and mobile (375x667)
+- [ ] Bill items link to the Finances page; task items link to Tasks; event items open the event drawer
+- [ ] Birthday/anniversary items display contact name and age/year count
+- [ ] Member color coding visible in Month, Week, and Agenda views
+- [ ] Editing "this only" on a recurring event does not affect other occurrences
+- [ ] Deleting "this only" suppresses exactly that occurrence
+- [ ] "This and future" truncates the original series correctly
+- [ ] Recurrence mode picker is keyboard-accessible (Radix Dialog)
+- [ ] `pnpm turbo typecheck` passes
 
 ### Sprint 17 — Google Calendar & Outlook Sync 🔜
 

@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "framer-motion";
 import { format } from "date-fns";
+import { DollarSign, CheckSquare, Cake, Heart, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@orbyt/api";
@@ -70,6 +71,133 @@ interface PopoverData {
   position: { x: number; y: number };
 }
 
+// ── Agenda View ──────────────────────────────────────────────────────────────
+
+const AGENDA_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  event: CalendarIcon,
+  bill: DollarSign,
+  task: CheckSquare,
+  birthday: Cake,
+  anniversary: Heart,
+};
+
+const AGENDA_COLORS: Record<string, string> = {
+  event: "bg-accent/20 text-accent",
+  bill: "bg-amber-500/20 text-amber-500",
+  task: "bg-blue-500/20 text-blue-500",
+  birthday: "bg-pink-500/20 text-pink-500",
+  anniversary: "bg-red-500/20 text-red-500",
+};
+
+type AgendaItem = {
+  type: "event" | "bill" | "task" | "birthday" | "anniversary";
+  id: string;
+  title: string;
+  date: string | Date;
+  allDay: boolean;
+  metadata: Record<string, unknown>;
+};
+
+function AgendaView({ items, isLoading }: { items: AgendaItem[]; isLoading: boolean }) {
+  if (isLoading) {
+    return (
+      <div className="glass-card rounded-2xl p-4">
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-12 animate-pulse rounded-xl bg-surface" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="glass-card rounded-2xl p-8 text-center">
+        <CalendarIcon className="mx-auto mb-3 h-8 w-8 text-text-muted/40" />
+        <p className="text-sm text-text-muted">No items in this period</p>
+      </div>
+    );
+  }
+
+  // Group by date (YYYY-MM-DD)
+  const grouped = new Map<string, AgendaItem[]>();
+  for (const item of items) {
+    const d = new Date(item.date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(item);
+  }
+
+  return (
+    <div className="glass-card rounded-2xl overflow-hidden">
+      {Array.from(grouped.entries()).map(([dateKey, dayItems]) => {
+        const d = new Date(dateKey + "T12:00:00");
+        const label = format(d, "EEEE, MMMM d");
+        const isToday = dateKey === format(new Date(), "yyyy-MM-dd");
+
+        return (
+          <div key={dateKey}>
+            {/* Day header */}
+            <div
+              className={[
+                "px-4 py-2 text-xs font-semibold uppercase tracking-wider",
+                isToday ? "bg-accent/10 text-accent" : "bg-surface/50 text-text-muted",
+              ].join(" ")}
+            >
+              {isToday ? "Today" : label}
+            </div>
+            {/* Items */}
+            {dayItems.map((item) => {
+              const Icon = AGENDA_ICONS[item.type] ?? CalendarIcon;
+              const colorClass = AGENDA_COLORS[item.type] ?? "bg-surface text-text-muted";
+              const time = item.allDay
+                ? "All day"
+                : format(new Date(item.date), "h:mm a");
+
+              return (
+                <div
+                  key={`${item.type}-${item.id}`}
+                  className="flex items-center gap-3 border-b border-border/10 px-4 py-3 transition-colors hover:bg-surface/30"
+                >
+                  <div
+                    className={[
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                      colorClass,
+                    ].join(" ")}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-text">
+                      {item.title}
+                    </p>
+                    <p className="text-xs text-text-muted">
+                      {time}
+                      {item.metadata?.location
+                        ? ` \u00B7 ${item.metadata.location}`
+                        : ""}
+                      {item.metadata?.amount
+                        ? ` \u00B7 $${parseFloat(String(item.metadata.amount)).toFixed(2)}`
+                        : ""}
+                      {item.metadata?.priority
+                        ? ` \u00B7 ${item.metadata.priority} priority`
+                        : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-surface/50 px-2 py-0.5 text-[10px] capitalize text-text-muted">
+                    {item.type}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── CalendarContent ───────────────────────────────────────────────────────────
 
 export function CalendarContent() {
@@ -116,6 +244,12 @@ export function CalendarContent() {
   const me = household?.members.find((m) => m.userId === userId);
   const weekStartDay = (me?.profile as Record<string, unknown> | undefined)?.weekStartDay as string | undefined;
 
+  // Member color map for event color-coding
+  const memberColorMap = new Map<string, string>();
+  household?.members.forEach((m) => {
+    memberColorMap.set(m.userId, m.displayColor);
+  });
+
   // Query events for the current range
   const { data: events, isLoading } = trpc.calendar.list.useQuery({
     startDate: dateRange.start,
@@ -128,11 +262,28 @@ export function CalendarContent() {
     { enabled: debouncedSearch.length > 0 },
   );
 
+  // Agenda view
+  const isAgendaView = view === "agenda";
+
+  const { data: agendaItems, isLoading: agendaLoading } = trpc.calendar.getAgendaItems.useQuery(
+    {
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+      includeBills: true,
+      includeTasks: true,
+      includeBirthdays: true,
+    },
+    { enabled: isAgendaView },
+  );
+
   // Real-time invalidation for calendar events
   useRealtimeInvalidation(
     "events",
     undefined,
-    () => utils.calendar.list.invalidate({ startDate: dateRange.start, endDate: dateRange.end }),
+    () => {
+      utils.calendar.list.invalidate({ startDate: dateRange.start, endDate: dateRange.end });
+      if (isAgendaView) utils.calendar.getAgendaItems.invalidate();
+    },
   );
 
   // Drag-drop mutation
@@ -148,23 +299,28 @@ export function CalendarContent() {
 
   // Map to FullCalendar EventInput format
   const calendarEvents: EventInput[] =
-    events?.map((event: CalendarEvent) => ({
-      id: event.id,
-      title: event.title,
-      start: event.startAt instanceof Date ? event.startAt.toISOString() : String(event.startAt),
-      end: event.endAt
-        ? (event.endAt instanceof Date ? event.endAt.toISOString() : String(event.endAt))
-        : undefined,
-      allDay: event.allDay,
-      backgroundColor: event.color ?? CATEGORY_COLORS[event.category ?? "other"] ?? "#6B7280",
-      borderColor: "transparent",
-      textColor: "#ffffff",
-      extendedProps: {
-        category: event.category ?? "other",
-        location: event.location ?? undefined,
-        color: event.color ?? undefined,
-      },
-    })) ?? [];
+    events?.map((event: CalendarEvent) => {
+      const memberColor = memberColorMap.get(event.createdBy);
+      const bgColor = event.color ?? memberColor ?? CATEGORY_COLORS[event.category ?? "other"] ?? "#6B7280";
+      return {
+        id: event.id,
+        title: event.title,
+        start: event.startAt instanceof Date ? event.startAt.toISOString() : String(event.startAt),
+        end: event.endAt
+          ? (event.endAt instanceof Date ? event.endAt.toISOString() : String(event.endAt))
+          : undefined,
+        allDay: event.allDay,
+        backgroundColor: bgColor,
+        borderColor: "transparent",
+        textColor: "#ffffff",
+        extendedProps: {
+          category: event.category ?? "other",
+          location: event.location ?? undefined,
+          color: event.color ?? undefined,
+          memberColor,
+        },
+      };
+    }) ?? [];
 
   // Toolbar handlers
   const handlePrev = useCallback(() => {
@@ -181,7 +337,9 @@ export function CalendarContent() {
 
   const handleViewChange = useCallback((newView: CalendarView) => {
     setView(newView);
-    calendarRef.current?.getApi().changeView(newView);
+    if (newView !== "agenda") {
+      calendarRef.current?.getApi().changeView(newView);
+    }
   }, []);
 
   // Event handlers
@@ -348,36 +506,40 @@ export function CalendarContent() {
         )}
 
         {/* Calendar */}
-        <div className="glass-card rounded-2xl p-4">
-          {isLoading ? (
-            <div className="grid grid-cols-7 gap-1">
-              {Array.from({ length: 35 }).map((_, i) => (
-                <div key={i} className="h-16 animate-pulse rounded-lg bg-surface" />
-              ))}
-            </div>
-          ) : (
-            <FullCalendar
-              ref={calendarRef}
-              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-              initialView={view}
-              headerToolbar={false}
-              height={isMobile ? "calc(100vh - 344px)" : "calc(100vh - 280px)"}
-              events={calendarEvents}
-              dateClick={handleDateClick}
-              eventClick={handleEventClick}
-              datesSet={handleDatesSet}
-              eventDrop={handleEventDrop}
-              eventResize={handleEventResize}
-              eventMouseEnter={handleEventMouseEnter}
-              eventMouseLeave={handleEventMouseLeave}
-              selectable
-              editable={true}
-              dayMaxEvents={3}
-              nowIndicator
-              firstDay={weekStartDay === "monday" ? 1 : 0}
-            />
-          )}
-        </div>
+        {isAgendaView ? (
+          <AgendaView items={agendaItems ?? []} isLoading={agendaLoading} />
+        ) : (
+          <div className="glass-card rounded-2xl p-4">
+            {isLoading ? (
+              <div className="grid grid-cols-7 gap-1">
+                {Array.from({ length: 35 }).map((_, i) => (
+                  <div key={i} className="h-16 animate-pulse rounded-lg bg-surface" />
+                ))}
+              </div>
+            ) : (
+              <FullCalendar
+                ref={calendarRef}
+                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+                initialView={view}
+                headerToolbar={false}
+                height={isMobile ? "calc(100vh - 344px)" : "calc(100vh - 280px)"}
+                events={calendarEvents}
+                dateClick={handleDateClick}
+                eventClick={handleEventClick}
+                datesSet={handleDatesSet}
+                eventDrop={handleEventDrop}
+                eventResize={handleEventResize}
+                eventMouseEnter={handleEventMouseEnter}
+                eventMouseLeave={handleEventMouseLeave}
+                selectable
+                editable={true}
+                dayMaxEvents={3}
+                nowIndicator
+                firstDay={weekStartDay === "monday" ? 1 : 0}
+              />
+            )}
+          </div>
+        )}
       </motion.div>
 
       {/* Event Popover (hover) */}

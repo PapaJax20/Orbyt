@@ -49,7 +49,18 @@ export const SearchEventsSchema = z.object({
   query: z.string().min(1).max(200),
 });
 
+export const GetAgendaItemsSchema = z.object({
+  startDate: z.string().datetime(),
+  endDate: z.string().datetime(),
+  includeBills: z.boolean().default(true),
+  includeTasks: z.boolean().default(true),
+  includeBirthdays: z.boolean().default(true),
+});
+
+export type AgendaItemType = "event" | "bill" | "task" | "birthday" | "anniversary";
+
 export type CreateEventInput = z.infer<typeof CreateEventSchema>;
 export type UpdateEventInput = z.infer<typeof UpdateEventSchema>;
 export type ListEventsInput = z.infer<typeof ListEventsSchema>;
 export type SearchEventsInput = z.infer<typeof SearchEventsSchema>;
+export type GetAgendaItemsInput = z.infer<typeof GetAgendaItemsSchema>;
