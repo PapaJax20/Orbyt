@@ -90,10 +90,25 @@ export function formatDateRange(startAt: Date, endAt: Date | null, allDay: boole
 
 /**
  * Get the next due date for a bill given its due day of month.
+ * Clamps the day to the last day of the target month to handle
+ * months shorter than the dueDay (e.g., day 31 in February).
  */
 export function getNextBillDueDate(dueDay: number): Date {
   const today = startOfDay(new Date());
-  const currentMonthDue = new Date(today.getFullYear(), today.getMonth(), dueDay);
+
+  // Get the last day of the current month (day 0 of next month)
+  const lastDayCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const clampedCurrentDay = Math.min(dueDay, lastDayCurrentMonth);
+  const currentMonthDue = new Date(today.getFullYear(), today.getMonth(), clampedCurrentDay);
+
   if (currentMonthDue >= today) return currentMonthDue;
-  return new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+
+  // Move to next month and clamp again
+  const nextMonth = today.getMonth() + 1;
+  const nextMonthYear = today.getFullYear() + (nextMonth > 11 ? 1 : 0);
+  const nextMonthIndex = nextMonth % 12;
+  const lastDayNextMonth = new Date(nextMonthYear, nextMonthIndex + 1, 0).getDate();
+  const clampedNextDay = Math.min(dueDay, lastDayNextMonth);
+
+  return new Date(nextMonthYear, nextMonthIndex, clampedNextDay);
 }

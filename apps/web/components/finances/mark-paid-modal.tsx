@@ -34,6 +34,7 @@ export function MarkPaidModal({
   const [amount, setAmount] = useState(defaultAmount);
   const [date, setDate] = useState(todayISODate());
   const [notes, setNotes] = useState("");
+  const [receiptUrl, setReceiptUrl] = useState("");
 
   const markPaid = trpc.finances.markPaid.useMutation({
     onSuccess: () => {
@@ -43,6 +44,7 @@ export function MarkPaidModal({
       setAmount(defaultAmount);
       setDate(todayISODate());
       setNotes("");
+      setReceiptUrl("");
       onClose();
     },
     onError: (err) => {
@@ -67,6 +69,7 @@ export function MarkPaidModal({
       amount: trimmedAmount,
       paidAt,
       notes: notes.trim() || null,
+      receiptUrl: receiptUrl.trim() || null,
     });
   }
 
@@ -158,6 +161,21 @@ export function MarkPaidModal({
                         rows={2}
                         placeholder="e.g. paid via bank transfer"
                         maxLength={500}
+                      />
+                    </div>
+
+                    {/* Receipt URL */}
+                    <div>
+                      <label className="orbyt-label" htmlFor="paid-receipt-url">
+                        Receipt URL <span className="text-text-muted">(optional)</span>
+                      </label>
+                      <input
+                        id="paid-receipt-url"
+                        type="url"
+                        value={receiptUrl}
+                        onChange={(e) => setReceiptUrl(e.target.value)}
+                        className="orbyt-input mt-1 w-full"
+                        placeholder="https://example.com/receipt.pdf"
                       />
                     </div>
 

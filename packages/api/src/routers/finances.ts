@@ -1,12 +1,22 @@
 import { z } from "zod";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { eq, and, gte, lte, desc, asc, sql, count, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { bills, billPayments } from "@orbyt/db/schema";
+import { bills, billPayments, accounts, transactions, budgets, savingsGoals } from "@orbyt/db/schema";
 import {
   CreateBillSchema,
   UpdateBillSchema,
   MarkBillPaidSchema,
   GetMonthlyOverviewSchema,
+  CreateAccountSchema,
+  UpdateAccountSchema,
+  CreateTransactionSchema,
+  UpdateTransactionSchema,
+  ListTransactionsFilterSchema,
+  CreateBudgetSchema,
+  UpdateBudgetSchema,
+  CreateSavingsGoalSchema,
+  UpdateSavingsGoalSchema,
+  ContributeToGoalSchema,
 } from "@orbyt/shared/validators";
 import { getNextBillDueDate } from "@orbyt/shared/utils";
 import { router, householdProcedure } from "../trpc";
@@ -147,13 +157,17 @@ export const financesRouter = router({
         where: and(eq(bills.householdId, ctx.householdId), eq(bills.isActive, true)),
       });
 
-      const payments = await ctx.db.query.billPayments.findMany({
-        where: and(
-          eq(billPayments.billId, bills.id),
-          gte(billPayments.paidAt, startOfMonth),
-          lte(billPayments.paidAt, endOfMonth)
-        ),
-      });
+      const billIds = allBills.map((b) => b.id);
+
+      const payments = billIds.length
+        ? await ctx.db.query.billPayments.findMany({
+            where: and(
+              inArray(billPayments.billId, billIds),
+              gte(billPayments.paidAt, startOfMonth),
+              lte(billPayments.paidAt, endOfMonth)
+            ),
+          })
+        : [];
 
       const totalBilled = allBills.reduce((sum, b) => sum + parseFloat(b.amount ?? "0"), 0);
       const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount ?? "0"), 0);
@@ -188,5 +202,747 @@ export const financesRouter = router({
         }))
         .filter((b) => b.nextDueDate <= cutoff)
         .sort((a, b) => a.nextDueDate.getTime() - b.nextDueDate.getTime());
+    }),
+
+  // ================================================================
+  // Account Procedures
+  // ================================================================
+
+  /**
+   * List all active accounts for the household, ordered by type then name.
+   * Includes total balance sum.
+   */
+  listAccounts: householdProcedure.query(async ({ ctx }) => {
+    const allAccounts = await ctx.db.query.accounts.findMany({
+      where: and(
+        eq(accounts.householdId, ctx.householdId),
+        eq(accounts.isActive, true)
+      ),
+      orderBy: [asc(accounts.type), asc(accounts.name)],
+    });
+
+    const totalBalance = allAccounts.reduce(
+      (sum, a) => sum + parseFloat(a.balance ?? "0"),
+      0
+    );
+
+    return {
+      accounts: allAccounts,
+      totalBalance,
+    };
+  }),
+
+  /**
+   * Get a single account by ID with recent transactions (last 10).
+   */
+  getAccountById: householdProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const account = await ctx.db.query.accounts.findFirst({
+        where: and(
+          eq(accounts.id, input.id),
+          eq(accounts.householdId, ctx.householdId)
+        ),
+      });
+      if (!account) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const recentTransactions = await ctx.db.query.transactions.findMany({
+        where: and(
+          eq(transactions.accountId, input.id),
+          eq(transactions.householdId, ctx.householdId)
+        ),
+        orderBy: (t, { desc }) => [desc(t.date)],
+        limit: 10,
+      });
+
+      return { ...account, recentTransactions };
+    }),
+
+  /**
+   * Create a new account.
+   */
+  createAccount: householdProcedure
+    .input(CreateAccountSchema)
+    .mutation(async ({ ctx, input }) => {
+      const [account] = await ctx.db
+        .insert(accounts)
+        .values({
+          ...input,
+          householdId: ctx.householdId,
+          createdBy: ctx.user.id,
+        })
+        .returning();
+      return account;
+    }),
+
+  /**
+   * Update an account.
+   */
+  updateAccount: householdProcedure
+    .input(z.object({ id: z.string().uuid(), data: UpdateAccountSchema }))
+    .mutation(async ({ ctx, input }) => {
+      const [updated] = await ctx.db
+        .update(accounts)
+        .set({ ...input.data, updatedAt: new Date() })
+        .where(
+          and(eq(accounts.id, input.id), eq(accounts.householdId, ctx.householdId))
+        )
+        .returning();
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
+      return updated;
+    }),
+
+  /**
+   * Soft-delete an account (set isActive = false).
+   */
+  deleteAccount: householdProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(accounts)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(
+          and(eq(accounts.id, input.id), eq(accounts.householdId, ctx.householdId))
+        );
+      return { success: true };
+    }),
+
+  /**
+   * Quick balance update without touching other fields.
+   */
+  updateBalance: householdProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        balance: z.string().regex(/^-?\d+(\.\d{1,2})?$/, "Invalid balance"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [updated] = await ctx.db
+        .update(accounts)
+        .set({ balance: input.balance, updatedAt: new Date() })
+        .where(
+          and(eq(accounts.id, input.id), eq(accounts.householdId, ctx.householdId))
+        )
+        .returning();
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
+      return updated;
+    }),
+
+  // ================================================================
+  // Transaction Procedures
+  // ================================================================
+
+  /**
+   * List transactions with optional filters, pagination, and total count.
+   */
+  listTransactions: householdProcedure
+    .input(ListTransactionsFilterSchema)
+    .query(async ({ ctx, input }) => {
+      const conditions = [eq(transactions.householdId, ctx.householdId)];
+
+      if (input.startDate) {
+        conditions.push(gte(transactions.date, input.startDate));
+      }
+      if (input.endDate) {
+        conditions.push(lte(transactions.date, input.endDate));
+      }
+      if (input.category) {
+        conditions.push(eq(transactions.category, input.category));
+      }
+      if (input.type) {
+        conditions.push(eq(transactions.type, input.type));
+      }
+      if (input.accountId) {
+        conditions.push(eq(transactions.accountId, input.accountId));
+      }
+
+      const whereClause = and(...conditions);
+
+      const [items, totalResult] = await Promise.all([
+        ctx.db.query.transactions.findMany({
+          where: whereClause,
+          orderBy: (t, { desc }) => [desc(t.date)],
+          limit: input.limit,
+          offset: input.offset,
+        }),
+        ctx.db
+          .select({ total: count() })
+          .from(transactions)
+          .where(whereClause),
+      ]);
+
+      return {
+        transactions: items,
+        total: totalResult[0]?.total ?? 0,
+        limit: input.limit,
+        offset: input.offset,
+      };
+    }),
+
+  /**
+   * Create a transaction and update account balance if applicable.
+   * expense: subtract from account balance
+   * income: add to account balance
+   * transfer: skip balance adjustment (handled separately)
+   */
+  createTransaction: householdProcedure
+    .input(CreateTransactionSchema)
+    .mutation(async ({ ctx, input }) => {
+      const [transaction] = await ctx.db
+        .insert(transactions)
+        .values({
+          ...input,
+          householdId: ctx.householdId,
+          createdBy: ctx.user.id,
+        })
+        .returning();
+
+      // Update account balance if linked to an account
+      if (input.accountId && input.type !== "transfer") {
+        const balanceAdjustment =
+          input.type === "expense"
+            ? sql`${accounts.balance}::numeric - ${input.amount}::numeric`
+            : sql`${accounts.balance}::numeric + ${input.amount}::numeric`;
+
+        await ctx.db
+          .update(accounts)
+          .set({
+            balance: sql`${balanceAdjustment}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(accounts.id, input.accountId));
+      }
+
+      return transaction;
+    }),
+
+  /**
+   * Update a transaction. If amount or type changed and accountId exists,
+   * reverse the old balance impact and apply the new one.
+   */
+  updateTransaction: householdProcedure
+    .input(z.object({ id: z.string().uuid(), data: UpdateTransactionSchema }))
+    .mutation(async ({ ctx, input }) => {
+      // Fetch the existing transaction first
+      const existing = await ctx.db.query.transactions.findFirst({
+        where: and(
+          eq(transactions.id, input.id),
+          eq(transactions.householdId, ctx.householdId)
+        ),
+      });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const [updated] = await ctx.db
+        .update(transactions)
+        .set({ ...input.data })
+        .where(
+          and(
+            eq(transactions.id, input.id),
+            eq(transactions.householdId, ctx.householdId)
+          )
+        )
+        .returning();
+
+      // Recalculate balance if amount or type changed and account is linked
+      const effectiveAccountId = input.data.accountId ?? existing.accountId;
+      const newAmount = input.data.amount ?? existing.amount;
+      const newType = input.data.type ?? existing.type;
+
+      if (
+        effectiveAccountId &&
+        (input.data.amount !== undefined || input.data.type !== undefined)
+      ) {
+        // Reverse old impact (only if old type was not transfer)
+        if (existing.accountId && existing.type !== "transfer") {
+          const reversal =
+            existing.type === "expense"
+              ? sql`${accounts.balance}::numeric + ${existing.amount}::numeric`
+              : sql`${accounts.balance}::numeric - ${existing.amount}::numeric`;
+
+          await ctx.db
+            .update(accounts)
+            .set({ balance: sql`${reversal}`, updatedAt: new Date() })
+            .where(eq(accounts.id, existing.accountId));
+        }
+
+        // Apply new impact (only if new type is not transfer)
+        if (newType !== "transfer") {
+          const newImpact =
+            newType === "expense"
+              ? sql`${accounts.balance}::numeric - ${newAmount}::numeric`
+              : sql`${accounts.balance}::numeric + ${newAmount}::numeric`;
+
+          await ctx.db
+            .update(accounts)
+            .set({ balance: sql`${newImpact}`, updatedAt: new Date() })
+            .where(eq(accounts.id, effectiveAccountId));
+        }
+      }
+
+      return updated;
+    }),
+
+  /**
+   * Delete a transaction and reverse the balance impact on the linked account.
+   */
+  deleteTransaction: householdProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      // Fetch the transaction to reverse its balance impact
+      const existing = await ctx.db.query.transactions.findFirst({
+        where: and(
+          eq(transactions.id, input.id),
+          eq(transactions.householdId, ctx.householdId)
+        ),
+      });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+
+      await ctx.db
+        .delete(transactions)
+        .where(
+          and(
+            eq(transactions.id, input.id),
+            eq(transactions.householdId, ctx.householdId)
+          )
+        );
+
+      // Reverse balance impact if linked to an account
+      if (existing.accountId && existing.type !== "transfer") {
+        const reversal =
+          existing.type === "expense"
+            ? sql`${accounts.balance}::numeric + ${existing.amount}::numeric`
+            : sql`${accounts.balance}::numeric - ${existing.amount}::numeric`;
+
+        await ctx.db
+          .update(accounts)
+          .set({ balance: sql`${reversal}`, updatedAt: new Date() })
+          .where(eq(accounts.id, existing.accountId));
+      }
+
+      return { success: true };
+    }),
+
+  /**
+   * Get spending grouped by category for a given month (YYYY-MM).
+   * Returns array of { category, totalAmount } for expense transactions,
+   * ordered by totalAmount desc.
+   */
+  getSpendingByCategory: householdProcedure
+    .input(
+      z.object({
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Must be YYYY-MM format"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const [year, month] = input.month.split("-").map(Number) as [number, number];
+      const startOfMonth = new Date(year, month - 1, 1).toISOString().split("T")[0]!;
+      const endOfMonth = new Date(year, month, 0).toISOString().split("T")[0]!;
+
+      const result = await ctx.db
+        .select({
+          category: transactions.category,
+          totalAmount: sql<string>`sum(${transactions.amount}::numeric)`.as(
+            "total_amount"
+          ),
+        })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.householdId, ctx.householdId),
+            eq(transactions.type, "expense"),
+            gte(transactions.date, startOfMonth),
+            lte(transactions.date, endOfMonth)
+          )
+        )
+        .groupBy(transactions.category)
+        .orderBy(sql`sum(${transactions.amount}::numeric) desc`);
+
+      return result;
+    }),
+
+  // =====================
+  // Budget Procedures
+  // =====================
+
+  /**
+   * List all active budgets for the household, with current month spent amounts.
+   */
+  listBudgets: householdProcedure.query(async ({ ctx }) => {
+    const allBudgets = await ctx.db.query.budgets.findMany({
+      where: and(eq(budgets.householdId, ctx.householdId), eq(budgets.isActive, true)),
+      orderBy: (b, { asc }) => [asc(b.category)],
+    });
+
+    // Calculate spent for current month per category
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const startStr = startOfMonth.toISOString().split("T")[0]!;
+    const endStr = endOfMonth.toISOString().split("T")[0]!;
+
+    const budgetsWithSpent = await Promise.all(
+      allBudgets.map(async (budget) => {
+        const categoryTransactions = await ctx.db.query.transactions.findMany({
+          where: and(
+            eq(transactions.householdId, ctx.householdId),
+            eq(transactions.type, "expense"),
+            eq(transactions.category, budget.category),
+            gte(transactions.date, startStr),
+            lte(transactions.date, endStr)
+          ),
+        });
+
+        const spent = categoryTransactions.reduce(
+          (sum, t) => sum + parseFloat(t.amount ?? "0"),
+          0
+        );
+
+        return {
+          ...budget,
+          spent: spent.toFixed(2),
+        };
+      })
+    );
+
+    return budgetsWithSpent;
+  }),
+
+  /**
+   * Create a new budget.
+   */
+  createBudget: householdProcedure.input(CreateBudgetSchema).mutation(async ({ ctx, input }) => {
+    const [budget] = await ctx.db
+      .insert(budgets)
+      .values({
+        ...input,
+        householdId: ctx.householdId,
+      })
+      .returning();
+    return budget;
+  }),
+
+  /**
+   * Update a budget.
+   */
+  updateBudget: householdProcedure
+    .input(z.object({ id: z.string().uuid(), data: UpdateBudgetSchema }))
+    .mutation(async ({ ctx, input }) => {
+      const [updated] = await ctx.db
+        .update(budgets)
+        .set({ ...input.data, updatedAt: new Date() })
+        .where(and(eq(budgets.id, input.id), eq(budgets.householdId, ctx.householdId)))
+        .returning();
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
+      return updated;
+    }),
+
+  /**
+   * Archive (soft-delete) a budget.
+   */
+  deleteBudget: householdProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(budgets)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(and(eq(budgets.id, input.id), eq(budgets.householdId, ctx.householdId)));
+      return { success: true };
+    }),
+
+  /**
+   * Get budget progress for a given month.
+   * Returns each active budget with spent, remaining, and percentage.
+   */
+  getBudgetProgress: householdProcedure
+    .input(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/, "Must be YYYY-MM format") }))
+    .query(async ({ ctx, input }) => {
+      const [year, month] = input.month.split("-").map(Number) as [number, number];
+      const startOfMonth = new Date(year, month - 1, 1);
+      const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+      const startStr = startOfMonth.toISOString().split("T")[0]!;
+      const endStr = endOfMonth.toISOString().split("T")[0]!;
+
+      const allBudgets = await ctx.db.query.budgets.findMany({
+        where: and(eq(budgets.householdId, ctx.householdId), eq(budgets.isActive, true)),
+      });
+
+      const progress = await Promise.all(
+        allBudgets.map(async (budget) => {
+          const categoryTransactions = await ctx.db.query.transactions.findMany({
+            where: and(
+              eq(transactions.householdId, ctx.householdId),
+              eq(transactions.type, "expense"),
+              eq(transactions.category, budget.category),
+              gte(transactions.date, startStr),
+              lte(transactions.date, endStr)
+            ),
+          });
+
+          const spent = categoryTransactions.reduce(
+            (sum, t) => sum + parseFloat(t.amount ?? "0"),
+            0
+          );
+          const monthlyLimit = parseFloat(budget.monthlyLimit ?? "0");
+          const remaining = monthlyLimit - spent;
+          const percentage = monthlyLimit > 0 ? (spent / monthlyLimit) * 100 : 0;
+
+          return {
+            id: budget.id,
+            category: budget.category,
+            monthlyLimit: budget.monthlyLimit,
+            rollover: budget.rollover,
+            spent: spent.toFixed(2),
+            remaining: remaining.toFixed(2),
+            percentage: Math.round(percentage * 100) / 100,
+          };
+        })
+      );
+
+      return progress;
+    }),
+
+  // =====================
+  // Savings Goal Procedures
+  // =====================
+
+  /**
+   * List all active savings goals for the household.
+   * Includes progress percentage, on-track status, and months remaining.
+   */
+  listGoals: householdProcedure.query(async ({ ctx }) => {
+    const allGoals = await ctx.db.query.savingsGoals.findMany({
+      where: and(eq(savingsGoals.householdId, ctx.householdId), eq(savingsGoals.isActive, true)),
+    });
+
+    return allGoals.map((goal) => {
+      const current = parseFloat(goal.currentAmount ?? "0");
+      const target = parseFloat(goal.targetAmount ?? "0");
+      const progressPercent = target > 0 ? Math.round((current / target) * 10000) / 100 : 0;
+
+      let onTrack: boolean | null = null;
+      let monthsRemaining: number | null = null;
+
+      if (goal.targetDate) {
+        const targetDate = new Date(goal.targetDate);
+        const now = new Date();
+        const msPerMonth = 1000 * 60 * 60 * 24 * 30.44;
+        monthsRemaining = Math.max(
+          0,
+          Math.ceil((targetDate.getTime() - now.getTime()) / msPerMonth)
+        );
+
+        if (monthsRemaining > 0) {
+          const amountNeeded = target - current;
+          const requiredPerMonth = amountNeeded / monthsRemaining;
+          const monthlyContrib = parseFloat(goal.monthlyContribution ?? "0");
+          onTrack = monthlyContrib >= requiredPerMonth;
+        } else {
+          // Past target date: on track only if already met
+          onTrack = current >= target;
+        }
+      }
+
+      return {
+        ...goal,
+        progressPercent,
+        onTrack,
+        monthsRemaining,
+      };
+    });
+  }),
+
+  /**
+   * Create a new savings goal.
+   */
+  createGoal: householdProcedure.input(CreateSavingsGoalSchema).mutation(async ({ ctx, input }) => {
+    const [goal] = await ctx.db
+      .insert(savingsGoals)
+      .values({
+        ...input,
+        householdId: ctx.householdId,
+        createdBy: ctx.user.id,
+      })
+      .returning();
+    return goal;
+  }),
+
+  /**
+   * Update a savings goal.
+   */
+  updateGoal: householdProcedure
+    .input(z.object({ id: z.string().uuid(), data: UpdateSavingsGoalSchema }))
+    .mutation(async ({ ctx, input }) => {
+      const [updated] = await ctx.db
+        .update(savingsGoals)
+        .set({ ...input.data, updatedAt: new Date() })
+        .where(and(eq(savingsGoals.id, input.id), eq(savingsGoals.householdId, ctx.householdId)))
+        .returning();
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
+      return updated;
+    }),
+
+  /**
+   * Archive (soft-delete) a savings goal.
+   */
+  deleteGoal: householdProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(savingsGoals)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(and(eq(savingsGoals.id, input.id), eq(savingsGoals.householdId, ctx.householdId)));
+      return { success: true };
+    }),
+
+  /**
+   * Contribute to a savings goal.
+   * Adds amount to currentAmount; if linkedAccountId exists, subtracts from that account's balance.
+   */
+  contributeToGoal: householdProcedure
+    .input(ContributeToGoalSchema)
+    .mutation(async ({ ctx, input }) => {
+      const goal = await ctx.db.query.savingsGoals.findFirst({
+        where: and(
+          eq(savingsGoals.id, input.goalId),
+          eq(savingsGoals.householdId, ctx.householdId)
+        ),
+      });
+      if (!goal) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const currentAmount = parseFloat(goal.currentAmount ?? "0");
+      const contribution = parseFloat(input.amount);
+      const newAmount = (currentAmount + contribution).toFixed(2);
+
+      const [updated] = await ctx.db
+        .update(savingsGoals)
+        .set({ currentAmount: newAmount, updatedAt: new Date() })
+        .where(eq(savingsGoals.id, input.goalId))
+        .returning();
+
+      // If linked to an account, subtract from that account's balance
+      if (goal.linkedAccountId) {
+        const account = await ctx.db.query.accounts.findFirst({
+          where: eq(accounts.id, goal.linkedAccountId),
+        });
+        if (account) {
+          const accountBalance = parseFloat(account.balance ?? "0");
+          const newBalance = (accountBalance - contribution).toFixed(2);
+          await ctx.db
+            .update(accounts)
+            .set({ balance: newBalance, updatedAt: new Date() })
+            .where(eq(accounts.id, goal.linkedAccountId));
+        }
+      }
+
+      return updated;
+    }),
+
+  // =====================
+  // Financial Overview
+  // =====================
+
+  /**
+   * Get a comprehensive financial overview for a given month.
+   */
+  getFinancialOverview: householdProcedure
+    .input(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/, "Must be YYYY-MM format") }))
+    .query(async ({ ctx, input }) => {
+      const [year, month] = input.month.split("-").map(Number) as [number, number];
+      const startOfMonth = new Date(year, month - 1, 1);
+      const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+      const startStr = startOfMonth.toISOString().split("T")[0]!;
+      const endStr = endOfMonth.toISOString().split("T")[0]!;
+
+      // Fetch all active accounts
+      const allAccounts = await ctx.db.query.accounts.findMany({
+        where: and(eq(accounts.householdId, ctx.householdId), eq(accounts.isActive, true)),
+      });
+
+      // totalBalance: sum of all active account balances
+      const totalBalance = allAccounts.reduce(
+        (sum, a) => sum + parseFloat(a.balance ?? "0"),
+        0
+      );
+
+      // totalAssets: checking + savings + investment + cash
+      const assetTypes = ["checking", "savings", "investment", "cash"];
+      const totalAssets = allAccounts
+        .filter((a) => assetTypes.includes(a.type))
+        .reduce((sum, a) => sum + parseFloat(a.balance ?? "0"), 0);
+
+      // totalLiabilities: credit_card + loan
+      const liabilityTypes = ["credit_card", "loan"];
+      const totalLiabilities = allAccounts
+        .filter((a) => liabilityTypes.includes(a.type))
+        .reduce((sum, a) => sum + parseFloat(a.balance ?? "0"), 0);
+
+      // Fetch transactions for the month
+      const monthTransactions = await ctx.db.query.transactions.findMany({
+        where: and(
+          eq(transactions.householdId, ctx.householdId),
+          gte(transactions.date, startStr),
+          lte(transactions.date, endStr)
+        ),
+      });
+
+      // monthlyIncome: sum of income transactions
+      const monthlyIncome = monthTransactions
+        .filter((t) => t.type === "income")
+        .reduce((sum, t) => sum + parseFloat(t.amount ?? "0"), 0);
+
+      // monthlyExpenses: sum of expense transactions
+      const monthlyExpenses = monthTransactions
+        .filter((t) => t.type === "expense")
+        .reduce((sum, t) => sum + parseFloat(t.amount ?? "0"), 0);
+
+      // Fetch active budgets
+      const allBudgets = await ctx.db.query.budgets.findMany({
+        where: and(eq(budgets.householdId, ctx.householdId), eq(budgets.isActive, true)),
+      });
+
+      // Calculate available to spend: income - expenses - unspent budget allocation
+      // Sum of budget limits that haven't been fully spent
+      const budgetRemaining = await Promise.all(
+        allBudgets.map(async (budget) => {
+          const spent = monthTransactions
+            .filter((t) => t.type === "expense" && t.category === budget.category)
+            .reduce((sum, t) => sum + parseFloat(t.amount ?? "0"), 0);
+          const limit = parseFloat(budget.monthlyLimit ?? "0");
+          return Math.max(0, limit - spent);
+        })
+      );
+      const totalBudgetRemaining = budgetRemaining.reduce((sum, r) => sum + r, 0);
+      const availableToSpend = monthlyIncome - monthlyExpenses - totalBudgetRemaining;
+
+      // Budget count
+      const budgetCount = allBudgets.length;
+
+      // Goal count
+      const allGoals = await ctx.db.query.savingsGoals.findMany({
+        where: and(eq(savingsGoals.householdId, ctx.householdId), eq(savingsGoals.isActive, true)),
+      });
+      const goalCount = allGoals.length;
+
+      // Bills due this month: count bills with dueDay in this month
+      const allBills = await ctx.db.query.bills.findMany({
+        where: and(eq(bills.householdId, ctx.householdId), eq(bills.isActive, true)),
+      });
+      const billsDueThisMonth = allBills.filter(
+        (b) => b.dueDay >= 1 && b.dueDay <= endOfMonth.getDate()
+      ).length;
+
+      return {
+        month: input.month,
+        totalBalance: totalBalance.toFixed(2),
+        totalAssets: totalAssets.toFixed(2),
+        totalLiabilities: totalLiabilities.toFixed(2),
+        monthlyIncome: monthlyIncome.toFixed(2),
+        monthlyExpenses: monthlyExpenses.toFixed(2),
+        availableToSpend: availableToSpend.toFixed(2),
+        budgetCount,
+        goalCount,
+        billsDueThisMonth,
+      };
     }),
 });

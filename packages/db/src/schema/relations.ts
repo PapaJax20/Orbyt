@@ -7,7 +7,7 @@ import { relations } from "drizzle-orm";
 import { profiles, households, householdMembers, invitations } from "./households";
 import { events, eventAttendees } from "./events";
 import { tasks, taskAssignees, taskComments } from "./tasks";
-import { bills, billPayments } from "./finances";
+import { bills, billPayments, accounts, transactions, budgets, savingsGoals } from "./finances";
 import { shoppingLists, shoppingItems } from "./shopping";
 import { contacts, contactRelationships, contactNotes } from "./contacts";
 import { notifications, pushTokens } from "./notifications";
@@ -31,6 +31,10 @@ export const householdsRelations = relations(households, ({ many }) => ({
   events: many(events),
   tasks: many(tasks),
   bills: many(bills),
+  accounts: many(accounts),
+  transactions: many(transactions),
+  budgets: many(budgets),
+  savingsGoals: many(savingsGoals),
   shoppingLists: many(shoppingLists),
   contacts: many(contacts),
   aiConversations: many(aiConversations),
@@ -137,6 +141,65 @@ export const billPaymentsRelations = relations(billPayments, ({ one }) => ({
   paidByProfile: one(profiles, {
     fields: [billPayments.paidBy],
     references: [profiles.id],
+  }),
+}));
+
+// --- Accounts ---
+export const accountsRelations = relations(accounts, ({ one, many }) => ({
+  household: one(households, {
+    fields: [accounts.householdId],
+    references: [households.id],
+  }),
+  creator: one(profiles, {
+    fields: [accounts.createdBy],
+    references: [profiles.id],
+    relationName: "accountCreator",
+  }),
+  owner: one(profiles, {
+    fields: [accounts.ownerId],
+    references: [profiles.id],
+    relationName: "accountOwner",
+  }),
+  transactions: many(transactions),
+}));
+
+// --- Transactions ---
+export const transactionsRelations = relations(transactions, ({ one }) => ({
+  household: one(households, {
+    fields: [transactions.householdId],
+    references: [households.id],
+  }),
+  account: one(accounts, {
+    fields: [transactions.accountId],
+    references: [accounts.id],
+  }),
+  creator: one(profiles, {
+    fields: [transactions.createdBy],
+    references: [profiles.id],
+  }),
+}));
+
+// --- Budgets ---
+export const budgetsRelations = relations(budgets, ({ one }) => ({
+  household: one(households, {
+    fields: [budgets.householdId],
+    references: [households.id],
+  }),
+}));
+
+// --- Savings Goals ---
+export const savingsGoalsRelations = relations(savingsGoals, ({ one }) => ({
+  household: one(households, {
+    fields: [savingsGoals.householdId],
+    references: [households.id],
+  }),
+  creator: one(profiles, {
+    fields: [savingsGoals.createdBy],
+    references: [profiles.id],
+  }),
+  linkedAccount: one(accounts, {
+    fields: [savingsGoals.linkedAccountId],
+    references: [accounts.id],
   }),
 }));
 
