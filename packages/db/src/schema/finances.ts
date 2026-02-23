@@ -9,6 +9,7 @@ import {
   integer,
   date,
   jsonb,
+  unique,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { households, profiles } from "./households";
@@ -163,6 +164,24 @@ export const expenseSplits = pgTable("expense_splits", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// --- Net Worth Snapshots ---
+export const netWorthSnapshots = pgTable("net_worth_snapshots", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  householdId: uuid("household_id")
+    .references(() => households.id, { onDelete: "cascade" })
+    .notNull(),
+  snapshotDate: date("snapshot_date").notNull(),
+  totalAssets: numeric("total_assets", { precision: 12, scale: 2 }).notNull(),
+  totalLiabilities: numeric("total_liabilities", { precision: 12, scale: 2 }).notNull(),
+  netWorth: numeric("net_worth", { precision: 12, scale: 2 }).notNull(),
+  breakdown: jsonb("breakdown")
+    .$type<Record<string, string>>()
+    .default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  uniqueHouseholdDate: unique().on(t.householdId, t.snapshotDate),
+}));
+
 export type Bill = typeof bills.$inferSelect;
 export type NewBill = typeof bills.$inferInsert;
 export type BillPayment = typeof billPayments.$inferSelect;
@@ -176,3 +195,5 @@ export type SavingsGoal = typeof savingsGoals.$inferSelect;
 export type NewSavingsGoal = typeof savingsGoals.$inferInsert;
 export type ExpenseSplit = typeof expenseSplits.$inferSelect;
 export type NewExpenseSplit = typeof expenseSplits.$inferInsert;
+export type NetWorthSnapshot = typeof netWorthSnapshots.$inferSelect;
+export type NewNetWorthSnapshot = typeof netWorthSnapshots.$inferInsert;

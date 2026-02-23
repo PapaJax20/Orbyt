@@ -202,6 +202,9 @@ function TransactionDrawer({
     onSuccess: () => {
       utils.finances.getBalanceBetweenMembers.invalidate();
     },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to create expense splits");
+    },
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -415,6 +418,7 @@ function TransactionDrawer({
                   value={recurringFrequency}
                   onChange={(e) => setRecurringFrequency(e.target.value)}
                   className="orbyt-input w-full text-sm"
+                  aria-label="Recurring frequency"
                 >
                   <option value="">Select frequency</option>
                   <option value="daily">Daily</option>
@@ -649,8 +653,9 @@ export function TransactionsTab() {
         <div className="glass-card rounded-2xl p-4">
           <div className="flex flex-wrap gap-3">
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-text-muted whitespace-nowrap">From</label>
+              <label htmlFor="filter-start-date" className="text-xs font-medium text-text-muted whitespace-nowrap">From</label>
               <input
+                id="filter-start-date"
                 type="date"
                 value={startDate}
                 onChange={(e) => { setStartDate(e.target.value); setPage(0); }}
@@ -658,8 +663,9 @@ export function TransactionsTab() {
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-text-muted whitespace-nowrap">To</label>
+              <label htmlFor="filter-end-date" className="text-xs font-medium text-text-muted whitespace-nowrap">To</label>
               <input
+                id="filter-end-date"
                 type="date"
                 value={endDate}
                 onChange={(e) => { setEndDate(e.target.value); setPage(0); }}
@@ -670,6 +676,7 @@ export function TransactionsTab() {
               value={filterCategory}
               onChange={(e) => { setFilterCategory(e.target.value); setPage(0); }}
               className="orbyt-input text-sm capitalize"
+              aria-label="Filter by category"
             >
               <option value="">All Categories</option>
               {TRANSACTION_CATEGORIES.map((c) => (
@@ -680,6 +687,7 @@ export function TransactionsTab() {
               value={filterType}
               onChange={(e) => { setFilterType(e.target.value); setPage(0); }}
               className="orbyt-input text-sm capitalize"
+              aria-label="Filter by type"
             >
               <option value="">All Types</option>
               <option value="expense">Expense</option>
@@ -690,6 +698,7 @@ export function TransactionsTab() {
               value={filterMemberId}
               onChange={(e) => { setFilterMemberId(e.target.value); setPage(0); }}
               className="orbyt-input text-sm"
+              aria-label="Filter by member"
             >
               <option value="">All Members</option>
               {members.map((m) => (
@@ -700,6 +709,7 @@ export function TransactionsTab() {
               value={filterOwnership}
               onChange={(e) => { setFilterOwnership(e.target.value); setPage(0); }}
               className="orbyt-input text-sm"
+              aria-label="Filter by ownership"
             >
               <option value="">All Ownership</option>
               <option value="mine">Mine</option>

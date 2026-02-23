@@ -18,6 +18,13 @@ export const profiles = pgTable("profiles", {
   aiPersona: varchar("ai_persona", { length: 10 }).default("rosie").notNull(),
   theme: varchar("theme", { length: 30 }).default("cosmic").notNull(),
   timezone: varchar("timezone", { length: 50 }).default("UTC").notNull(),
+  financeModules: jsonb("finance_modules")
+    .$type<{
+      goals?: boolean;
+      netWorth?: boolean;
+      debtPlanner?: boolean;
+    }>()
+    .default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

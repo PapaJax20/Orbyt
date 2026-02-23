@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { Target, TrendingUp, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { createClient } from "@/lib/supabase/client";
@@ -32,6 +33,109 @@ const TIMEZONES = [
   "Pacific/Auckland",
   "Pacific/Honolulu",
 ];
+
+// ── Finance module toggle config ─────────────────────────────────────────────
+
+const FINANCE_MODULES = [
+  {
+    key: "goals" as const,
+    label: "Goals",
+    description: "Track savings goals and sinking funds",
+    Icon: Target,
+  },
+  {
+    key: "netWorth" as const,
+    label: "Net Worth",
+    description: "Monitor your household net worth over time",
+    Icon: TrendingUp,
+  },
+  {
+    key: "debtPlanner" as const,
+    label: "Debt Planner",
+    description: "Plan debt payoff with snowball or avalanche strategies",
+    Icon: Calculator,
+  },
+];
+
+// ── FinanceModulesSection ────────────────────────────────────────────────────
+
+function FinanceModulesSection({
+  profile,
+}: {
+  profile: { financeModules?: { goals?: boolean; netWorth?: boolean; debtPlanner?: boolean } | null };
+}) {
+  const utils = trpc.useUtils();
+
+  const toggleModule = trpc.household.updateProfile.useMutation({
+    onSuccess: () => {
+      utils.household.getCurrent.invalidate();
+      toast.success("Module preference saved");
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to update module preference");
+    },
+  });
+
+  const currentModules = profile.financeModules ?? {};
+
+  const handleToggle = useCallback(
+    (key: "goals" | "netWorth" | "debtPlanner", currentValue: boolean) => {
+      toggleModule.mutate({
+        financeModules: { ...currentModules, [key]: !currentValue },
+      });
+    },
+    [currentModules, toggleModule],
+  );
+
+  return (
+    <div>
+      <p className="orbyt-label">Finance Modules</p>
+      <p className="mb-3 mt-1 text-xs text-text-muted">
+        Toggle optional finance features on or off.
+      </p>
+      <div className="flex flex-col gap-3">
+        {FINANCE_MODULES.map(({ key, label, description, Icon }) => {
+          const isEnabled = currentModules[key] !== false;
+          return (
+            <div
+              key={key}
+              className="glass-card-subtle flex items-center justify-between gap-4 rounded-2xl p-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-white/5 p-2 text-accent" aria-label={label}>
+                  <Icon size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-text">{label}</p>
+                  <p className="text-xs text-text-muted">{description}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isEnabled}
+                aria-label={`Toggle ${label}`}
+                onClick={() => handleToggle(key, isEnabled)}
+                disabled={toggleModule.isPending}
+                className={[
+                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-50",
+                  isEnabled ? "bg-accent" : "bg-white/10",
+                ].join(" ")}
+              >
+                <span
+                  className={[
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 ease-in-out",
+                    isEnabled ? "translate-x-5" : "translate-x-0",
+                  ].join(" ")}
+                />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ── ProfileTab ────────────────────────────────────────────────────────────────
 
@@ -166,6 +270,9 @@ export function ProfileTab() {
           ))}
         </select>
       </div>
+
+      {/* Finance Modules */}
+      <FinanceModulesSection profile={profile} />
 
       <button
         type="submit"

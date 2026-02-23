@@ -200,5 +200,11 @@ export type UpdateBudgetInput = z.infer<typeof UpdateBudgetSchema>;
 export type CreateSavingsGoalInput = z.infer<typeof CreateSavingsGoalSchema>;
 export type UpdateSavingsGoalInput = z.infer<typeof UpdateSavingsGoalSchema>;
 export type ContributeToGoalInput = z.infer<typeof ContributeToGoalSchema>;
+export const GetNetWorthHistorySchema = z.object({
+  months: z.number().min(1).max(24).default(6),
+});
+
+export type GetNetWorthHistoryInput = z.infer<typeof GetNetWorthHistorySchema>;
+
 export type CreateExpenseSplitInput = z.infer<typeof CreateExpenseSplitSchema>;
 export type SettleUpInput = z.infer<typeof SettleUpSchema>;

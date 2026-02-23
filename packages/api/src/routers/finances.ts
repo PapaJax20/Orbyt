@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { eq, and, gte, lte, desc, asc, sql, count, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { bills, billPayments, accounts, transactions, budgets, savingsGoals, expenseSplits, profiles, householdMembers, tasks, taskAssignees, notifications } from "@orbyt/db/schema";
+import type { DbClient } from "@orbyt/db";
+import { bills, billPayments, accounts, transactions, budgets, savingsGoals, expenseSplits, profiles, householdMembers, tasks, taskAssignees, notifications, netWorthSnapshots } from "@orbyt/db/schema";
 import {
   CreateBillSchema,
   UpdateBillSchema,
@@ -20,6 +21,7 @@ import {
   CreateExpenseSplitSchema,
   SettleUpSchema,
   GetBalanceSchema,
+  GetNetWorthHistorySchema,
 } from "@orbyt/shared/validators";
 import { getNextBillDueDate } from "@orbyt/shared/utils";
 import { router, householdProcedure } from "../trpc";
@@ -29,7 +31,7 @@ import { router, householdProcedure } from "../trpc";
  * Includes dedup guard to prevent duplicate active tasks for the same bill.
  */
 async function createBillTask(
-  db: any,
+  db: DbClient,
   bill: { id: string; name: string; dueDay: number; householdId: string; createdBy: string; assignedTo: string | null },
 ) {
   if (!bill.assignedTo) return null;
@@ -127,6 +129,17 @@ export const financesRouter = router({
    * Create a new bill.
    */
   createBill: householdProcedure.input(CreateBillSchema).mutation(async ({ ctx, input }) => {
+    // Validate assignedTo is a household member
+    if (input.assignedTo) {
+      const member = await ctx.db.query.householdMembers.findFirst({
+        where: and(
+          eq(householdMembers.householdId, ctx.householdId),
+          eq(householdMembers.userId, input.assignedTo),
+        ),
+      });
+      if (!member) throw new TRPCError({ code: "BAD_REQUEST", message: "Assigned user is not a household member" });
+    }
+
     const [bill] = await ctx.db
       .insert(bills)
       .values({
@@ -150,6 +163,17 @@ export const financesRouter = router({
   updateBill: householdProcedure
     .input(z.object({ id: z.string().uuid(), data: UpdateBillSchema }))
     .mutation(async ({ ctx, input }) => {
+      // Validate assignedTo is a household member
+      if (input.data.assignedTo) {
+        const member = await ctx.db.query.householdMembers.findFirst({
+          where: and(
+            eq(householdMembers.householdId, ctx.householdId),
+            eq(householdMembers.userId, input.data.assignedTo),
+          ),
+        });
+        if (!member) throw new TRPCError({ code: "BAD_REQUEST", message: "Assigned user is not a household member" });
+      }
+
       // Fetch old bill to detect assignee changes
       const oldBill = await ctx.db.query.bills.findFirst({
         where: and(eq(bills.id, input.id), eq(bills.householdId, ctx.householdId)),
@@ -259,21 +283,30 @@ export const financesRouter = router({
     // Send notifications to notifyOnPaid members
     const notifyMembers = (bill.notifyOnPaid ?? []) as string[];
     if (notifyMembers.length > 0) {
-      await ctx.db.insert(notifications).values(
-        notifyMembers.map((userId) => ({
-          userId,
-          householdId: ctx.householdId,
-          type: "bill_paid",
-          title: `${bill.name} has been paid`,
-          body: `${bill.name} was marked as paid ($${input.amount}).`,
-          data: {
-            route: "/finances",
-            entityId: bill.id,
-            entityType: "bill",
-          },
-          channels: ["in_app"],
-        })),
-      );
+      // Validate notifyOnPaid members belong to this household
+      const householdMemberRows = await ctx.db.query.householdMembers.findMany({
+        where: eq(householdMembers.householdId, ctx.householdId),
+      });
+      const validMemberIds = new Set(householdMemberRows.map((m) => m.userId));
+      const validNotifyMembers = notifyMembers.filter((id) => validMemberIds.has(id));
+
+      if (validNotifyMembers.length > 0) {
+        await ctx.db.insert(notifications).values(
+          validNotifyMembers.map((userId) => ({
+            userId,
+            householdId: ctx.householdId,
+            type: "bill_paid",
+            title: `${bill.name} has been paid`,
+            body: `${bill.name} was marked as paid ($${input.amount}).`,
+            data: {
+              route: "/finances",
+              entityId: bill.id,
+              entityType: "bill",
+            },
+            channels: ["in_app"],
+          })),
+        );
+      }
     }
 
     return payment;
@@ -567,7 +600,7 @@ export const financesRouter = router({
             balance: sql`${balanceAdjustment}`,
             updatedAt: new Date(),
           })
-          .where(eq(accounts.id, input.accountId));
+          .where(and(eq(accounts.id, input.accountId), eq(accounts.householdId, ctx.householdId)));
       }
 
       return transaction;
@@ -619,7 +652,7 @@ export const financesRouter = router({
           await ctx.db
             .update(accounts)
             .set({ balance: sql`${reversal}`, updatedAt: new Date() })
-            .where(eq(accounts.id, existing.accountId));
+            .where(and(eq(accounts.id, existing.accountId), eq(accounts.householdId, ctx.householdId)));
         }
 
         // Apply new impact (only if new type is not transfer)
@@ -632,7 +665,7 @@ export const financesRouter = router({
           await ctx.db
             .update(accounts)
             .set({ balance: sql`${newImpact}`, updatedAt: new Date() })
-            .where(eq(accounts.id, effectiveAccountId));
+            .where(and(eq(accounts.id, effectiveAccountId), eq(accounts.householdId, ctx.householdId)));
         }
       }
 
@@ -673,7 +706,7 @@ export const financesRouter = router({
         await ctx.db
           .update(accounts)
           .set({ balance: sql`${reversal}`, updatedAt: new Date() })
-          .where(eq(accounts.id, existing.accountId));
+          .where(and(eq(accounts.id, existing.accountId), eq(accounts.householdId, ctx.householdId)));
       }
 
       return { success: true };
@@ -979,7 +1012,7 @@ export const financesRouter = router({
       // If linked to an account, subtract from that account's balance
       if (goal.linkedAccountId) {
         const account = await ctx.db.query.accounts.findFirst({
-          where: eq(accounts.id, goal.linkedAccountId),
+          where: and(eq(accounts.id, goal.linkedAccountId), eq(accounts.householdId, ctx.householdId)),
         });
         if (account) {
           const accountBalance = parseFloat(account.balance ?? "0");
@@ -987,7 +1020,7 @@ export const financesRouter = router({
           await ctx.db
             .update(accounts)
             .set({ balance: newBalance, updatedAt: new Date() })
-            .where(eq(accounts.id, goal.linkedAccountId));
+            .where(and(eq(accounts.id, goal.linkedAccountId), eq(accounts.householdId, ctx.householdId)));
         }
       }
 
@@ -1121,6 +1154,17 @@ export const financesRouter = router({
         ),
       });
       if (!transaction) throw new TRPCError({ code: "NOT_FOUND", message: "Transaction not found" });
+
+      // Validate all split members are household members
+      const memberRows = await ctx.db.query.householdMembers.findMany({
+        where: eq(householdMembers.householdId, ctx.householdId),
+      });
+      const validIds = new Set(memberRows.map((m) => m.userId));
+      for (const split of input.splits) {
+        if (!validIds.has(split.owedBy) || !validIds.has(split.owedTo)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Split members must be household members" });
+        }
+      }
 
       const created = await Promise.all(
         input.splits.map((split) =>
@@ -1256,6 +1300,15 @@ export const financesRouter = router({
       memberId2: z.string().uuid(),
     }))
     .mutation(async ({ ctx, input }) => {
+      // Validate both members are in this household
+      const memberRows = await ctx.db.query.householdMembers.findMany({
+        where: eq(householdMembers.householdId, ctx.householdId),
+      });
+      const validIds = new Set(memberRows.map((m) => m.userId));
+      if (!validIds.has(input.memberId1) || !validIds.has(input.memberId2)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Both members must be in this household" });
+      }
+
       const now = new Date();
 
       // Find all unsettled splits between these two members
@@ -1345,4 +1398,146 @@ export const financesRouter = router({
       role: m.role,
     }));
   }),
+
+  // ================================================================
+  // Net Worth Procedures
+  // ================================================================
+
+  /**
+   * Calculate current net worth from all active accounts.
+   * Assets = checking + savings + investment + cash
+   * Liabilities = credit_card + loan (absolute values)
+   * Auto-takes a daily snapshot.
+   */
+  calculateNetWorth: householdProcedure.query(async ({ ctx }) => {
+    const allAccounts = await ctx.db.query.accounts.findMany({
+      where: and(eq(accounts.householdId, ctx.householdId), eq(accounts.isActive, true)),
+    });
+
+    const assetTypes = ["checking", "savings", "investment", "cash"];
+    const liabilityTypes = ["credit_card", "loan"];
+
+    const breakdown: Record<string, string> = {};
+    let totalAssets = 0;
+    let totalLiabilities = 0;
+
+    for (const account of allAccounts) {
+      const balance = parseFloat(account.balance ?? "0");
+      const type = account.type;
+      breakdown[type] = ((parseFloat(breakdown[type] ?? "0")) + balance).toFixed(2);
+
+      if (assetTypes.includes(type)) {
+        totalAssets += balance;
+      } else if (liabilityTypes.includes(type)) {
+        totalLiabilities += Math.abs(balance);
+      }
+    }
+
+    const netWorth = totalAssets - totalLiabilities;
+
+    // Auto-snapshot once per day (fire-and-forget, don't block response)
+    const today = new Date().toISOString().split("T")[0]!;
+    ctx.db
+      .insert(netWorthSnapshots)
+      .values({
+        householdId: ctx.householdId,
+        snapshotDate: today,
+        totalAssets: totalAssets.toFixed(2),
+        totalLiabilities: totalLiabilities.toFixed(2),
+        netWorth: netWorth.toFixed(2),
+        breakdown,
+      })
+      .onConflictDoUpdate({
+        target: [netWorthSnapshots.householdId, netWorthSnapshots.snapshotDate],
+        set: {
+          totalAssets: totalAssets.toFixed(2),
+          totalLiabilities: totalLiabilities.toFixed(2),
+          netWorth: netWorth.toFixed(2),
+          breakdown,
+        },
+      })
+      .catch(() => {}); // silent — snapshot is best-effort
+
+    return {
+      totalAssets: totalAssets.toFixed(2),
+      totalLiabilities: totalLiabilities.toFixed(2),
+      netWorth: netWorth.toFixed(2),
+      breakdown,
+    };
+  }),
+
+  /**
+   * Manually take a net worth snapshot for today.
+   */
+  takeNetWorthSnapshot: householdProcedure.mutation(async ({ ctx }) => {
+    const allAccounts = await ctx.db.query.accounts.findMany({
+      where: and(eq(accounts.householdId, ctx.householdId), eq(accounts.isActive, true)),
+    });
+
+    const assetTypes = ["checking", "savings", "investment", "cash"];
+    const liabilityTypes = ["credit_card", "loan"];
+
+    const breakdown: Record<string, string> = {};
+    let totalAssets = 0;
+    let totalLiabilities = 0;
+
+    for (const account of allAccounts) {
+      const balance = parseFloat(account.balance ?? "0");
+      const type = account.type;
+      breakdown[type] = ((parseFloat(breakdown[type] ?? "0")) + balance).toFixed(2);
+
+      if (assetTypes.includes(type)) {
+        totalAssets += balance;
+      } else if (liabilityTypes.includes(type)) {
+        totalLiabilities += Math.abs(balance);
+      }
+    }
+
+    const netWorth = totalAssets - totalLiabilities;
+    const today = new Date().toISOString().split("T")[0]!;
+
+    const [snapshot] = await ctx.db
+      .insert(netWorthSnapshots)
+      .values({
+        householdId: ctx.householdId,
+        snapshotDate: today,
+        totalAssets: totalAssets.toFixed(2),
+        totalLiabilities: totalLiabilities.toFixed(2),
+        netWorth: netWorth.toFixed(2),
+        breakdown,
+      })
+      .onConflictDoUpdate({
+        target: [netWorthSnapshots.householdId, netWorthSnapshots.snapshotDate],
+        set: {
+          totalAssets: totalAssets.toFixed(2),
+          totalLiabilities: totalLiabilities.toFixed(2),
+          netWorth: netWorth.toFixed(2),
+          breakdown,
+        },
+      })
+      .returning();
+
+    return snapshot;
+  }),
+
+  /**
+   * Get historical net worth snapshots for the last N months.
+   */
+  getNetWorthHistory: householdProcedure
+    .input(GetNetWorthHistorySchema)
+    .query(async ({ ctx, input }) => {
+      const cutoffDate = new Date();
+      cutoffDate.setMonth(cutoffDate.getMonth() - input.months);
+      const cutoffStr = cutoffDate.toISOString().split("T")[0]!;
+
+      const snapshots = await ctx.db.query.netWorthSnapshots.findMany({
+        where: and(
+          eq(netWorthSnapshots.householdId, ctx.householdId),
+          gte(netWorthSnapshots.snapshotDate, cutoffStr),
+        ),
+        orderBy: (s, { asc }) => [asc(s.snapshotDate)],
+      });
+
+      return snapshots;
+    }),
 });

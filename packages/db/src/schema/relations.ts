@@ -7,7 +7,7 @@ import { relations } from "drizzle-orm";
 import { profiles, households, householdMembers, invitations } from "./households";
 import { events, eventAttendees } from "./events";
 import { tasks, taskAssignees, taskComments } from "./tasks";
-import { bills, billPayments, accounts, transactions, budgets, savingsGoals, expenseSplits } from "./finances";
+import { bills, billPayments, accounts, transactions, budgets, savingsGoals, expenseSplits, netWorthSnapshots } from "./finances";
 import { shoppingLists, shoppingItems } from "./shopping";
 import { contacts, contactRelationships, contactNotes } from "./contacts";
 import { notifications, pushTokens } from "./notifications";
@@ -36,6 +36,7 @@ export const householdsRelations = relations(households, ({ many }) => ({
   budgets: many(budgets),
   savingsGoals: many(savingsGoals),
   expenseSplits: many(expenseSplits),
+  netWorthSnapshots: many(netWorthSnapshots),
   shoppingLists: many(shoppingLists),
   contacts: many(contacts),
   aiConversations: many(aiConversations),
@@ -234,6 +235,14 @@ export const expenseSplitsRelations = relations(expenseSplits, ({ one }) => ({
     fields: [expenseSplits.owedTo],
     references: [profiles.id],
     relationName: "splitOwedTo",
+  }),
+}));
+
+// --- Net Worth Snapshots ---
+export const netWorthSnapshotsRelations = relations(netWorthSnapshots, ({ one }) => ({
+  household: one(households, {
+    fields: [netWorthSnapshots.householdId],
+    references: [households.id],
   }),
 }));
 

@@ -5,10 +5,10 @@
 | Field | Value |
 |---|---|
 | **Version** | 3.0 |
-| **Last updated** | February 20, 2026 |
+| **Last updated** | February 23, 2026 |
 | **GitHub** | https://github.com/PapaJax20/Orbyt |
 | **Local path** | `C:\Users\jmoon\Orbyt` |
-| **Status** | App running locally. Auth, Dashboard, and Tasks fully built. 5 feature pages remain as stubs. |
+| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprint 11 (Finance Modules) in progress. |
 | **Project Lead** | J. Moon |
 | **Development Environment** | Claude Code Agent Teams (see Section 26) |
 
@@ -497,6 +497,13 @@ Features built: Kanban with 3 columns (To Do / In Progress / Done) using `@dnd-k
 
 ---
 
+### Web App — Sprint 9-10B: Comprehensive Finance System — ✅ Complete
+
+Built the full finance module with 29+ tRPC procedures across accounts, transactions (with balance tracking), budgets (with monthly progress), bills (with auto-task creation, payment tracking, notifications), savings goals (with progress, on-track, linked accounts), expense splitting (owedBy/owedTo, settle up), and a financial overview dashboard. Also completed security hardening: household-scoped account balance updates, member validation on all user ID inputs, notifyOnPaid member verification.
+
+### Web App — Sprint 11: Toggleable Finance Modules — 🔄 In Progress
+
+Feature toggles infrastructure (finance_modules JSONB on profiles, opt-out model), net worth tracking (snapshots table, calculateNetWorth/takeSnapshot/getHistory), enhanced goals tab (edit mode, sinking fund summary, status badges), and debt payoff planner (pure frontend snowball vs avalanche calculator). Settings page: Finance Modules toggle section. Finances page: conditional tab rendering.
 
 ---
 
@@ -1569,6 +1576,69 @@ Upload path: `avatars/{userId}/avatar.{ext}`
 
 ---
 
+### Sprint 9-10B — Comprehensive Finance System (COMPLETED)
+
+**Completed:** February 2026
+
+Built the full finance module: accounts, transactions (with balance tracking), budgets (with monthly progress), bills (with auto-task creation, payment tracking, notifications), savings goals (with progress, on-track, linked accounts), expense splitting (owedBy/owedTo, settle up), and a financial overview dashboard. Also completed security hardening: household-scoped account balance updates, member validation on all user ID inputs, notifyOnPaid member verification.
+
+**29+ tRPC procedures** across accounts, transactions, budgets, bills, goals, and expense splitting.
+
+---
+
+### Sprint 11 — Toggleable Finance Modules (IN PROGRESS)
+
+**Estimated effort:** 2-3 days
+**Branch:** `main`
+
+Sprint 11 adds three **optional/toggleable** finance modules (Goals enhancement, Net Worth tracking, Debt Payoff Planner) and a feature toggles infrastructure.
+
+#### 11A — Feature Toggles Infrastructure
+
+- New `finance_modules` JSONB column on `profiles` table
+- Opt-out model: empty `{}` = all modules enabled; user must explicitly set `false` to hide
+- `UpdateProfileSchema` updated with `financeModules` validator
+- Settings page: Finance Modules toggle section with 3 switches (Goals, Net Worth, Debt Planner)
+- Finances page: conditional tab rendering based on user preferences
+
+#### 11B — Net Worth Tracking
+
+- New `net_worth_snapshots` table (householdId, snapshotDate, totalAssets, totalLiabilities, netWorth, breakdown JSONB)
+- Unique constraint on (householdId, snapshotDate) — one snapshot per day
+- API procedures: `calculateNetWorth`, `takeNetWorthSnapshot`, `getNetWorthHistory`
+- Net Worth tab: current totals, account type breakdown, historical line chart (recharts)
+- Overview widget: net worth summary card
+
+#### 11C — Enhanced Goals Tab
+
+- Goal edit mode (pre-filled GoalDrawer for existing goals)
+- Sinking fund summary section (total monthly contributions)
+- Goal status badges: on track (green), behind (yellow), ahead (blue), complete (checkmark)
+
+#### 11D — Debt Payoff Planner
+
+- Pure frontend calculation engine (no new API endpoints)
+- Select debts from credit_card + loan accounts
+- Enter APR and minimum monthly payment per debt
+- Two strategies: Snowball (smallest balance first) vs Avalanche (highest APR first)
+- Results: payoff timeline, total interest, interest saved, side-by-side comparison
+- Optional extra monthly payment input
+
+#### Acceptance Criteria
+
+- [ ] Settings → toggle Goals off → Goals tab disappears from Finances
+- [ ] Settings → toggle Net Worth off → Net Worth tab + overview widget hidden
+- [ ] Settings → toggle Debt Planner off → Debt Planner tab hidden
+- [ ] Net Worth tab shows correct totals from accounts
+- [ ] Net Worth history chart renders with snapshot data
+- [ ] Goals tab: can edit existing goal (pre-filled form)
+- [ ] Goals tab: sinking fund summary shows when sinking fund goals exist
+- [ ] Debt Planner: select debts, enter APR/min payment, see snowball vs avalanche comparison
+- [ ] All new UI responsive at 375px mobile
+- [ ] `pnpm turbo typecheck` passes
+
+---
+
 ## 13. TESTING STRATEGY
 
 ### Testing Stack
@@ -2628,6 +2698,16 @@ AI persona selection during onboarding (built). Character illustrations with 5 e
 ### 22.8 What We Are NOT Building
 
 We are NOT building a general-purpose AI assistant — Rosie/Eddie only manages household data within Orbyt. We are NOT building an always-listening voice assistant — voice is tap-to-talk only, no wake word. We are NOT replacing the UI with AI — chat/voice is an alternative input method. We are NOT training a custom model — we use commercial LLM APIs with prompt engineering and function calling.
+
+### Life Goals — Phase 2 Feature Concept
+
+Life Goals is a planned feature that enables users to create goals across all areas of life — career, health, education, family, financial, and personal growth. The app would help users build toward these goals with progress tracking, milestone celebrations, and AI-powered suggestions from Rosie or Eddie.
+
+Financial savings goals (already built in the Finances module) would automatically sync with the Life Goals system via a `lifeGoalId` FK on `savings_goals`. This means a savings goal like "Vacation Fund" could be linked to a Life Goal like "Travel more in 2026."
+
+**Planned schema:** `life_goals` table with id, householdId, userId, title, description, category (career/health/education/family/financial/personal/home/travel), status (active/completed/paused), targetDate, milestones (jsonb array), emoji, createdAt, updatedAt. `savings_goals` gains a nullable `lifeGoalId` FK.
+
+**UI:** Dedicated /goals page with category-filtered goal cards, milestone timeline, AI suggestions from Rosie/Eddie.
 
 ---
 

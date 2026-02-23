@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Trash2, Target } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Trash2, Target, Pencil, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import * as Dialog from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "framer-motion";
@@ -172,10 +172,12 @@ function ContributeModal({
 function GoalCard({
   goal,
   onContribute,
+  onEdit,
   onDelete,
 }: {
   goal: GoalItem;
   onContribute: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
   const current = parseFloat(goal.currentAmount ?? "0");
@@ -183,6 +185,34 @@ function GoalCard({
   const percentage = goal.progressPercent;
 
   const barColor = percentage >= 100 ? "bg-green-500" : "bg-accent";
+
+  // Enhanced status badge
+  function renderStatusBadge() {
+    if (percentage >= 100) {
+      return (
+        <span className="flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium text-green-400">
+          <span aria-label="Complete"><CheckCircle2 className="h-3 w-3" /></span>
+          Complete
+        </span>
+      );
+    }
+    if (goal.onTrack === true) {
+      return (
+        <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium text-green-400">
+          On Track
+        </span>
+      );
+    }
+    if (goal.onTrack === false) {
+      return (
+        <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-medium text-yellow-400">
+          Behind
+        </span>
+      );
+    }
+    // onTrack === null (no target date) — no badge
+    return null;
+  }
 
   return (
     <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
@@ -200,16 +230,14 @@ function GoalCard({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {goal.onTrack !== null && (
-            <span className={cn(
-              "rounded-full px-2 py-0.5 text-xs font-medium",
-              goal.onTrack
-                ? "bg-green-500/15 text-green-400"
-                : "bg-yellow-500/15 text-yellow-400"
-            )}>
-              {goal.onTrack ? "On Track" : "Behind"}
-            </span>
-          )}
+          {renderStatusBadge()}
+          <button
+            onClick={onEdit}
+            className="p-1 rounded-lg text-text-muted hover:text-accent transition-colors"
+            aria-label="Edit goal"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
           <button
             onClick={onDelete}
             className="p-1 rounded-lg text-text-muted hover:text-red-400 transition-colors"
@@ -276,16 +304,51 @@ function GoalCardSkeleton() {
   return <Skeleton className="h-48 rounded-2xl" />;
 }
 
+// ── Sinking Fund Summary ─────────────────────────────────────────────────────
+
+function SinkingFundSummary({ goals }: { goals: GoalItem[] }) {
+  const sinkingFunds = goals.filter((g) => g.category === "sinking_fund");
+
+  if (sinkingFunds.length === 0) return null;
+
+  const totalMonthly = sinkingFunds.reduce((sum, g) => {
+    return sum + parseFloat(g.monthlyContribution ?? "0");
+  }, 0);
+
+  return (
+    <div className="glass-card rounded-2xl border border-accent/20 p-5">
+      <p className="text-sm font-semibold text-accent">
+        Monthly Sinking Funds: {formatCurrency(totalMonthly)}/mo
+      </p>
+      <div className="mt-3 flex flex-col gap-1.5">
+        {sinkingFunds.map((fund) => (
+          <div key={fund.id} className="flex items-center justify-between text-xs text-text-muted">
+            <span>
+              {fund.emoji ? `${fund.emoji} ` : ""}{fund.name}
+            </span>
+            <span className="font-medium text-text">
+              {formatCurrency(fund.monthlyContribution ?? "0")}/mo
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Goal Drawer ──────────────────────────────────────────────────────────────
 
 function GoalDrawer({
   isOpen,
   onClose,
+  goal,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  goal?: GoalItem | null;
 }) {
   const utils = trpc.useUtils();
+  const isEditing = !!goal;
 
   const [name, setName] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
@@ -295,6 +358,28 @@ function GoalDrawer({
   const [emoji, setEmoji] = useState("");
   const [linkedAccountId, setLinkedAccountId] = useState("");
 
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (goal) {
+      setName(goal.name ?? "");
+      setTargetAmount(goal.targetAmount ?? "");
+      setTargetDate(goal.targetDate ?? "");
+      setMonthlyContribution(goal.monthlyContribution ?? "");
+      setCategory((goal.category as GoalCategory) ?? "savings");
+      setEmoji(goal.emoji ?? "");
+      setLinkedAccountId(goal.linkedAccountId ?? "");
+    } else {
+      // Reset form for create
+      setName("");
+      setTargetAmount("");
+      setTargetDate("");
+      setMonthlyContribution("");
+      setCategory("savings");
+      setEmoji("");
+      setLinkedAccountId("");
+    }
+  }, [goal]);
+
   const { data: accountsData } = trpc.finances.listAccounts.useQuery();
   const accounts = accountsData?.accounts ?? [];
 
@@ -303,20 +388,35 @@ function GoalDrawer({
       utils.finances.listGoals.invalidate();
       utils.finances.getFinancialOverview.invalidate();
       toast.success("Goal created");
-      // Reset form
-      setName("");
-      setTargetAmount("");
-      setTargetDate("");
-      setMonthlyContribution("");
-      setCategory("savings");
-      setEmoji("");
-      setLinkedAccountId("");
-      onClose();
+      resetAndClose();
     },
     onError: (err) => {
       toast.error(err.message ?? "Failed to create goal");
     },
   });
+
+  const updateGoal = trpc.finances.updateGoal.useMutation({
+    onSuccess: () => {
+      utils.finances.listGoals.invalidate();
+      utils.finances.getFinancialOverview.invalidate();
+      toast.success("Goal updated");
+      resetAndClose();
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to update goal");
+    },
+  });
+
+  function resetAndClose() {
+    setName("");
+    setTargetAmount("");
+    setTargetDate("");
+    setMonthlyContribution("");
+    setCategory("savings");
+    setEmoji("");
+    setLinkedAccountId("");
+    onClose();
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -332,7 +432,7 @@ function GoalDrawer({
       return;
     }
 
-    createGoal.mutate({
+    const payload = {
       name: name.trim(),
       targetAmount: trimmedTarget,
       targetDate: targetDate || null,
@@ -340,11 +440,19 @@ function GoalDrawer({
       category,
       emoji: emoji.trim() || null,
       linkedAccountId: linkedAccountId || null,
-    });
+    };
+
+    if (isEditing && goal) {
+      updateGoal.mutate({ id: goal.id, data: payload });
+    } else {
+      createGoal.mutate(payload);
+    }
   }
 
+  const isPending = createGoal.isPending || updateGoal.isPending;
+
   return (
-    <Drawer open={isOpen} onClose={onClose} title="Add Savings Goal">
+    <Drawer open={isOpen} onClose={resetAndClose} title={isEditing ? "Edit Goal" : "Add Savings Goal"}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5 pb-6">
         {/* Emoji + Name */}
         <div className="grid grid-cols-[80px_1fr] gap-3">
@@ -466,10 +574,12 @@ function GoalDrawer({
         {/* Submit */}
         <button
           type="submit"
-          disabled={createGoal.isPending || !name.trim() || !targetAmount.trim()}
+          disabled={isPending || !name.trim() || !targetAmount.trim()}
           className="orbyt-button-accent"
         >
-          {createGoal.isPending ? "Creating..." : "Create Goal"}
+          {isPending
+            ? isEditing ? "Saving..." : "Creating..."
+            : isEditing ? "Save Changes" : "Create Goal"}
         </button>
       </form>
     </Drawer>
@@ -480,6 +590,7 @@ function GoalDrawer({
 
 export function GoalsTab() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState<GoalItem | null>(null);
   const [contributeGoal, setContributeGoal] = useState<GoalItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -499,6 +610,21 @@ export function GoalsTab() {
     },
   });
 
+  function handleOpenEdit(goal: GoalItem) {
+    setSelectedGoal(goal);
+    setDrawerOpen(true);
+  }
+
+  function handleOpenCreate() {
+    setSelectedGoal(null);
+    setDrawerOpen(true);
+  }
+
+  function handleCloseDrawer() {
+    setSelectedGoal(null);
+    setDrawerOpen(false);
+  }
+
   return (
     <>
       <div className="flex flex-col gap-6">
@@ -510,13 +636,16 @@ export function GoalsTab() {
             </p>
           </div>
           <button
-            onClick={() => setDrawerOpen(true)}
+            onClick={handleOpenCreate}
             className="orbyt-button-accent flex items-center gap-2 shrink-0"
           >
             <Plus className="h-4 w-4" />
             Add Goal
           </button>
         </div>
+
+        {/* Sinking Fund Summary */}
+        {goals && goals.length > 0 && <SinkingFundSummary goals={goals} />}
 
         {/* Goals Grid */}
         {isLoading ? (
@@ -532,7 +661,7 @@ export function GoalsTab() {
             title="No savings goals yet."
             description="Set up your first savings goal and start tracking your progress."
             actionLabel="Add Goal"
-            onAction={() => setDrawerOpen(true)}
+            onAction={handleOpenCreate}
           />
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -541,6 +670,7 @@ export function GoalsTab() {
                 key={goal.id}
                 goal={goal}
                 onContribute={() => setContributeGoal(goal)}
+                onEdit={() => handleOpenEdit(goal)}
                 onDelete={() => setDeleteId(goal.id)}
               />
             ))}
@@ -548,8 +678,12 @@ export function GoalsTab() {
         )}
       </div>
 
-      {/* Goal Drawer */}
-      <GoalDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      {/* Goal Drawer (create + edit) */}
+      <GoalDrawer
+        isOpen={drawerOpen}
+        onClose={handleCloseDrawer}
+        goal={selectedGoal}
+      />
 
       {/* Contribute Modal */}
       {contributeGoal && (

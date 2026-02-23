@@ -185,6 +185,7 @@ export function AccountsTab() {
             value={filterOwnership}
             onChange={(e) => setFilterOwnership(e.target.value)}
             className="orbyt-input text-sm"
+            aria-label="Filter by ownership"
           >
             <option value="">All Ownership</option>
             <option value="mine">Mine</option>
@@ -195,6 +196,7 @@ export function AccountsTab() {
             value={filterMemberId}
             onChange={(e) => setFilterMemberId(e.target.value)}
             className="orbyt-input text-sm"
+            aria-label="Filter by member"
           >
             <option value="">All Members</option>
             {members.map((m) => (

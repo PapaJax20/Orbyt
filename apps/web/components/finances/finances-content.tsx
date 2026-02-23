@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -9,11 +9,14 @@ import {
   PieChart,
   Receipt,
   Target,
+  TrendingUp,
+  Calculator,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { AppRouter } from "@orbyt/api";
 import type { inferRouterOutputs } from "@trpc/server";
 import { trpc } from "@/lib/trpc/client";
+import { createClient } from "@/lib/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AccountsTab } from "./accounts-tab";
@@ -21,6 +24,8 @@ import { TransactionsTab } from "./transactions-tab";
 import { BudgetsTab } from "./budgets-tab";
 import { BillsTab } from "./bills-tab";
 import { GoalsTab } from "./goals-tab";
+import { NetWorthTab } from "./net-worth-tab";
+import { DebtPlannerTab } from "./debt-planner-tab";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -44,7 +49,7 @@ function formatCurrency(amount: number | string, currency = "USD"): string {
 
 // ── Tab definitions ──────────────────────────────────────────────────────────
 
-type TabId = "overview" | "accounts" | "transactions" | "budgets" | "bills" | "goals";
+type TabId = "overview" | "accounts" | "transactions" | "budgets" | "bills" | "goals" | "netWorth" | "debtPlanner";
 
 const TABS: { id: TabId; label: string; icon: React.FC<{ size?: number; className?: string }> }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -53,6 +58,8 @@ const TABS: { id: TabId; label: string; icon: React.FC<{ size?: number; classNam
   { id: "budgets", label: "Budgets", icon: PieChart },
   { id: "bills", label: "Bills", icon: Receipt },
   { id: "goals", label: "Goals", icon: Target },
+  { id: "netWorth", label: "Net Worth", icon: TrendingUp },
+  { id: "debtPlanner", label: "Debt Planner", icon: Calculator },
 ];
 
 // ── Overview Stat Card ───────────────────────────────────────────────────────
@@ -76,7 +83,11 @@ function OverviewStatCard({
 
 // ── Overview Tab ─────────────────────────────────────────────────────────────
 
-function OverviewTab() {
+function OverviewTab({
+  showGoals = true,
+}: {
+  showGoals?: boolean;
+}) {
   const currentMonth = new Date().toISOString().slice(0, 7);
 
   const { data: overview, isLoading: overviewLoading } =
@@ -335,59 +346,61 @@ function OverviewTab() {
           )}
         </div>
 
-        {/* Savings goals */}
-        <div className="glass-card rounded-2xl p-5">
-          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-text-muted">
-            Savings Goals
-          </h3>
-          {goalsLoading ? (
-            <div className="flex flex-col gap-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 rounded-lg" />
-              ))}
-            </div>
-          ) : topGoals.length === 0 ? (
-            <EmptyState
-              character="rosie"
-              expression="thinking"
-              title="No goals yet"
-              description="Create savings goals to track progress"
-              compact
-            />
-          ) : (
-            <div className="flex flex-col gap-4">
-              {topGoals.map((goal) => {
-                const current = parseFloat(goal.currentAmount ?? "0");
-                const target = parseFloat(goal.targetAmount ?? "0");
-                const percentage = goal.progressPercent;
-                return (
-                  <div key={goal.id} className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-text">
-                        {goal.emoji ? `${goal.emoji} ` : ""}{goal.name}
-                      </p>
+        {/* Savings goals (hidden when goals module disabled) */}
+        {showGoals && (
+          <div className="glass-card rounded-2xl p-5">
+            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-text-muted">
+              Savings Goals
+            </h3>
+            {goalsLoading ? (
+              <div className="flex flex-col gap-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 rounded-lg" />
+                ))}
+              </div>
+            ) : topGoals.length === 0 ? (
+              <EmptyState
+                character="rosie"
+                expression="thinking"
+                title="No goals yet"
+                description="Create savings goals to track progress"
+                compact
+              />
+            ) : (
+              <div className="flex flex-col gap-4">
+                {topGoals.map((goal) => {
+                  const current = parseFloat(goal.currentAmount ?? "0");
+                  const target = parseFloat(goal.targetAmount ?? "0");
+                  const percentage = goal.progressPercent;
+                  return (
+                    <div key={goal.id} className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-text">
+                          {goal.emoji ? `${goal.emoji} ` : ""}{goal.name}
+                        </p>
+                        <p className="text-xs text-text-muted">
+                          {Math.round(percentage)}%
+                        </p>
+                      </div>
+                      <div className="h-2 w-full rounded-full overflow-hidden bg-white/10">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all duration-500",
+                            percentage >= 100 ? "bg-green-500" : "bg-accent"
+                          )}
+                          style={{ width: `${Math.min(percentage, 100)}%` }}
+                        />
+                      </div>
                       <p className="text-xs text-text-muted">
-                        {Math.round(percentage)}%
+                        {formatCurrency(current)} / {formatCurrency(target)}
                       </p>
                     </div>
-                    <div className="h-2 w-full rounded-full overflow-hidden bg-white/10">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all duration-500",
-                          percentage >= 100 ? "bg-green-500" : "bg-accent"
-                        )}
-                        style={{ width: `${Math.min(percentage, 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-text-muted">
-                      {formatCurrency(current)} / {formatCurrency(target)}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -397,6 +410,33 @@ function OverviewTab() {
 
 export function FinancesContent() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
+  const { data: household } = trpc.household.getCurrent.useQuery();
+  const me = household?.members.find((m) => m.userId === userId);
+  const financeModules = (me?.profile as { financeModules?: { goals?: boolean; netWorth?: boolean; debtPlanner?: boolean } } | undefined)?.financeModules ?? {};
+
+  const visibleTabs = useMemo(() => {
+    return TABS.filter((tab) => {
+      if (tab.id === "goals") return financeModules.goals !== false;
+      if (tab.id === "netWorth") return financeModules.netWorth !== false;
+      if (tab.id === "debtPlanner") return financeModules.debtPlanner !== false;
+      return true;
+    });
+  }, [financeModules.goals, financeModules.netWorth, financeModules.debtPlanner]);
+
+  // If active tab becomes hidden, reset to overview
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.id === activeTab)) {
+      setActiveTab("overview");
+    }
+  }, [visibleTabs, activeTab]);
 
   return (
     <motion.div
@@ -415,7 +455,7 @@ export function FinancesContent() {
 
       {/* Tab bar */}
       <div className="flex gap-1 overflow-x-auto rounded-xl bg-surface/30 p-1">
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const IconComp = tab.icon;
           return (
             <button
@@ -436,12 +476,16 @@ export function FinancesContent() {
       </div>
 
       {/* Tab content */}
-      {activeTab === "overview" && <OverviewTab />}
+      {activeTab === "overview" && (
+        <OverviewTab showGoals={financeModules.goals !== false} />
+      )}
       {activeTab === "accounts" && <AccountsTab />}
       {activeTab === "transactions" && <TransactionsTab />}
       {activeTab === "budgets" && <BudgetsTab />}
       {activeTab === "bills" && <BillsTab />}
       {activeTab === "goals" && <GoalsTab />}
+      {activeTab === "netWorth" && <NetWorthTab />}
+      {activeTab === "debtPlanner" && <DebtPlannerTab />}
     </motion.div>
   );
 }

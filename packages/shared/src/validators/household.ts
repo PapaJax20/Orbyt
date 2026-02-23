@@ -31,6 +31,11 @@ export const UpdateProfileSchema = z.object({
     ])
     .optional(),
   timezone: z.string().optional(),
+  financeModules: z.object({
+    goals: z.boolean().optional(),
+    netWorth: z.boolean().optional(),
+    debtPlanner: z.boolean().optional(),
+  }).optional(),
 });
 
 export const UpdateMemberColorSchema = z.object({
