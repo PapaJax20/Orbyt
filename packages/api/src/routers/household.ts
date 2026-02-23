@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   households,
@@ -177,14 +177,58 @@ export const householdRouter = router({
   removeMember: adminProcedure
     .input(z.object({ userId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      // Prevent removing yourself
+      if (input.userId === ctx.user.id) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You cannot remove yourself from the household",
+        });
+      }
+
+      // Check if target is an admin — if so, verify there's at least one other admin
+      const targetMember = await ctx.db.query.householdMembers.findFirst({
+        where: and(
+          eq(householdMembers.householdId, ctx.householdId),
+          eq(householdMembers.userId, input.userId),
+        ),
+      });
+
+      if (!targetMember) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Member not found in this household",
+        });
+      }
+
+      if (targetMember.role === "admin") {
+        const adminCount = await ctx.db
+          .select({ count: count() })
+          .from(householdMembers)
+          .where(
+            and(
+              eq(householdMembers.householdId, ctx.householdId),
+              eq(householdMembers.role, "admin"),
+            )
+          );
+
+        if (Number(adminCount[0]?.count ?? 0) <= 1) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Cannot remove the last admin. Transfer admin role to another member first.",
+          });
+        }
+      }
+
       await ctx.db
         .delete(householdMembers)
         .where(
           and(
             eq(householdMembers.householdId, ctx.householdId),
-            eq(householdMembers.userId, input.userId)
+            eq(householdMembers.userId, input.userId),
           )
         );
+
+      return { removed: true };
     }),
 
   /**

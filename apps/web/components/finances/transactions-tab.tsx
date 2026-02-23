@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Upload, AlertCircle, Check } from "lucide-react";
 import { toast } from "sonner";
 import type { AppRouter } from "@orbyt/api";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -559,10 +559,512 @@ function TransactionDrawer({
   );
 }
 
+// ── CSV Import Helpers ────────────────────────────────────────────────────────
+
+type CsvRow = Record<string, string>;
+
+function parseCSV(text: string): { headers: string[]; rows: CsvRow[] } {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length < 2) return { headers: [], rows: [] };
+
+  function splitCSVLine(line: string): string[] {
+    const result: string[] = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === "," && !inQuotes) {
+        result.push(current.trim());
+        current = "";
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  const headerLine = lines[0];
+  if (!headerLine) return { headers: [], rows: [] };
+  const headers = splitCSVLine(headerLine);
+  const rows = lines.slice(1).map((line) => {
+    const values = splitCSVLine(line);
+    const row: CsvRow = {};
+    headers.forEach((h, i) => {
+      row[h] = values[i] ?? "";
+    });
+    return row;
+  });
+
+  return { headers, rows };
+}
+
+function parseAmount(raw: string): { amount: string; isNegative: boolean } | null {
+  let cleaned = raw.replace(/[$,]/g, "").trim();
+  const isNegative = cleaned.startsWith("-") || cleaned.startsWith("(");
+  cleaned = cleaned.replace(/[()]/g, "").replace(/^-/, "");
+  const num = parseFloat(cleaned);
+  if (isNaN(num)) return null;
+  return { amount: num.toFixed(2), isNegative };
+}
+
+function parseDate(raw: string): string | null {
+  // Try YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const d = new Date(raw + "T12:00:00.000Z");
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  // Try MM/DD/YYYY or M/D/YYYY
+  const slashMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch && slashMatch[1] && slashMatch[2] && slashMatch[3]) {
+    const d = new Date(`${slashMatch[3]}-${slashMatch[1].padStart(2, "0")}-${slashMatch[2].padStart(2, "0")}T12:00:00.000Z`);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  // Try MM-DD-YYYY
+  const dashMatch = raw.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (dashMatch && dashMatch[1] && dashMatch[2] && dashMatch[3]) {
+    const d = new Date(`${dashMatch[3]}-${dashMatch[1].padStart(2, "0")}-${dashMatch[2].padStart(2, "0")}T12:00:00.000Z`);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  return null;
+}
+
+const CSV_FIELD_OPTIONS = ["Date", "Description", "Amount", "Category", "Type"] as const;
+type CsvField = (typeof CSV_FIELD_OPTIONS)[number];
+
+function autoDetectMapping(headers: string[]): Record<string, CsvField | ""> {
+  const mapping: Record<string, CsvField | ""> = {};
+  const lowerHeaders = headers.map((h) => h.toLowerCase().trim());
+
+  for (let i = 0; i < headers.length; i++) {
+    const h = lowerHeaders[i] ?? "";
+    const key = headers[i] ?? "";
+    if (h.includes("date") || h.includes("posted") || h.includes("transaction date")) {
+      mapping[key] = "Date";
+    } else if (h.includes("description") || h.includes("memo") || h.includes("payee") || h.includes("name") || h.includes("merchant")) {
+      mapping[key] = "Description";
+    } else if (h.includes("amount") || h.includes("total") || h.includes("debit") || h.includes("credit")) {
+      mapping[key] = "Amount";
+    } else if (h.includes("category") || (h.includes("type") && !h.includes("trans"))) {
+      mapping[key] = "Category";
+    } else if (h.includes("type") || h.includes("transaction type")) {
+      mapping[key] = "Type";
+    } else {
+      mapping[key] = "";
+    }
+  }
+
+  return mapping;
+}
+
+function guessCategoryFromDescription(desc: string): TransactionCategory {
+  const lower = desc.toLowerCase();
+  if (lower.includes("grocery") || lower.includes("food") || lower.includes("market")) return "groceries";
+  if (lower.includes("restaurant") || lower.includes("cafe") || lower.includes("coffee") || lower.includes("pizza")) return "dining";
+  if (lower.includes("uber") || lower.includes("lyft") || lower.includes("gas") || lower.includes("fuel") || lower.includes("parking")) return "transportation";
+  if (lower.includes("netflix") || lower.includes("spotify") || lower.includes("movie") || lower.includes("game")) return "entertainment";
+  if (lower.includes("amazon") || lower.includes("walmart") || lower.includes("target") || lower.includes("shop")) return "shopping";
+  if (lower.includes("electric") || lower.includes("water") || lower.includes("internet") || lower.includes("phone")) return "utilities";
+  if (lower.includes("rent") || lower.includes("mortgage")) return "housing";
+  if (lower.includes("doctor") || lower.includes("hospital") || lower.includes("pharmacy") || lower.includes("health")) return "healthcare";
+  if (lower.includes("insurance")) return "insurance";
+  if (lower.includes("salary") || lower.includes("payroll") || lower.includes("direct deposit")) return "salary";
+  return "other";
+}
+
+// ── CSV Import Drawer ─────────────────────────────────────────────────────────
+
+function CSVImportDrawer({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const [step, setStep] = useState<"upload" | "mapping" | "preview">("upload");
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [csvRows, setCsvRows] = useState<CsvRow[]>([]);
+  const [columnMapping, setColumnMapping] = useState<Record<string, CsvField | "">>({});
+  const [importAccountId, setImportAccountId] = useState("");
+  const [fileName, setFileName] = useState("");
+
+  const { data: accountsData } = trpc.finances.listAccounts.useQuery();
+  const accounts = accountsData?.accounts ?? [];
+
+  const importMutation = trpc.finances.importTransactions.useMutation({
+    onSuccess: (data) => {
+      utils.finances.listTransactions.invalidate();
+      utils.finances.listAccounts.invalidate();
+      utils.finances.getFinancialOverview.invalidate();
+      toast.success(`Imported ${data.count} transactions`);
+      resetState();
+      onClose();
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to import transactions");
+    },
+  });
+
+  function resetState() {
+    setStep("upload");
+    setCsvHeaders([]);
+    setCsvRows([]);
+    setColumnMapping({});
+    setImportAccountId("");
+    setFileName("");
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFileName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result;
+      if (typeof text !== "string") return;
+
+      const { headers, rows } = parseCSV(text);
+      if (headers.length === 0) {
+        toast.error("Could not parse CSV file. Make sure it has a header row.");
+        return;
+      }
+
+      setCsvHeaders(headers);
+      setCsvRows(rows);
+      setColumnMapping(autoDetectMapping(headers));
+      setStep("mapping");
+    };
+    reader.readAsText(file);
+  }
+
+  function handleMappingChange(header: string, field: CsvField | "") {
+    setColumnMapping((prev) => ({ ...prev, [header]: field }));
+  }
+
+  const mappedFields = Object.values(columnMapping).filter(Boolean);
+  const hasDate = mappedFields.includes("Date");
+  const hasDescription = mappedFields.includes("Description");
+  const hasAmount = mappedFields.includes("Amount");
+  const canProceed = hasDate && hasDescription && hasAmount;
+
+  // Build the reversed mapping: field -> header column name
+  const fieldToHeader: Record<string, string> = {};
+  for (const [header, field] of Object.entries(columnMapping)) {
+    if (field) fieldToHeader[field] = header;
+  }
+
+  const previewRows = csvRows.slice(0, 10);
+
+  const parsedTransactions = csvRows
+    .map((row) => {
+      const dateCol = fieldToHeader["Date"] ?? "";
+      const descCol = fieldToHeader["Description"] ?? "";
+      const amountCol = fieldToHeader["Amount"] ?? "";
+      const categoryCol = fieldToHeader["Category"] ?? "";
+      const typeCol = fieldToHeader["Type"] ?? "";
+
+      const dateRaw = (dateCol ? row[dateCol] : "") ?? "";
+      const descRaw = (descCol ? row[descCol] : "") ?? "";
+      const amountRaw = (amountCol ? row[amountCol] : "") ?? "";
+      const categoryRaw = (categoryCol ? row[categoryCol] : "") ?? "";
+      const typeRaw = (typeCol ? row[typeCol] : "") ?? "";
+
+      const parsedDate = parseDate(dateRaw);
+      const parsedAmount = parseAmount(amountRaw);
+
+      if (!parsedDate || !parsedAmount || !descRaw.trim()) return null;
+
+      const type: TransactionType =
+        typeRaw.toLowerCase() === "income"
+          ? "income"
+          : typeRaw.toLowerCase() === "transfer"
+          ? "transfer"
+          : parsedAmount.isNegative
+          ? "expense"
+          : "income";
+
+      const category: TransactionCategory =
+        TRANSACTION_CATEGORIES.includes(categoryRaw.toLowerCase() as TransactionCategory)
+          ? (categoryRaw.toLowerCase() as TransactionCategory)
+          : guessCategoryFromDescription(descRaw);
+
+      return {
+        type,
+        amount: parsedAmount.amount,
+        currency: "USD" as const,
+        category,
+        description: descRaw.trim().slice(0, 255),
+        date: parsedDate,
+        notes: null,
+      };
+    })
+    .filter(Boolean) as {
+    type: TransactionType;
+    amount: string;
+    currency: string;
+    category: TransactionCategory;
+    description: string;
+    date: string;
+    notes: null;
+  }[];
+
+  function handleImport() {
+    if (parsedTransactions.length === 0) {
+      toast.error("No valid transactions to import");
+      return;
+    }
+    importMutation.mutate({
+      transactions: parsedTransactions,
+      accountId: importAccountId || null,
+    });
+  }
+
+  function handleClose() {
+    resetState();
+    onClose();
+  }
+
+  return (
+    <Drawer open={isOpen} onClose={handleClose} title="Import CSV" width={560}>
+      <div className="flex flex-col gap-5 pb-6">
+        {/* Step indicator */}
+        <div className="flex items-center gap-2">
+          {(["upload", "mapping", "preview"] as const).map((s, i) => (
+            <div key={s} className="flex items-center gap-2">
+              {i > 0 && <div className="h-px w-6 bg-border" />}
+              <div
+                className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium",
+                  step === s
+                    ? "bg-accent text-white"
+                    : (s === "upload" && step !== "upload") ||
+                      (s === "mapping" && step === "preview")
+                    ? "bg-green-500/20 text-green-400"
+                    : "bg-surface text-text-muted"
+                )}
+              >
+                {(s === "upload" && step !== "upload") ||
+                (s === "mapping" && step === "preview") ? (
+                  <Check className="h-3 w-3" />
+                ) : (
+                  i + 1
+                )}
+              </div>
+              <span
+                className={cn(
+                  "text-xs font-medium capitalize",
+                  step === s ? "text-text" : "text-text-muted"
+                )}
+              >
+                {s}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Step: Upload */}
+        {step === "upload" && (
+          <div className="flex flex-col gap-4">
+            <label
+              htmlFor="csv-file-input"
+              className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-border bg-surface/30 px-6 py-10 transition-colors hover:border-accent/40 hover:bg-surface/50"
+            >
+              <Upload className="h-8 w-8 text-text-muted" />
+              <div className="text-center">
+                <p className="text-sm font-medium text-text">
+                  {fileName || "Choose a CSV file"}
+                </p>
+                <p className="mt-1 text-xs text-text-muted">
+                  Upload your bank or credit card statement
+                </p>
+              </div>
+              <input
+                id="csv-file-input"
+                type="file"
+                accept=".csv"
+                onChange={handleFileSelect}
+                className="sr-only"
+              />
+            </label>
+            <p className="text-xs text-text-muted">
+              Supported formats: CSV with header row. Common column names (Date, Description, Amount) will be auto-detected.
+            </p>
+          </div>
+        )}
+
+        {/* Step: Column Mapping */}
+        {step === "mapping" && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-text-muted">
+              Map your CSV columns to transaction fields. Date, Description, and Amount are required.
+            </p>
+            <div className="flex flex-col gap-3">
+              {csvHeaders.map((header) => (
+                <div key={header} className="flex items-center gap-3">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-text">
+                    {header}
+                  </span>
+                  <select
+                    value={columnMapping[header] ?? ""}
+                    onChange={(e) =>
+                      handleMappingChange(header, e.target.value as CsvField | "")
+                    }
+                    className="orbyt-input w-40 text-sm"
+                    aria-label={`Map column ${header}`}
+                  >
+                    <option value="">Skip</option>
+                    {CSV_FIELD_OPTIONS.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+
+            {!canProceed && (
+              <div className="flex items-center gap-2 rounded-xl bg-yellow-500/10 px-4 py-3">
+                <AlertCircle className="h-4 w-4 shrink-0 text-yellow-400" />
+                <p className="text-xs text-yellow-400">
+                  Please map at least Date, Description, and Amount columns.
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep("upload")}
+                className="orbyt-button-ghost flex-1"
+              >
+                Back
+              </button>
+              <button
+                onClick={() => setStep("preview")}
+                disabled={!canProceed}
+                className="orbyt-button-accent flex-1"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step: Preview */}
+        {step === "preview" && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-text-muted">
+              Preview of first {Math.min(previewRows.length, 10)} rows ({parsedTransactions.length} valid transactions total).
+            </p>
+
+            {/* Preview table */}
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border bg-surface/50">
+                    <th className="px-3 py-2 text-left font-medium text-text-muted">Date</th>
+                    <th className="px-3 py-2 text-left font-medium text-text-muted">Description</th>
+                    <th className="px-3 py-2 text-left font-medium text-text-muted">Amount</th>
+                    <th className="px-3 py-2 text-left font-medium text-text-muted">Type</th>
+                    <th className="px-3 py-2 text-left font-medium text-text-muted">Category</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parsedTransactions.slice(0, 10).map((tx, i) => (
+                    <tr key={i} className="border-b border-border/50">
+                      <td className="px-3 py-2 text-text-muted whitespace-nowrap">
+                        {new Date(tx.date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="max-w-[160px] truncate px-3 py-2 text-text">
+                        {tx.description}
+                      </td>
+                      <td className={cn(
+                        "px-3 py-2 font-medium whitespace-nowrap",
+                        tx.type === "income" ? "text-green-400" : "text-red-400"
+                      )}>
+                        {tx.type === "income" ? "+" : "-"}{formatCurrency(tx.amount)}
+                      </td>
+                      <td className="px-3 py-2 capitalize text-text-muted">{tx.type}</td>
+                      <td className="px-3 py-2 capitalize text-text-muted">{tx.category}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Account selector */}
+            <div>
+              <label className="orbyt-label" htmlFor="import-account">
+                Link to Account <span className="text-text-muted">(optional)</span>
+              </label>
+              <select
+                id="import-account"
+                value={importAccountId}
+                onChange={(e) => setImportAccountId(e.target.value)}
+                className="orbyt-input mt-1 w-full"
+              >
+                <option value="">No account</option>
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {parsedTransactions.length === 0 && (
+              <div className="flex items-center gap-2 rounded-xl bg-red-500/10 px-4 py-3">
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                <p className="text-xs text-red-400">
+                  No valid transactions could be parsed. Check your column mappings and file format.
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep("mapping")}
+                className="orbyt-button-ghost flex-1"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={importMutation.isPending || parsedTransactions.length === 0}
+                className="orbyt-button-accent flex-1"
+              >
+                {importMutation.isPending
+                  ? "Importing..."
+                  : `Import ${parsedTransactions.length} Transactions`}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </Drawer>
+  );
+}
+
 // ── TransactionsTab (main export) ────────────────────────────────────────────
 
 export function TransactionsTab() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [importDrawerOpen, setImportDrawerOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionItem | null>(null);
 
   // Filters
@@ -643,10 +1145,16 @@ export function TransactionsTab() {
           <p className="text-text-muted text-sm">
             View and manage all your income, expenses, and transfers.
           </p>
-          <button onClick={openCreate} className="orbyt-button-accent flex items-center gap-2 shrink-0">
-            <Plus className="h-4 w-4" />
-            Add Transaction
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => setImportDrawerOpen(true)} className="orbyt-button-ghost flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Import CSV
+            </button>
+            <button onClick={openCreate} className="orbyt-button-accent flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Transaction
+            </button>
+          </div>
         </div>
 
         {/* Filter bar */}
@@ -833,6 +1341,12 @@ export function TransactionsTab() {
         isOpen={drawerOpen}
         onClose={closeDrawer}
         transaction={selectedTransaction}
+      />
+
+      {/* CSV Import Drawer */}
+      <CSVImportDrawer
+        isOpen={importDrawerOpen}
+        onClose={() => setImportDrawerOpen(false)}
       />
     </>
   );

@@ -22,6 +22,9 @@ import {
   SettleUpSchema,
   GetBalanceSchema,
   GetNetWorthHistorySchema,
+  GetSpendingByCategorySchema,
+  GetMonthlyTrendSchema,
+  ImportTransactionsSchema,
 } from "@orbyt/shared/validators";
 import { getNextBillDueDate } from "@orbyt/shared/utils";
 import { router, householdProcedure } from "../trpc";
@@ -714,40 +717,38 @@ export const financesRouter = router({
 
   /**
    * Get spending grouped by category for a given month (YYYY-MM).
-   * Returns array of { category, totalAmount } for expense transactions,
-   * ordered by totalAmount desc.
+   * Returns array of { category, total, count } for expense transactions.
    */
   getSpendingByCategory: householdProcedure
-    .input(
-      z.object({
-        month: z.string().regex(/^\d{4}-\d{2}$/, "Must be YYYY-MM format"),
-      })
-    )
+    .input(GetSpendingByCategorySchema)
     .query(async ({ ctx, input }) => {
-      const [year, month] = input.month.split("-").map(Number) as [number, number];
-      const startOfMonth = new Date(year, month - 1, 1).toISOString().split("T")[0]!;
-      const endOfMonth = new Date(year, month, 0).toISOString().split("T")[0]!;
+      // Parse the month into date range
+      const startDate = new Date(`${input.month}-01T00:00:00.000Z`);
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + 1);
 
       const result = await ctx.db
         .select({
           category: transactions.category,
-          totalAmount: sql<string>`sum(${transactions.amount}::numeric)`.as(
-            "total_amount"
-          ),
+          total: sql<string>`SUM(CAST(${transactions.amount} AS NUMERIC(12,2)))`,
+          count: count(),
         })
         .from(transactions)
         .where(
           and(
             eq(transactions.householdId, ctx.householdId),
             eq(transactions.type, "expense"),
-            gte(transactions.date, startOfMonth),
-            lte(transactions.date, endOfMonth)
+            gte(transactions.date, startDate.toISOString()),
+            sql`${transactions.date} < ${endDate.toISOString()}`,
           )
         )
-        .groupBy(transactions.category)
-        .orderBy(sql`sum(${transactions.amount}::numeric) desc`);
+        .groupBy(transactions.category);
 
-      return result;
+      return result.map((r) => ({
+        category: r.category,
+        total: r.total ?? "0",
+        count: Number(r.count),
+      }));
     }),
 
   // =====================
@@ -1539,5 +1540,115 @@ export const financesRouter = router({
       });
 
       return snapshots;
+    }),
+
+  // ================================================================
+  // Analytics Procedures
+  // ================================================================
+
+  /**
+   * Get monthly income/expense trend for the last N months.
+   * Returns array of { month, income, expenses, net }.
+   */
+  getMonthlyTrend: householdProcedure
+    .input(GetMonthlyTrendSchema)
+    .query(async ({ ctx, input }) => {
+      const cutoffDate = new Date();
+      cutoffDate.setMonth(cutoffDate.getMonth() - input.months);
+      const cutoffStr = cutoffDate.toISOString();
+
+      const result = await ctx.db
+        .select({
+          month: sql<string>`TO_CHAR(${transactions.date}::timestamptz, 'YYYY-MM')`,
+          type: transactions.type,
+          total: sql<string>`SUM(CAST(${transactions.amount} AS NUMERIC(12,2)))`,
+        })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.householdId, ctx.householdId),
+            gte(transactions.date, cutoffStr),
+          )
+        )
+        .groupBy(sql`TO_CHAR(${transactions.date}::timestamptz, 'YYYY-MM')`, transactions.type)
+        .orderBy(sql`TO_CHAR(${transactions.date}::timestamptz, 'YYYY-MM')`);
+
+      // Pivot into { month, income, expenses, net } shape
+      const monthMap = new Map<string, { income: number; expenses: number }>();
+      for (const row of result) {
+        const existing = monthMap.get(row.month) ?? { income: 0, expenses: 0 };
+        const amount = parseFloat(row.total ?? "0");
+        if (row.type === "income") {
+          existing.income += amount;
+        } else if (row.type === "expense") {
+          existing.expenses += amount;
+        }
+        monthMap.set(row.month, existing);
+      }
+
+      return Array.from(monthMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, data]) => ({
+          month,
+          income: data.income.toFixed(2),
+          expenses: data.expenses.toFixed(2),
+          net: (data.income - data.expenses).toFixed(2),
+        }));
+    }),
+
+  /**
+   * Bulk import transactions. Optionally update a linked account balance.
+   */
+  importTransactions: householdProcedure
+    .input(ImportTransactionsSchema)
+    .mutation(async ({ ctx, input }) => {
+      const values = input.transactions.map((t) => ({
+        householdId: ctx.householdId,
+        createdBy: ctx.user.id,
+        accountId: input.accountId ?? null,
+        type: t.type,
+        amount: t.amount,
+        currency: t.currency,
+        category: t.category,
+        description: t.description,
+        date: t.date,
+        notes: t.notes ?? null,
+        ownership: "ours" as const,
+      }));
+
+      const inserted = await ctx.db
+        .insert(transactions)
+        .values(values)
+        .returning();
+
+      // Update account balance if accountId provided
+      if (input.accountId) {
+        let netChange = 0;
+        for (const t of input.transactions) {
+          const amount = parseFloat(t.amount);
+          if (t.type === "income") {
+            netChange += amount;
+          } else if (t.type === "expense") {
+            netChange -= amount;
+          }
+        }
+
+        if (netChange !== 0) {
+          await ctx.db
+            .update(accounts)
+            .set({
+              balance: sql`CAST(CAST(${accounts.balance} AS NUMERIC(12,2)) + ${netChange} AS TEXT)`,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(accounts.id, input.accountId),
+                eq(accounts.householdId, ctx.householdId),
+              )
+            );
+        }
+      }
+
+      return { count: inserted.length };
     }),
 });

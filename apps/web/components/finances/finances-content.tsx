@@ -11,6 +11,7 @@ import {
   Target,
   TrendingUp,
   Calculator,
+  BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { AppRouter } from "@orbyt/api";
@@ -26,6 +27,7 @@ import { BillsTab } from "./bills-tab";
 import { GoalsTab } from "./goals-tab";
 import { NetWorthTab } from "./net-worth-tab";
 import { DebtPlannerTab } from "./debt-planner-tab";
+import { AnalyticsTab } from "./analytics-tab";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -49,7 +51,7 @@ function formatCurrency(amount: number | string, currency = "USD"): string {
 
 // ── Tab definitions ──────────────────────────────────────────────────────────
 
-type TabId = "overview" | "accounts" | "transactions" | "budgets" | "bills" | "goals" | "netWorth" | "debtPlanner";
+type TabId = "overview" | "accounts" | "transactions" | "budgets" | "bills" | "goals" | "netWorth" | "debtPlanner" | "analytics";
 
 const TABS: { id: TabId; label: string; icon: React.FC<{ size?: number; className?: string }> }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -60,6 +62,7 @@ const TABS: { id: TabId; label: string; icon: React.FC<{ size?: number; classNam
   { id: "goals", label: "Goals", icon: Target },
   { id: "netWorth", label: "Net Worth", icon: TrendingUp },
   { id: "debtPlanner", label: "Debt Planner", icon: Calculator },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 // ── Overview Stat Card ───────────────────────────────────────────────────────
@@ -420,16 +423,17 @@ export function FinancesContent() {
 
   const { data: household } = trpc.household.getCurrent.useQuery();
   const me = household?.members.find((m) => m.userId === userId);
-  const financeModules = (me?.profile as { financeModules?: { goals?: boolean; netWorth?: boolean; debtPlanner?: boolean } } | undefined)?.financeModules ?? {};
+  const financeModules = (me?.profile as { financeModules?: { goals?: boolean; netWorth?: boolean; debtPlanner?: boolean; analytics?: boolean } } | undefined)?.financeModules ?? {};
 
   const visibleTabs = useMemo(() => {
     return TABS.filter((tab) => {
       if (tab.id === "goals") return financeModules.goals !== false;
       if (tab.id === "netWorth") return financeModules.netWorth !== false;
       if (tab.id === "debtPlanner") return financeModules.debtPlanner !== false;
+      if (tab.id === "analytics" && financeModules.analytics === false) return false;
       return true;
     });
-  }, [financeModules.goals, financeModules.netWorth, financeModules.debtPlanner]);
+  }, [financeModules.goals, financeModules.netWorth, financeModules.debtPlanner, financeModules.analytics]);
 
   // If active tab becomes hidden, reset to overview
   useEffect(() => {
@@ -486,6 +490,7 @@ export function FinancesContent() {
       {activeTab === "goals" && <GoalsTab />}
       {activeTab === "netWorth" && <NetWorthTab />}
       {activeTab === "debtPlanner" && <DebtPlannerTab />}
+      {activeTab === "analytics" && <AnalyticsTab />}
     </motion.div>
   );
 }

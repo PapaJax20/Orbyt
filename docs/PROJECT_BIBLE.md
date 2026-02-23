@@ -8,7 +8,7 @@
 | **Last updated** | February 23, 2026 |
 | **GitHub** | https://github.com/PapaJax20/Orbyt |
 | **Local path** | `C:\Users\jmoon\Orbyt` |
-| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprint 11 (Finance Modules) in progress. |
+| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprint 11 complete. Sprint 12 (Analytics, CSV Import, Polish) in progress. |
 | **Project Lead** | J. Moon |
 | **Development Environment** | Claude Code Agent Teams (see Section 26) |
 
@@ -501,9 +501,13 @@ Features built: Kanban with 3 columns (To Do / In Progress / Done) using `@dnd-k
 
 Built the full finance module with 29+ tRPC procedures across accounts, transactions (with balance tracking), budgets (with monthly progress), bills (with auto-task creation, payment tracking, notifications), savings goals (with progress, on-track, linked accounts), expense splitting (owedBy/owedTo, settle up), and a financial overview dashboard. Also completed security hardening: household-scoped account balance updates, member validation on all user ID inputs, notifyOnPaid member verification.
 
-### Web App — Sprint 11: Toggleable Finance Modules — 🔄 In Progress
+### Web App — Sprint 11: Toggleable Finance Modules — ✅ Complete
 
 Feature toggles infrastructure (finance_modules JSONB on profiles, opt-out model), net worth tracking (snapshots table, calculateNetWorth/takeSnapshot/getHistory), enhanced goals tab (edit mode, sinking fund summary, status badges), and debt payoff planner (pure frontend snowball vs avalanche calculator). Settings page: Finance Modules toggle section. Finances page: conditional tab rendering.
+
+### Web App — Sprint 12: Analytics Charts, CSV Import & Final Polish — 🔄 In Progress
+
+Sprint 12 is the final Phase 1 sprint. Adds recharts-powered analytics (spending by category, income vs expenses, monthly trends), CSV transaction import, and fixes the `removeMember` last-admin bug.
 
 ---
 
@@ -1586,9 +1590,10 @@ Built the full finance module: accounts, transactions (with balance tracking), b
 
 ---
 
-### Sprint 11 — Toggleable Finance Modules (IN PROGRESS)
+### Sprint 11 — Toggleable Finance Modules (COMPLETED)
 
 **Estimated effort:** 2-3 days
+**Completed:** February 2026
 **Branch:** `main`
 
 Sprint 11 adds three **optional/toggleable** finance modules (Goals enhancement, Net Worth tracking, Debt Payoff Planner) and a feature toggles infrastructure.
@@ -1634,6 +1639,51 @@ Sprint 11 adds three **optional/toggleable** finance modules (Goals enhancement,
 - [ ] Goals tab: can edit existing goal (pre-filled form)
 - [ ] Goals tab: sinking fund summary shows when sinking fund goals exist
 - [ ] Debt Planner: select debts, enter APR/min payment, see snowball vs avalanche comparison
+- [ ] All new UI responsive at 375px mobile
+- [ ] `pnpm turbo typecheck` passes
+
+---
+
+### Sprint 12 — Analytics Charts, CSV Import & Final Polish (IN PROGRESS)
+
+**Estimated effort:** 2-3 days
+**Branch:** `main`
+
+Sprint 12 is the final Phase 1 sprint. It adds visual analytics charts (spending breakdown, income/expense trends, budget comparison) powered by recharts, a CSV transaction import feature, and fixes remaining HIGH-priority tech debt items.
+
+#### 12A — Analytics Tab (Finances)
+
+- Install recharts charting library (dynamic import for bundle performance)
+- New "Analytics" tab in Finances with toggleable visibility via financeModules.analytics
+- Spending by category pie/donut chart for selected month
+- Income vs Expenses bar chart (monthly trend)
+- Monthly net cash flow line chart (6-month window)
+- Budget vs Actual comparison bar chart
+- API procedures: `getSpendingByCategory`, `getMonthlyTrend`
+
+#### 12B — CSV Transaction Import
+
+- New `importTransactions` mutation accepts bulk transaction array (max 500)
+- Frontend CSV upload in Transactions tab with column mapping
+- Preview step showing parsed transactions before import
+- Linked account optional for balance adjustment
+- Validation via Zod schema (type, amount, category, description, date)
+
+#### 12C — Polish & Tech Debt
+
+- Fix `removeMember` last-admin-check bug (HIGH priority from Section 23)
+- Self-removal prevention on household member removal
+- Member existence validation before removal
+
+#### Acceptance Criteria
+
+- [ ] Analytics tab renders spending by category pie chart
+- [ ] Analytics tab renders monthly income vs expenses bar chart
+- [ ] Analytics tab renders net cash flow trend line
+- [ ] Analytics tab toggleable from Settings (financeModules.analytics)
+- [ ] CSV upload accepts standard bank export format
+- [ ] CSV import validates and previews before inserting
+- [ ] removeMember prevents removing last admin
 - [ ] All new UI responsive at 375px mobile
 - [ ] `pnpm turbo typecheck` passes
 
@@ -2732,7 +2782,7 @@ Financial savings goals (already built in the Finances module) would automatical
 | Font not yet Urbanist | Not implemented | Medium | Sprint 0 | Currently system font |
 | FullCalendar bundle size | Risk | Medium | Sprint 4D | Must use `dynamic()` import |
 | `profiles.theme` default mismatch | Note | Low | Sprint 4F | DB default is `"cosmic"`, should map to `"orbit"` |
-| `removeMember` no last-admin check | Bug risk | High | Sprint 4F | Front-end must enforce |
+| `removeMember` no last-admin check | Fixed | Done | Sprint 12C | Backend now validates: prevents self-removal, last-admin removal, and missing members |
 | `bills.amount` is string from Drizzle | Gotcha | Medium | Sprint 4C | Must `parseFloat()` before arithmetic |
 | `getMonthlyOverview` payment join | Bug risk | Medium | Sprint 4C | Uses `bills.id` in where clause for `billPayments` which may not work as expected for cross-table filtering — verify at runtime |
 | No rate limiting on tRPC | Tech debt | Low | Phase 2 | Acceptable for launch |

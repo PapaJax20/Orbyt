@@ -206,5 +206,34 @@ export const GetNetWorthHistorySchema = z.object({
 
 export type GetNetWorthHistoryInput = z.infer<typeof GetNetWorthHistorySchema>;
 
+export const GetSpendingByCategorySchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, "Must be YYYY-MM format"),
+});
+
+export const GetMonthlyTrendSchema = z.object({
+  months: z.number().min(1).max(24).default(6),
+});
+
+export const ImportTransactionsSchema = z.object({
+  transactions: z.array(z.object({
+    type: z.enum(["expense", "income", "transfer"]),
+    amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount"),
+    currency: z.string().length(3).default("USD"),
+    category: z.enum([
+      "housing", "utilities", "groceries", "dining", "transportation",
+      "healthcare", "insurance", "entertainment", "shopping", "education",
+      "personal", "gifts", "income", "salary", "freelance", "investment",
+      "transfer", "other",
+    ]),
+    description: z.string().min(1).max(255),
+    date: z.string().datetime(),
+    notes: z.string().max(2000).nullable().optional(),
+  })).min(1).max(500),
+  accountId: z.string().uuid().nullable().optional(),
+});
+
 export type CreateExpenseSplitInput = z.infer<typeof CreateExpenseSplitSchema>;
 export type SettleUpInput = z.infer<typeof SettleUpSchema>;
+export type GetSpendingByCategoryInput = z.infer<typeof GetSpendingByCategorySchema>;
+export type GetMonthlyTrendInput = z.infer<typeof GetMonthlyTrendSchema>;
+export type ImportTransactionsInput = z.infer<typeof ImportTransactionsSchema>;

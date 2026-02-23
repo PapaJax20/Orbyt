@@ -35,6 +35,7 @@ export const UpdateProfileSchema = z.object({
     goals: z.boolean().optional(),
     netWorth: z.boolean().optional(),
     debtPlanner: z.boolean().optional(),
+    analytics: z.boolean().optional(),
   }).optional(),
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Target, TrendingUp, Calculator } from "lucide-react";
+import { Target, TrendingUp, Calculator, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { createClient } from "@/lib/supabase/client";
@@ -55,6 +55,12 @@ const FINANCE_MODULES = [
     description: "Plan debt payoff with snowball or avalanche strategies",
     Icon: Calculator,
   },
+  {
+    key: "analytics" as const,
+    label: "Analytics",
+    description: "View spending charts, income trends, and budget comparisons",
+    Icon: BarChart3,
+  },
 ];
 
 // ── FinanceModulesSection ────────────────────────────────────────────────────
@@ -62,7 +68,7 @@ const FINANCE_MODULES = [
 function FinanceModulesSection({
   profile,
 }: {
-  profile: { financeModules?: { goals?: boolean; netWorth?: boolean; debtPlanner?: boolean } | null };
+  profile: { financeModules?: { goals?: boolean; netWorth?: boolean; debtPlanner?: boolean; analytics?: boolean } | null };
 }) {
   const utils = trpc.useUtils();
 
@@ -79,7 +85,7 @@ function FinanceModulesSection({
   const currentModules = profile.financeModules ?? {};
 
   const handleToggle = useCallback(
-    (key: "goals" | "netWorth" | "debtPlanner", currentValue: boolean) => {
+    (key: "goals" | "netWorth" | "debtPlanner" | "analytics", currentValue: boolean) => {
       toggleModule.mutate({
         financeModules: { ...currentModules, [key]: !currentValue },
       });

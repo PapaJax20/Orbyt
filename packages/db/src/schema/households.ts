@@ -23,6 +23,7 @@ export const profiles = pgTable("profiles", {
       goals?: boolean;
       netWorth?: boolean;
       debtPlanner?: boolean;
+      analytics?: boolean;
     }>()
     .default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
