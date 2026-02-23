@@ -34,6 +34,10 @@ const CATEGORIES = [
 
 type BillCategory = (typeof CATEGORIES)[number];
 
+function cn(...classes: (string | boolean | undefined | null)[]) {
+  return classes.filter(Boolean).join(" ");
+}
+
 // ── Bill Form Fields (shared between create and edit) ─────────────────────────
 
 function BillFormFields({
@@ -55,6 +59,8 @@ function BillFormFields({
   setUrl,
   assignedTo,
   setAssignedTo,
+  notifyOnPaid,
+  setNotifyOnPaid,
   members,
   submitLabel,
   isPending,
@@ -79,6 +85,8 @@ function BillFormFields({
   setUrl: (v: string) => void;
   assignedTo: string;
   setAssignedTo: (v: string) => void;
+  notifyOnPaid: string[];
+  setNotifyOnPaid: (v: string[]) => void;
   members: { id: string; name: string }[];
   submitLabel: string;
   isPending: boolean;
@@ -217,6 +225,42 @@ function BillFormFields({
         </select>
       </div>
 
+      {/* Notify When Paid */}
+      <div>
+        <label className="orbyt-label">
+          Notify when paid <span className="text-text-muted">(optional)</span>
+        </label>
+        <p className="mb-2 text-xs text-text-muted">
+          Selected members will be notified when this bill is marked as paid.
+        </p>
+        <div className="flex flex-wrap gap-2 mt-1">
+          {members.map((m) => {
+            const selected = notifyOnPaid.includes(m.id);
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => {
+                  setNotifyOnPaid(
+                    selected
+                      ? notifyOnPaid.filter((id) => id !== m.id)
+                      : [...notifyOnPaid, m.id]
+                  );
+                }}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs font-medium transition-all",
+                  selected
+                    ? "bg-accent/15 text-accent ring-1 ring-accent/30"
+                    : "bg-white/10 text-text-muted hover:text-text"
+                )}
+              >
+                {m.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* URL */}
       <div>
         <label className="orbyt-label" htmlFor="bill-url">
@@ -291,6 +335,7 @@ function CreateBillForm({
   const [notes, setNotes] = useState("");
   const [url, setUrl] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
+  const [notifyOnPaid, setNotifyOnPaid] = useState<string[]>([]);
 
   const { data: membersData } = trpc.finances.listHouseholdMembers.useQuery();
   const members = membersData ?? [];
@@ -325,6 +370,7 @@ function CreateBillForm({
       notes: notes.trim() || null,
       url: url.trim() || null,
       assignedTo: assignedTo || null,
+      notifyOnPaid,
     });
   }
 
@@ -348,6 +394,8 @@ function CreateBillForm({
       setUrl={setUrl}
       assignedTo={assignedTo}
       setAssignedTo={setAssignedTo}
+      notifyOnPaid={notifyOnPaid}
+      setNotifyOnPaid={setNotifyOnPaid}
       members={members}
       submitLabel="Add Bill"
       isPending={createBill.isPending}
@@ -380,6 +428,7 @@ function EditBillForm({
   const [notes, setNotes] = useState(bill.notes ?? "");
   const [url, setUrl] = useState(bill.url ?? "");
   const [assignedTo, setAssignedTo] = useState(bill.assignedTo ?? "");
+  const [notifyOnPaid, setNotifyOnPaid] = useState<string[]>((bill.notifyOnPaid ?? []) as string[]);
 
   const { data: membersData } = trpc.finances.listHouseholdMembers.useQuery();
   const members = membersData ?? [];
@@ -417,6 +466,7 @@ function EditBillForm({
         notes: notes.trim() || null,
         url: url.trim() || null,
         assignedTo: assignedTo || null,
+        notifyOnPaid,
       },
     });
   }
@@ -441,6 +491,8 @@ function EditBillForm({
       setUrl={setUrl}
       assignedTo={assignedTo}
       setAssignedTo={setAssignedTo}
+      notifyOnPaid={notifyOnPaid}
+      setNotifyOnPaid={setNotifyOnPaid}
       members={members}
       submitLabel="Save Changes"
       isPending={updateBill.isPending}

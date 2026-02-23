@@ -22,6 +22,7 @@ export const CreateBillSchema = z.object({
   notes: z.string().max(2000).nullable().optional(),
   url: z.string().url().nullable().optional(),
   assignedTo: z.string().uuid().nullable().optional(),
+  notifyOnPaid: z.array(z.string().uuid()).default([]),
 });
 
 export const UpdateBillSchema = CreateBillSchema.partial();

@@ -8,6 +8,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { households, profiles } from "./households";
+import { bills } from "./finances";
 
 export const tasks = pgTable("tasks", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -29,6 +30,7 @@ export const tasks = pgTable("tasks", {
     .array()
     .notNull()
     .default(sql`'{}'::text[]`),
+  sourceBillId: uuid("source_bill_id").references(() => bills.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

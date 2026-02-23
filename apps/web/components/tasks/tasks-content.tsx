@@ -11,7 +11,7 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { motion } from "framer-motion";
-import { LayoutGrid, List, Plus } from "lucide-react";
+import { LayoutGrid, List, Plus, Receipt } from "lucide-react";
 import type { AppRouter } from "@orbyt/api";
 import type { inferRouterOutputs } from "@trpc/server";
 import { trpc } from "@/lib/trpc/client";
@@ -101,7 +101,12 @@ function TaskCard({ task, onClick }: { task: TaskItem; onClick: () => void }) {
             PRIORITY_DOT[task.priority] ?? "bg-white/20",
           )}
         />
-        <p className="text-sm font-medium leading-snug text-text line-clamp-2">{task.title}</p>
+        <p className="text-sm font-medium leading-snug text-text line-clamp-2 flex-1">{task.title}</p>
+        {task.sourceBillId && (
+          <div title="Linked to a bill" className="shrink-0">
+            <Receipt className="h-3.5 w-3.5 text-accent/60" />
+          </div>
+        )}
       </div>
 
       {/* Bottom row */}
@@ -265,7 +270,12 @@ function ListView({
               />
 
               {/* Title */}
-              <span className="truncate text-sm text-text">{task.title}</span>
+              <span className="flex items-center gap-1.5 truncate text-sm text-text">
+                {task.title}
+                {task.sourceBillId && (
+                  <span aria-label="Linked to a bill"><Receipt className="h-3.5 w-3.5 shrink-0 text-accent/60" /></span>
+                )}
+              </span>
 
               {/* Assignees */}
               <div className="hidden -space-x-1.5 sm:flex">

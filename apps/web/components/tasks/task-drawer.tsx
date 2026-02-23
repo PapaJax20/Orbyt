@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Send } from "lucide-react";
+import { Receipt, Send } from "lucide-react";
 import { toast } from "sonner";
 import type { AppRouter } from "@orbyt/api";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -174,6 +174,13 @@ export function TaskDrawer({
   // ── Form fields (shared between create and edit) ──────────────────────────
   const FormFields = (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {/* Linked bill warning (edit mode only) */}
+      {task?.sourceBillId && (
+        <div className="mb-3 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2 text-xs text-accent">
+          This task is auto-managed by a linked bill. Changes may be overwritten when the bill is updated.
+        </div>
+      )}
+
       {/* Title */}
       <div>
         <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-text-muted">
@@ -306,6 +313,23 @@ export function TaskDrawer({
   // ── View mode (read-only) ─────────────────────────────────────────────────
   const ViewMode = task && (
     <div>
+      {/* Linked to bill banner */}
+      {task.sourceBillId && (
+        <div className="mb-4 rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 flex items-center gap-3">
+          <Receipt className="h-5 w-5 text-accent shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-accent">Linked to a bill</p>
+            <p className="text-xs text-text-muted">This task was auto-created from a bill assignment.</p>
+          </div>
+          <a
+            href="/finances"
+            className="text-xs text-accent hover:underline underline-offset-2 shrink-0"
+          >
+            View Bill
+          </a>
+        </div>
+      )}
+
       {/* Title */}
       <h3 className="font-display text-xl font-semibold text-text">{task.title}</h3>
 

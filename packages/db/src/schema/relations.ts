@@ -101,6 +101,10 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   subtasks: many(tasks, { relationName: "subtasks" }),
   assignees: many(taskAssignees),
   comments: many(taskComments),
+  sourceBill: one(bills, {
+    fields: [tasks.sourceBillId],
+    references: [bills.id],
+  }),
 }));
 
 export const taskAssigneesRelations = relations(taskAssignees, ({ one }) => ({
@@ -137,6 +141,7 @@ export const billsRelations = relations(bills, ({ one, many }) => ({
     relationName: "billAssignee",
   }),
   payments: many(billPayments),
+  linkedTasks: many(tasks),
 }));
 
 export const billPaymentsRelations = relations(billPayments, ({ one }) => ({

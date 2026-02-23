@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { eq, and, gte, lte, desc, asc, sql, count, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { bills, billPayments, accounts, transactions, budgets, savingsGoals, expenseSplits, profiles, householdMembers } from "@orbyt/db/schema";
+import { bills, billPayments, accounts, transactions, budgets, savingsGoals, expenseSplits, profiles, householdMembers, tasks, taskAssignees, notifications } from "@orbyt/db/schema";
 import {
   CreateBillSchema,
   UpdateBillSchema,
@@ -23,6 +23,52 @@ import {
 } from "@orbyt/shared/validators";
 import { getNextBillDueDate } from "@orbyt/shared/utils";
 import { router, householdProcedure } from "../trpc";
+
+/**
+ * Auto-create a task linked to a bill for the assigned member.
+ * Includes dedup guard to prevent duplicate active tasks for the same bill.
+ */
+async function createBillTask(
+  db: any,
+  bill: { id: string; name: string; dueDay: number; householdId: string; createdBy: string; assignedTo: string | null },
+) {
+  if (!bill.assignedTo) return null;
+
+  // Dedup guard: don't create if an active task already exists for this bill
+  const existing = await db.query.tasks.findFirst({
+    where: and(
+      eq(tasks.sourceBillId, bill.id),
+      inArray(tasks.status, ["todo", "in_progress"]),
+    ),
+  });
+  if (existing) return null;
+
+  const nextDueDate = getNextBillDueDate(bill.dueDay);
+
+  const [task] = await db
+    .insert(tasks)
+    .values({
+      householdId: bill.householdId,
+      createdBy: bill.createdBy,
+      title: `Pay ${bill.name}`,
+      description: `Auto-created task for bill: ${bill.name}`,
+      status: "todo",
+      priority: "medium",
+      dueAt: nextDueDate,
+      sourceBillId: bill.id,
+      tags: ["bill"],
+    })
+    .returning();
+
+  if (task) {
+    await db.insert(taskAssignees).values({
+      taskId: task.id,
+      userId: bill.assignedTo,
+    });
+  }
+
+  return task;
+}
 
 export const financesRouter = router({
   /**
@@ -89,6 +135,12 @@ export const financesRouter = router({
         createdBy: ctx.user.id,
       })
       .returning();
+
+    // Auto-create linked task if bill has an assignee
+    if (bill && bill.assignedTo) {
+      await createBillTask(ctx.db, bill);
+    }
+
     return bill;
   }),
 
@@ -98,12 +150,41 @@ export const financesRouter = router({
   updateBill: householdProcedure
     .input(z.object({ id: z.string().uuid(), data: UpdateBillSchema }))
     .mutation(async ({ ctx, input }) => {
+      // Fetch old bill to detect assignee changes
+      const oldBill = await ctx.db.query.bills.findFirst({
+        where: and(eq(bills.id, input.id), eq(bills.householdId, ctx.householdId)),
+      });
+      if (!oldBill) throw new TRPCError({ code: "NOT_FOUND" });
+
       const [updated] = await ctx.db
         .update(bills)
         .set({ ...input.data, updatedAt: new Date() })
         .where(and(eq(bills.id, input.id), eq(bills.householdId, ctx.householdId)))
         .returning();
       if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
+
+      // Handle assignee changes -> task lifecycle
+      const oldAssignee = oldBill.assignedTo;
+      const newAssignee = input.data.assignedTo !== undefined ? input.data.assignedTo : oldAssignee;
+
+      if (oldAssignee !== newAssignee) {
+        // Cancel old linked task(s)
+        await ctx.db
+          .update(tasks)
+          .set({ status: "cancelled", updatedAt: new Date() })
+          .where(
+            and(
+              eq(tasks.sourceBillId, input.id),
+              inArray(tasks.status, ["todo", "in_progress"]),
+            )
+          );
+
+        // Create new task for the new assignee
+        if (newAssignee) {
+          await createBillTask(ctx.db, { ...updated, assignedTo: newAssignee });
+        }
+      }
+
       return updated;
     }),
 
@@ -117,6 +198,18 @@ export const financesRouter = router({
         .update(bills)
         .set({ isActive: false, updatedAt: new Date() })
         .where(and(eq(bills.id, input.id), eq(bills.householdId, ctx.householdId)));
+
+      // Cancel any active linked tasks
+      await ctx.db
+        .update(tasks)
+        .set({ status: "cancelled", updatedAt: new Date() })
+        .where(
+          and(
+            eq(tasks.sourceBillId, input.id),
+            inArray(tasks.status, ["todo", "in_progress"]),
+          )
+        );
+
       return { success: true };
     }),
 
@@ -142,6 +235,46 @@ export const financesRouter = router({
         receiptUrl: input.receiptUrl,
       })
       .returning();
+
+    // Auto-complete linked task
+    const linkedTask = await ctx.db.query.tasks.findFirst({
+      where: and(
+        eq(tasks.sourceBillId, input.billId),
+        inArray(tasks.status, ["todo", "in_progress"]),
+      ),
+    });
+
+    if (linkedTask) {
+      await ctx.db
+        .update(tasks)
+        .set({ status: "done", completedAt: new Date(), updatedAt: new Date() })
+        .where(eq(tasks.id, linkedTask.id));
+    }
+
+    // Create next cycle's task (dedup guard inside createBillTask prevents duplicates)
+    if (bill.assignedTo && bill.isActive) {
+      await createBillTask(ctx.db, bill);
+    }
+
+    // Send notifications to notifyOnPaid members
+    const notifyMembers = (bill.notifyOnPaid ?? []) as string[];
+    if (notifyMembers.length > 0) {
+      await ctx.db.insert(notifications).values(
+        notifyMembers.map((userId) => ({
+          userId,
+          householdId: ctx.householdId,
+          type: "bill_paid",
+          title: `${bill.name} has been paid`,
+          body: `${bill.name} was marked as paid ($${input.amount}).`,
+          data: {
+            route: "/finances",
+            entityId: bill.id,
+            entityType: "bill",
+          },
+          channels: ["in_app"],
+        })),
+      );
+    }
 
     return payment;
   }),

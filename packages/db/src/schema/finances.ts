@@ -32,6 +32,10 @@ export const bills = pgTable("bills", {
   url: text("url"),
   isActive: boolean("is_active").default(true).notNull(),
   assignedTo: uuid("assigned_to").references(() => profiles.id),
+  notifyOnPaid: text("notify_on_paid")
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
