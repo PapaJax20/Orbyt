@@ -8,7 +8,7 @@
 | **Last updated** | February 23, 2026 |
 | **GitHub** | https://github.com/PapaJax20/Orbyt |
 | **Local path** | `C:\Users\jmoon\Orbyt` |
-| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprint 12 (Analytics, CSV Import, Polish) complete. Sprint 13 (Fix Open Issues & Known Issues Cleanup) in progress. |
+| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprint 13 (Fix Open Issues & Known Issues Cleanup) complete. Sprint 14 (Calendar UX Polish) complete. Sprint 15 (Notifications & Reminders) next. |
 | **Project Lead** | J. Moon |
 | **Development Environment** | Claude Code Agent Teams (see Section 26) |
 
@@ -509,9 +509,13 @@ Feature toggles infrastructure (finance_modules JSONB on profiles, opt-out model
 
 Sprint 12 is the final Phase 1 sprint. Adds recharts-powered analytics (spending by category, income vs expenses, monthly trends), CSV transaction import, and fixes the `removeMember` last-admin bug.
 
-### Web App — Sprint 13: Fix Open Issues & Known Issues Cleanup — 🔄 In Progress
+### Web App — Sprint 13: Fix Open Issues & Known Issues Cleanup — ✅ Complete
 
 Sprint 13 adds an illustrated avatar picker to Settings, expands E2E test coverage to 7 files, and updates the Known Issues table to reflect actual resolved status.
+
+### Web App — Sprint 14: Calendar UX Polish — ✅ Complete
+
+Sprint 14 delivers a fully polished calendar experience: drag-and-drop event management, agenda/list view, 9 category colors, event hover popovers, RSVP status display, custom color picker, event search, and week start preference synced across the app.
 
 ---
 
@@ -1694,7 +1698,7 @@ Sprint 12 is the final Phase 1 sprint. It adds visual analytics charts (spending
 
 ---
 
-### Sprint 13 — Fix Open Issues & Known Issues Cleanup (IN PROGRESS)
+### Sprint 13 — Fix Open Issues & Known Issues Cleanup ✅ COMPLETED — February 2026
 
 **Estimated effort:** 1 day
 **Branch:** `main`
@@ -1721,6 +1725,39 @@ Sprint 13 addresses remaining open issues and cleans up the Known Issues table (
 - [ ] E2E tests cover contacts and settings pages
 - [ ] Section 23 accurately reflects codebase state
 - [ ] `pnpm turbo typecheck` passes
+
+---
+
+### Sprint 14 — Calendar UX Polish ✅ COMPLETED — February 2026
+
+| Task | Scope |
+|------|-------|
+| **14A** | Drag-and-drop events + event resize via FullCalendar |
+| **14B** | Agenda/list view using @fullcalendar/list plugin |
+| **14C** | Fix all 9 category colors (added medical, sports, holiday, birthday) |
+| **14D** | Event hover popover with title, time, category, location |
+| **14E** | RSVP status display + accept/decline buttons in event drawer |
+| **14F** | Event custom color picker in create/edit forms |
+| **14G** | Event search (API + toolbar search input with debounced results) |
+| **14H** | Week start preference (Sunday/Monday) in Settings, synced to FullCalendar |
+
+---
+
+### Sprint 15 — Notifications & Reminders 🔜
+
+In-app notification center, push notifications (service worker), email notifications (Resend), event reminders, bill due date reminders, notification preferences UI.
+
+### Sprint 16 — Calendar Intelligence 🔜
+
+Bill due dates on calendar, contact birthdays/anniversaries on calendar, task-calendar integration, member color coding, recurrence exception handling, recurring event delete modes.
+
+### Sprint 17 — Google Calendar & Outlook Sync 🔜
+
+Google Calendar OAuth + 2-way sync, Outlook Calendar OAuth + 2-way sync, Google/Outlook contacts import, connected accounts settings UI, multiple calendar layers.
+
+### Sprint 18 — Calendar Power Features 🔜
+
+Natural language quick-add event bar, mini calendar sidebar, event templates, iCal import/export, timezone support.
 
 ---
 

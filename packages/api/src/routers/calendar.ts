@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, ilike, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { events, eventAttendees } from "@orbyt/db/schema";
 import {
@@ -7,6 +7,7 @@ import {
   UpdateEventSchema,
   ListEventsSchema,
   DeleteEventSchema,
+  SearchEventsSchema,
 } from "@orbyt/shared/validators";
 import { expandRecurringEvents } from "@orbyt/shared/utils";
 import { router, householdProcedure } from "../trpc";
@@ -136,18 +137,35 @@ export const calendarRouter = router({
       });
       if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
 
+      const { attendeeIds, ...eventData } = input.data;
+
       if (input.updateMode === "all" || !existing.rrule) {
         // Update the base event
         const [updated] = await ctx.db
           .update(events)
           .set({
-          ...input.data,
-          startAt: input.data.startAt ? new Date(input.data.startAt) : undefined,
-          endAt: input.data.endAt ? new Date(input.data.endAt) : undefined,
-          updatedAt: new Date(),
-        })
+            ...eventData,
+            startAt: eventData.startAt ? new Date(eventData.startAt) : undefined,
+            endAt: eventData.endAt ? new Date(eventData.endAt) : undefined,
+            updatedAt: new Date(),
+          })
           .where(eq(events.id, input.id))
           .returning();
+
+        // Replace attendees if attendeeIds is provided
+        if (attendeeIds !== undefined) {
+          await ctx.db.delete(eventAttendees).where(eq(eventAttendees.eventId, input.id));
+          if (attendeeIds.length > 0) {
+            await ctx.db.insert(eventAttendees).values(
+              attendeeIds.map((userId) => ({
+                eventId: input.id,
+                userId,
+                rsvpStatus: userId === ctx.user.id ? "accepted" : "pending",
+              }))
+            );
+          }
+        }
+
         return updated;
       }
 
@@ -156,13 +174,28 @@ export const calendarRouter = router({
       const [updated] = await ctx.db
         .update(events)
         .set({
-          ...input.data,
-          startAt: input.data.startAt ? new Date(input.data.startAt) : undefined,
-          endAt: input.data.endAt ? new Date(input.data.endAt) : undefined,
+          ...eventData,
+          startAt: eventData.startAt ? new Date(eventData.startAt) : undefined,
+          endAt: eventData.endAt ? new Date(eventData.endAt) : undefined,
           updatedAt: new Date(),
         })
         .where(eq(events.id, input.id))
         .returning();
+
+      // Replace attendees if attendeeIds is provided
+      if (attendeeIds !== undefined) {
+        await ctx.db.delete(eventAttendees).where(eq(eventAttendees.eventId, input.id));
+        if (attendeeIds.length > 0) {
+          await ctx.db.insert(eventAttendees).values(
+            attendeeIds.map((userId) => ({
+              eventId: input.id,
+              userId,
+              rsvpStatus: userId === ctx.user.id ? "accepted" : "pending",
+            }))
+          );
+        }
+      }
+
       return updated;
     }),
 
@@ -178,4 +211,60 @@ export const calendarRouter = router({
     await ctx.db.delete(events).where(eq(events.id, input.id));
     return { success: true };
   }),
+
+  /**
+   * Search events by title, description, or location (case-insensitive).
+   */
+  search: householdProcedure.input(SearchEventsSchema).query(async ({ ctx, input }) => {
+    const results = await ctx.db.query.events.findMany({
+      where: and(
+        eq(events.householdId, ctx.householdId),
+        or(
+          ilike(events.title, `%${input.query}%`),
+          ilike(events.description, `%${input.query}%`),
+          ilike(events.location, `%${input.query}%`)
+        )
+      ),
+      with: {
+        attendees: true,
+      },
+      orderBy: (events, { desc }) => [desc(events.startAt)],
+      limit: 20,
+    });
+    return results;
+  }),
+
+  /**
+   * Update the current user's RSVP status for an event.
+   */
+  updateRsvp: householdProcedure
+    .input(
+      z.object({
+        eventId: z.string().uuid(),
+        status: z.enum(["accepted", "declined", "pending"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const attendee = await ctx.db.query.eventAttendees.findFirst({
+        where: and(
+          eq(eventAttendees.eventId, input.eventId),
+          eq(eventAttendees.userId, ctx.user.id)
+        ),
+      });
+
+      if (!attendee) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const [updated] = await ctx.db
+        .update(eventAttendees)
+        .set({ rsvpStatus: input.status })
+        .where(
+          and(
+            eq(eventAttendees.eventId, input.eventId),
+            eq(eventAttendees.userId, ctx.user.id)
+          )
+        )
+        .returning();
+
+      return updated;
+    }),
 });

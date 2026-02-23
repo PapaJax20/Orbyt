@@ -44,6 +44,11 @@ export const DeleteEventSchema = z.object({
   instanceDate: z.string().datetime().optional(),
 });
 
+export const SearchEventsSchema = z.object({
+  query: z.string().min(1).max(200),
+});
+
 export type CreateEventInput = z.infer<typeof CreateEventSchema>;
 export type UpdateEventInput = z.infer<typeof UpdateEventSchema>;
 export type ListEventsInput = z.infer<typeof ListEventsSchema>;
+export type SearchEventsInput = z.infer<typeof SearchEventsSchema>;

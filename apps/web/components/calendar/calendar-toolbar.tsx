@@ -1,8 +1,8 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
-export type CalendarView = "dayGridMonth" | "timeGridWeek" | "timeGridDay";
+export type CalendarView = "dayGridMonth" | "timeGridWeek" | "timeGridDay" | "listWeek";
 
 interface CalendarToolbarProps {
   view: CalendarView;
@@ -11,15 +11,18 @@ interface CalendarToolbarProps {
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
+  onSearch?: (query: string) => void;
+  searchQuery?: string;
 }
 
 const VIEW_LABELS: Record<CalendarView, string> = {
   dayGridMonth: "Month",
   timeGridWeek: "Week",
   timeGridDay: "Day",
+  listWeek: "List",
 };
 
-const VIEWS: CalendarView[] = ["dayGridMonth", "timeGridWeek", "timeGridDay"];
+const VIEWS: CalendarView[] = ["dayGridMonth", "timeGridWeek", "timeGridDay", "listWeek"];
 
 export function CalendarToolbar({
   view,
@@ -28,10 +31,12 @@ export function CalendarToolbar({
   onPrev,
   onNext,
   onToday,
+  onSearch,
+  searchQuery,
 }: CalendarToolbarProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      {/* Left: navigation */}
+      {/* Left: navigation + search */}
       <div className="flex items-center gap-2">
         <button
           onClick={onPrev}
@@ -50,6 +55,19 @@ export function CalendarToolbar({
         <button onClick={onToday} className="orbyt-button-ghost text-sm">
           Today
         </button>
+        {onSearch && (
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+            <input
+              type="text"
+              value={searchQuery ?? ""}
+              onChange={(e) => onSearch(e.target.value)}
+              placeholder="Search events..."
+              aria-label="Search events"
+              className="orbyt-input h-8 w-40 pl-8 text-sm"
+            />
+          </div>
+        )}
         <h2 className="font-display text-lg font-bold text-text">{title}</h2>
       </div>
 

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Pencil, Trash2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
+import { createClient } from "@/lib/supabase/client";
 import { Drawer } from "@/components/ui/drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@orbyt/api";
+import { getCategoryColor } from "@/lib/calendar-colors";
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetail = RouterOutput["calendar"]["getById"];
@@ -33,6 +35,18 @@ const RECURRENCE_OPTIONS = [
   { label: "Weekly", value: "FREQ=WEEKLY" },
   { label: "Monthly", value: "FREQ=MONTHLY" },
   { label: "Yearly", value: "FREQ=YEARLY" },
+];
+
+const COLOR_SWATCHES = [
+  "",
+  "#06B6D4",
+  "#3B82F6",
+  "#10B981",
+  "#8B5CF6",
+  "#F59E0B",
+  "#EF4444",
+  "#EC4899",
+  "#F97316",
 ];
 
 function toDatetimeLocal(iso: string | Date): string {
@@ -91,6 +105,46 @@ function AttendeePicker({
   );
 }
 
+// ── Color Picker ─────────────────────────────────────────────────────────────
+
+function ColorPicker({
+  color,
+  setColor,
+}: {
+  color: string;
+  setColor: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="orbyt-label">
+        Color <span className="text-text-muted">(optional)</span>
+      </label>
+      <div className="mt-1 flex gap-2">
+        {COLOR_SWATCHES.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setColor(c)}
+            className={[
+              "h-7 w-7 rounded-full border-2 transition-transform",
+              color === c
+                ? "scale-110 border-white"
+                : "border-transparent hover:scale-105",
+              !c ? "bg-surface" : "",
+            ].join(" ")}
+            style={c ? { backgroundColor: c } : undefined}
+            title={c || "Default (category color)"}
+          >
+            {!c && (
+              <span className="text-[10px] text-text-muted">Auto</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Event Form Fields (shared between create and edit) ───────────────────────
 
 function EventFormFields({
@@ -110,6 +164,8 @@ function EventFormFields({
   setDescription,
   rrule,
   setRrule,
+  color,
+  setColor,
   attendeeIds,
   toggleAttendee,
   submitLabel,
@@ -133,6 +189,8 @@ function EventFormFields({
   setDescription: (v: string) => void;
   rrule: string;
   setRrule: (v: string) => void;
+  color: string;
+  setColor: (v: string) => void;
   attendeeIds: string[];
   toggleAttendee: (userId: string) => void;
   submitLabel: string;
@@ -235,6 +293,9 @@ function EventFormFields({
         </select>
       </div>
 
+      {/* Custom Color */}
+      <ColorPicker color={color} setColor={setColor} />
+
       {/* Location */}
       <div>
         <label className="orbyt-label" htmlFor="event-location">
@@ -332,6 +393,7 @@ function CreateEventForm({
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [rrule, setRrule] = useState("");
+  const [color, setColor] = useState("");
   const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
 
   const createEvent = trpc.calendar.create.useMutation({
@@ -363,6 +425,7 @@ function CreateEventForm({
       description: description.trim() || undefined,
       location: location.trim() || undefined,
       rrule: rrule || undefined,
+      color: color || undefined,
       attendeeIds,
     });
   }
@@ -385,6 +448,8 @@ function CreateEventForm({
       setDescription={setDescription}
       rrule={rrule}
       setRrule={setRrule}
+      color={color}
+      setColor={setColor}
       attendeeIds={attendeeIds}
       toggleAttendee={toggleAttendee}
       submitLabel="Create Event"
@@ -421,6 +486,7 @@ function EditEventForm({
   const [description, setDescription] = useState(event.description ?? "");
   const [location, setLocation] = useState(event.location ?? "");
   const [rrule, setRrule] = useState(event.rrule ?? "");
+  const [color, setColor] = useState((event as Record<string, unknown>).color as string ?? "");
   const [attendeeIds, setAttendeeIds] = useState<string[]>(
     event.attendees?.map((a) => a.userId).filter((id): id is string => id !== null) ?? [],
   );
@@ -458,6 +524,7 @@ function EditEventForm({
         description: description.trim() || undefined,
         location: location.trim() || undefined,
         rrule: rrule || undefined,
+        color: color || undefined,
         attendeeIds,
       },
     });
@@ -481,6 +548,8 @@ function EditEventForm({
       setDescription={setDescription}
       rrule={rrule}
       setRrule={setRrule}
+      color={color}
+      setColor={setColor}
       attendeeIds={attendeeIds}
       toggleAttendee={toggleAttendee}
       submitLabel="Save Changes"
@@ -507,6 +576,14 @@ function ViewEvent({
   const utils = trpc.useUtils();
   const [showDelete, setShowDelete] = useState(false);
 
+  // Get current user ID for RSVP
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
   const deleteEvent = trpc.calendar.delete.useMutation({
     onSuccess: () => {
       utils.calendar.list.invalidate({ startDate: dateRange.start, endDate: dateRange.end });
@@ -515,6 +592,17 @@ function ViewEvent({
     },
     onError: (err) => {
       toast.error(err.message ?? "Failed to delete event");
+    },
+  });
+
+  const updateRsvp = trpc.calendar.updateRsvp.useMutation({
+    onSuccess: () => {
+      utils.calendar.getById.invalidate({ id: event.id });
+      utils.calendar.list.invalidate({ startDate: dateRange.start, endDate: dateRange.end });
+      toast.success("RSVP updated");
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to update RSVP");
     },
   });
 
@@ -528,6 +616,9 @@ function ViewEvent({
       start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) +
       (end ? " – " + end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "");
 
+  // Check if current user is an attendee
+  const myAttendee = event.attendees?.find((a) => a.userId === userId);
+
   return (
     <div className="flex flex-col gap-5 pb-6">
       {/* Info */}
@@ -535,7 +626,11 @@ function ViewEvent({
         <div className="mb-3 flex items-center gap-2">
           <span
             className="inline-block h-3 w-3 rounded-full"
-            style={{ backgroundColor: getCategoryColor(event.category ?? "other") }}
+            style={{
+              backgroundColor:
+                (event as Record<string, unknown>).color as string ??
+                getCategoryColor(event.category ?? "other"),
+            }}
           />
           <span className="text-xs capitalize text-text-muted">{event.category ?? "other"}</span>
           {event.rrule && (
@@ -556,7 +651,7 @@ function ViewEvent({
         )}
       </div>
 
-      {/* Attendees */}
+      {/* Attendees with RSVP status */}
       {event.attendees && event.attendees.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">
@@ -572,9 +667,58 @@ function ViewEvent({
                   {(a.profile?.displayName ?? "?").charAt(0).toUpperCase()}
                 </div>
                 <span className="text-text">{a.profile?.displayName ?? "Unknown"}</span>
+                <span
+                  className={[
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                    a.rsvpStatus === "accepted"
+                      ? "bg-green-500/15 text-green-500"
+                      : a.rsvpStatus === "declined"
+                        ? "bg-red-500/15 text-red-500"
+                        : "bg-amber-500/15 text-amber-500",
+                  ].join(" ")}
+                >
+                  {a.rsvpStatus ?? "pending"}
+                </span>
               </div>
             ))}
           </div>
+
+          {/* RSVP buttons for current user */}
+          {myAttendee && (
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-xs text-text-muted">Your RSVP:</span>
+              <button
+                onClick={() =>
+                  updateRsvp.mutate({ eventId: event.id, status: "accepted" })
+                }
+                disabled={updateRsvp.isPending}
+                className={[
+                  "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  myAttendee.rsvpStatus === "accepted"
+                    ? "bg-green-500/20 text-green-500 ring-1 ring-green-500/40"
+                    : "bg-surface text-text-muted hover:bg-green-500/10 hover:text-green-500",
+                ].join(" ")}
+              >
+                <Check className="h-3 w-3" />
+                Accept
+              </button>
+              <button
+                onClick={() =>
+                  updateRsvp.mutate({ eventId: event.id, status: "declined" })
+                }
+                disabled={updateRsvp.isPending}
+                className={[
+                  "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  myAttendee.rsvpStatus === "declined"
+                    ? "bg-red-500/20 text-red-500 ring-1 ring-red-500/40"
+                    : "bg-surface text-text-muted hover:bg-red-500/10 hover:text-red-500",
+                ].join(" ")}
+              >
+                <X className="h-3 w-3" />
+                Decline
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -613,18 +757,6 @@ function ViewEvent({
       />
     </div>
   );
-}
-
-function getCategoryColor(category: string): string {
-  const map: Record<string, string> = {
-    family: "#06B6D4",
-    work: "#3B82F6",
-    health: "#10B981",
-    school: "#8B5CF6",
-    social: "#F59E0B",
-    other: "#6B7280",
-  };
-  return map[category] ?? "#6B7280";
 }
 
 // ── EventDrawer (main export) ─────────────────────────────────────────────────

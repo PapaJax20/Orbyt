@@ -14,7 +14,7 @@ export const InviteMemberSchema = z.object({
 
 export const UpdateProfileSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
-  avatarUrl: z.string().url().nullable().optional(),
+  avatarUrl: z.string().min(1).nullable().optional(),
   avatarType: z.enum(["photo", "illustrated"]).optional(),
   aiPersona: z.enum(["rosie", "eddie"]).optional(),
   theme: z
@@ -31,6 +31,7 @@ export const UpdateProfileSchema = z.object({
     ])
     .optional(),
   timezone: z.string().optional(),
+  weekStartDay: z.enum(["sunday", "monday"]).optional(),
   financeModules: z.object({
     goals: z.boolean().optional(),
     netWorth: z.boolean().optional(),

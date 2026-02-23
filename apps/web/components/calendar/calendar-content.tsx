@@ -1,21 +1,27 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
+import { format } from "date-fns";
+import { toast } from "sonner";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@orbyt/api";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import listPlugin from "@fullcalendar/list";
 import type { EventInput, DatesSetArg, EventClickArg } from "@fullcalendar/core";
 import type { DateClickArg } from "@fullcalendar/interaction";
 import { trpc } from "@/lib/trpc/client";
+import { createClient } from "@/lib/supabase/client";
 import { useRealtimeInvalidation } from "@/hooks/use-realtime";
+import { CATEGORY_COLORS } from "@/lib/calendar-colors";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { CalendarToolbar } from "./calendar-toolbar";
 import type { CalendarView } from "./calendar-toolbar";
 import { EventDrawer } from "./event-drawer";
+import { EventPopover } from "./event-popover";
 
 // ── Dynamic import via ref-forwarding wrapper (performance — ~180KB, no SSR) ──
 
@@ -25,17 +31,6 @@ const FullCalendar = dynamic(() => import("./full-calendar-wrapper"), { ssr: fal
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type CalendarEvent = RouterOutput["calendar"]["list"][number];
-
-// ── Category colors ───────────────────────────────────────────────────────────
-
-const CATEGORY_COLORS: Record<string, string> = {
-  family: "#06B6D4",
-  work: "#3B82F6",
-  health: "#10B981",
-  school: "#8B5CF6",
-  social: "#F59E0B",
-  other: "#6B7280",
-};
 
 // ── CSS overrides for FullCalendar theming ────────────────────────────────────
 
@@ -62,11 +57,25 @@ const calendarStyles = `
   .fc-list-day-cushion { background: var(--color-surface) !important; color: var(--color-text-muted); font-size: 0.8125rem; }
 `;
 
+// ── Popover state type ────────────────────────────────────────────────────────
+
+interface PopoverData {
+  title: string;
+  start: Date;
+  end: Date | null;
+  allDay: boolean;
+  category: string;
+  location?: string;
+  color?: string;
+  position: { x: number; y: number };
+}
+
 // ── CalendarContent ───────────────────────────────────────────────────────────
 
 export function CalendarContent() {
   const isMobile = useMediaQuery("(max-width: 767px)");
   const utils = trpc.useUtils();
+  const prefersReducedMotion = useReducedMotion();
 
   const [view, setView] = useState<CalendarView>("dayGridMonth");
   const [calendarTitle, setCalendarTitle] = useState("");
@@ -78,9 +87,34 @@ export function CalendarContent() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Popover state
+  const [popover, setPopover] = useState<PopoverData | null>(null);
+
   // FullCalendar ref — typed as any to avoid issues with the dynamic import wrapper
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const calendarRef = useRef<any>(null);
+
+  // Get current user ID for week start preference
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
+  // Query household to get profile with weekStartDay
+  const { data: household } = trpc.household.getCurrent.useQuery();
+  const me = household?.members.find((m) => m.userId === userId);
+  const weekStartDay = (me?.profile as Record<string, unknown> | undefined)?.weekStartDay as string | undefined;
 
   // Query events for the current range
   const { data: events, isLoading } = trpc.calendar.list.useQuery({
@@ -88,12 +122,29 @@ export function CalendarContent() {
     endDate: dateRange.end,
   });
 
+  // Search query
+  const { data: searchResults } = trpc.calendar.search.useQuery(
+    { query: debouncedSearch },
+    { enabled: debouncedSearch.length > 0 },
+  );
+
   // Real-time invalidation for calendar events
   useRealtimeInvalidation(
     "events",
     undefined,
     () => utils.calendar.list.invalidate({ startDate: dateRange.start, endDate: dateRange.end }),
   );
+
+  // Drag-drop mutation
+  const updateEvent = trpc.calendar.update.useMutation({
+    onSuccess: () => {
+      utils.calendar.list.invalidate({ startDate: dateRange.start, endDate: dateRange.end });
+      toast.success("Event moved");
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to move event");
+    },
+  });
 
   // Map to FullCalendar EventInput format
   const calendarEvents: EventInput[] =
@@ -105,9 +156,14 @@ export function CalendarContent() {
         ? (event.endAt instanceof Date ? event.endAt.toISOString() : String(event.endAt))
         : undefined,
       allDay: event.allDay,
-      backgroundColor: CATEGORY_COLORS[event.category ?? "other"] ?? "#6B7280",
+      backgroundColor: event.color ?? CATEGORY_COLORS[event.category ?? "other"] ?? "#6B7280",
       borderColor: "transparent",
       textColor: "#ffffff",
+      extendedProps: {
+        category: event.category ?? "other",
+        location: event.location ?? undefined,
+        color: event.color ?? undefined,
+      },
     })) ?? [];
 
   // Toolbar handlers
@@ -147,6 +203,52 @@ export function CalendarContent() {
     setDrawerOpen(true);
   }, []);
 
+  // Drag-drop handlers
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleEventDrop = useCallback((info: any) => {
+    updateEvent.mutate({
+      id: info.event.id,
+      updateMode: "all",
+      data: {
+        startAt: info.event.start?.toISOString(),
+        endAt: info.event.end?.toISOString() ?? undefined,
+        allDay: info.event.allDay,
+      },
+    });
+  }, [updateEvent]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleEventResize = useCallback((info: any) => {
+    updateEvent.mutate({
+      id: info.event.id,
+      updateMode: "all",
+      data: {
+        startAt: info.event.start?.toISOString(),
+        endAt: info.event.end?.toISOString() ?? undefined,
+      },
+    });
+  }, [updateEvent]);
+
+  // Popover handlers
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleEventMouseEnter = useCallback((info: any) => {
+    const rect = info.el.getBoundingClientRect();
+    setPopover({
+      title: info.event.title,
+      start: info.event.start,
+      end: info.event.end,
+      allDay: info.event.allDay,
+      category: info.event.extendedProps?.category ?? "other",
+      location: info.event.extendedProps?.location,
+      color: info.event.extendedProps?.color,
+      position: { x: rect.left, y: rect.bottom },
+    });
+  }, []);
+
+  const handleEventMouseLeave = useCallback(() => {
+    setPopover(null);
+  }, []);
+
   function closeDrawer() {
     setDrawerOpen(false);
     setTimeout(() => {
@@ -160,8 +262,8 @@ export function CalendarContent() {
       <style dangerouslySetInnerHTML={{ __html: calendarStyles }} />
 
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+        animate={prefersReducedMotion ? false : { opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
         className="flex flex-col gap-4"
       >
@@ -192,7 +294,58 @@ export function CalendarContent() {
           onPrev={handlePrev}
           onNext={handleNext}
           onToday={handleToday}
+          onSearch={setSearchQuery}
+          searchQuery={searchQuery}
         />
+
+        {/* Search results overlay */}
+        {debouncedSearch.length > 0 && searchResults && searchResults.length > 0 && (
+          <div className="glass-card rounded-2xl p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+              Search Results ({searchResults.length})
+            </p>
+            <div className="flex flex-col gap-2">
+              {searchResults.map((result) => {
+                const startDate = new Date(result.startAt);
+                const catColor = (result as Record<string, unknown>).color as string | null ??
+                  CATEGORY_COLORS[result.category ?? "other"] ?? "#6B7280";
+                return (
+                  <button
+                    key={result.id}
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedDate(null);
+                      setSelectedEventId(result.id);
+                      setDrawerOpen(true);
+                    }}
+                    className="flex items-center gap-3 rounded-xl p-3 text-left transition-colors hover:bg-surface"
+                  >
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: catColor }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-text">{result.title}</p>
+                      <p className="text-xs text-text-muted">
+                        {format(startDate, "MMM d, yyyy")}
+                        {result.location ? ` · ${result.location}` : ""}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-[10px] capitalize text-text-muted">
+                      {result.category}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {debouncedSearch.length > 0 && searchResults && searchResults.length === 0 && (
+          <div className="glass-card rounded-2xl p-6 text-center">
+            <p className="text-sm text-text-muted">No events found for &ldquo;{debouncedSearch}&rdquo;</p>
+          </div>
+        )}
 
         {/* Calendar */}
         <div className="glass-card rounded-2xl p-4">
@@ -205,7 +358,7 @@ export function CalendarContent() {
           ) : (
             <FullCalendar
               ref={calendarRef}
-              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
               initialView={view}
               headerToolbar={false}
               height={isMobile ? "calc(100vh - 344px)" : "calc(100vh - 280px)"}
@@ -213,14 +366,33 @@ export function CalendarContent() {
               dateClick={handleDateClick}
               eventClick={handleEventClick}
               datesSet={handleDatesSet}
+              eventDrop={handleEventDrop}
+              eventResize={handleEventResize}
+              eventMouseEnter={handleEventMouseEnter}
+              eventMouseLeave={handleEventMouseLeave}
               selectable
-              editable={false}
+              editable={true}
               dayMaxEvents={3}
               nowIndicator
+              firstDay={weekStartDay === "monday" ? 1 : 0}
             />
           )}
         </div>
       </motion.div>
+
+      {/* Event Popover (hover) */}
+      {popover && (
+        <EventPopover
+          title={popover.title}
+          start={popover.start}
+          end={popover.end}
+          allDay={popover.allDay}
+          category={popover.category}
+          location={popover.location}
+          color={popover.color}
+          position={popover.position}
+        />
+      )}
 
       {/* Event Drawer */}
       <EventDrawer

@@ -18,6 +18,7 @@ export const profiles = pgTable("profiles", {
   aiPersona: varchar("ai_persona", { length: 10 }).default("rosie").notNull(),
   theme: varchar("theme", { length: 30 }).default("cosmic").notNull(),
   timezone: varchar("timezone", { length: 50 }).default("UTC").notNull(),
+  weekStartDay: varchar("week_start_day", { length: 10 }).default("sunday"),
   financeModules: jsonb("finance_modules")
     .$type<{
       goals?: boolean;

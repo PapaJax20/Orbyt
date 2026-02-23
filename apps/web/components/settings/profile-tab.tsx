@@ -173,6 +173,7 @@ export function ProfileTab() {
   const [avatarUrl, setAvatarUrl] = useState(ILLUSTRATED_AVATARS[0]);
   const [aiPersona, setAiPersona] = useState<"rosie" | "eddie">("rosie");
   const [timezone, setTimezone] = useState("UTC");
+  const [weekStartDay, setWeekStartDay] = useState<"sunday" | "monday">("sunday");
   const [synced, setSynced] = useState(false);
 
   // Sync form values from profile (once)
@@ -182,6 +183,7 @@ export function ProfileTab() {
       setAvatarUrl(profile.avatarUrl ?? ILLUSTRATED_AVATARS[0]);
       setAiPersona((profile.aiPersona as "rosie" | "eddie") ?? "rosie");
       setTimezone(profile.timezone ?? "UTC");
+      setWeekStartDay(((profile as Record<string, unknown>).weekStartDay as "sunday" | "monday") ?? "sunday");
       setSynced(true);
     }
   }, [profile, synced]);
@@ -202,6 +204,7 @@ export function ProfileTab() {
       displayName: displayName.trim(),
       aiPersona,
       timezone,
+      weekStartDay,
     });
   }
 
@@ -329,6 +332,22 @@ export function ProfileTab() {
               {tz.replace(/_/g, " ")}
             </option>
           ))}
+        </select>
+      </div>
+
+      {/* Week Start */}
+      <div>
+        <label className="orbyt-label" htmlFor="week-start">
+          Week Starts On
+        </label>
+        <select
+          id="week-start"
+          value={weekStartDay}
+          onChange={(e) => setWeekStartDay(e.target.value as "sunday" | "monday")}
+          className="orbyt-input mt-1 w-full"
+        >
+          <option value="sunday">Sunday</option>
+          <option value="monday">Monday</option>
         </select>
       </div>
 
