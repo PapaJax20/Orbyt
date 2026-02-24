@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { trpc } from "@/lib/trpc/client";
 import { formatFriendlyDate, formatCurrency } from "@orbyt/shared/utils";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CalendarWidget } from "@/components/dashboard/calendar-widget";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -47,6 +48,7 @@ function ViewAllLink({ href, count, label }: { href: string; count: number; labe
 }
 
 export function DashboardContent() {
+  const prefersReducedMotion = useReducedMotion();
   const now = new Date();
   const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
   const nextWeek = new Date(now);
@@ -88,8 +90,8 @@ export function DashboardContent() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+      animate={prefersReducedMotion ? false : { opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
       className="flex flex-col gap-6"
     >
@@ -294,6 +296,11 @@ export function DashboardContent() {
               description="Create a list and I'll make sure nothing gets forgotten."
             />
           )}
+        </div>
+
+        {/* ── Mini Calendar ──────────────────────────────────────────────── */}
+        <div className="lg:col-span-2">
+          <CalendarWidget />
         </div>
 
       </div>

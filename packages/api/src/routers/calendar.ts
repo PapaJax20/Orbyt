@@ -10,6 +10,9 @@ import {
   DeleteEventSchema,
   SearchEventsSchema,
   GetAgendaItemsSchema,
+  ParseNaturalLanguageDateSchema,
+  ImportICalSchema,
+  ExportICalSchema,
 } from "@orbyt/shared/validators";
 import {
   expandRecurringEvents,
@@ -18,6 +21,9 @@ import {
 } from "@orbyt/shared/utils";
 import { router, householdProcedure } from "../trpc";
 import { createNotification } from "./notifications";
+import * as chrono from "chrono-node";
+import ICAL from "ical.js";
+import icalGenerator from "ical-generator";
 
 export const calendarRouter = router({
   /**
@@ -723,5 +729,175 @@ export const calendarRouter = router({
       agendaItems.sort((a, b) => a.date.getTime() - b.date.getTime());
 
       return agendaItems;
+    }),
+
+  /**
+   * Parse a natural language date/time string into structured event fields.
+   * e.g. "Dentist appointment next Tuesday at 3pm" → { title, startAt, endAt, allDay }
+   */
+  parseNaturalLanguageDate: householdProcedure
+    .input(ParseNaturalLanguageDateSchema)
+    .query(async ({ input }) => {
+      const refDate = input.referenceDate ? new Date(input.referenceDate) : new Date();
+      const results = chrono.parse(input.text, refDate, { forwardDate: true });
+
+      if (results.length === 0) {
+        return { success: false as const, message: "Could not parse a date from the text" };
+      }
+
+      // results.length > 0 is guaranteed by the guard above; non-null assertion is safe
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const result = results[0]!;
+      const startDate = result.start.date();
+      const endDate = result.end?.date() ?? null;
+
+      // Extract title: remove the parsed date portion from the original text
+      const dateText = result.text;
+      let title = input.text.replace(dateText, "").trim();
+      // Clean up leading/trailing prepositions and punctuation
+      title = title
+        .replace(/^(at|on|from|to|for|in|the)\s+/i, "")
+        .replace(/\s+(at|on|from|to|for|in)$/i, "")
+        .trim();
+      if (!title) title = input.text; // fallback to full text if nothing left
+
+      // Determine if this is an all-day event
+      const hasTime = result.start.isCertain("hour");
+      const allDay = !hasTime;
+
+      return {
+        success: true as const,
+        parsed: {
+          title,
+          startAt: startDate.toISOString(),
+          endAt: endDate?.toISOString() ?? null,
+          allDay,
+        },
+      };
+    }),
+
+  /**
+   * Import events from an iCal (.ics) string into the household calendar.
+   */
+  importIcal: householdProcedure
+    .input(ImportICalSchema)
+    .mutation(async ({ ctx, input }) => {
+      let jcalData: unknown[];
+      try {
+        jcalData = ICAL.parse(input.icsContent);
+      } catch {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid iCal file format",
+        });
+      }
+
+      const comp = new ICAL.Component(jcalData);
+      const vevents = comp.getAllSubcomponents("vevent");
+
+      if (vevents.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No events found in the iCal file",
+        });
+      }
+
+      let importedCount = 0;
+      const errors: string[] = [];
+
+      for (const vevent of vevents) {
+        try {
+          const event = new ICAL.Event(vevent);
+          const title = event.summary;
+          if (!title) continue;
+
+          const startAt = event.startDate?.toJSDate();
+          if (!startAt) continue;
+
+          const endAt = event.endDate?.toJSDate() ?? null;
+          const description = event.description ?? null;
+          const location = event.location ?? null;
+          const allDay = event.startDate?.isDate ?? false;
+
+          // Check for RRULE — getFirstPropertyValue returns a Recur object with toString()
+          const rruleProp = vevent.getFirstPropertyValue("rrule");
+          const rrule = rruleProp ? String(rruleProp) : null;
+
+          await ctx.db.insert(events).values({
+            householdId: ctx.householdId,
+            createdBy: ctx.user.id,
+            title,
+            description,
+            location,
+            category: "other",
+            startAt,
+            endAt,
+            allDay,
+            rrule: rrule ? `RRULE:${rrule}` : null,
+          });
+
+          importedCount++;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Unknown error";
+          errors.push(msg);
+        }
+      }
+
+      return { imported: importedCount, total: vevents.length, errors };
+    }),
+
+  /**
+   * Export household calendar events as an iCal (.ics) string.
+   * Optionally filter by date range or specific event IDs.
+   */
+  exportIcal: householdProcedure
+    .input(ExportICalSchema)
+    .query(async ({ ctx, input }) => {
+      // Build query conditions
+      const conditions = [eq(events.householdId, ctx.householdId)];
+
+      if (input.startDate) {
+        conditions.push(gte(events.startAt, new Date(input.startDate)));
+      }
+      if (input.endDate) {
+        conditions.push(lte(events.startAt, new Date(input.endDate)));
+      }
+
+      let eventList = await ctx.db.query.events.findMany({
+        where: and(...conditions),
+      });
+
+      // If specific event IDs were requested, filter to those
+      if (input.eventIds?.length) {
+        eventList = eventList.filter((e) => input.eventIds!.includes(e.id));
+      }
+
+      const calendar = icalGenerator({
+        name: "Orbyt Calendar",
+        prodId: { company: "Orbyt", product: "Orbyt Calendar" },
+      });
+
+      for (const event of eventList) {
+        const icalEvent = calendar.createEvent({
+          id: event.id,
+          summary: event.title,
+          start: event.startAt,
+          end: event.endAt ?? undefined,
+          allDay: event.allDay,
+          description: event.description ?? undefined,
+          location: event.location ?? undefined,
+          created: event.createdAt,
+          lastModified: event.updatedAt,
+        });
+
+        // Add RRULE if present — stored as "RRULE:FREQ=WEEKLY;..."
+        // ical-generator's repeating() accepts a raw RRULE string (strips "RRULE:" prefix)
+        if (event.rrule) {
+          const rule = event.rrule.replace(/^RRULE:/i, "");
+          icalEvent.repeating(rule);
+        }
+      }
+
+      return { icsContent: calendar.toString(), eventCount: eventList.length };
     }),
 });

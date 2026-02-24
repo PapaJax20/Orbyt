@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "framer-motion";
 import { format } from "date-fns";
-import { DollarSign, CheckSquare, Cake, Heart, Calendar as CalendarIcon } from "lucide-react";
+import { DollarSign, CheckSquare, Cake, Heart, Calendar as CalendarIcon, Upload, Download } from "lucide-react";
 import { toast } from "sonner";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@orbyt/api";
@@ -23,6 +23,7 @@ import { CalendarToolbar } from "./calendar-toolbar";
 import type { CalendarView } from "./calendar-toolbar";
 import { EventDrawer } from "./event-drawer";
 import { EventPopover } from "./event-popover";
+import { NlpEventInput } from "./nlp-event-input";
 
 // ── Dynamic import via ref-forwarding wrapper (performance — ~180KB, no SSR) ──
 
@@ -218,7 +219,11 @@ export function CalendarContent() {
   });
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [defaultTitle, setDefaultTitle] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Import file input ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -296,6 +301,18 @@ export function CalendarContent() {
       if (isAgendaView) utils.calendar.getAgendaItems.invalidate();
     },
   );
+
+  // Import iCal mutation
+  const importIcal = trpc.calendar.importIcal.useMutation({
+    onSuccess: (data) => {
+      utils.calendar.list.invalidate({ startDate: dateRange.start, endDate: dateRange.end });
+      if (isAgendaView) utils.calendar.getAgendaItems.invalidate();
+      toast.success(`Imported ${data.imported} event${data.imported !== 1 ? "s" : ""}`);
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to import calendar");
+    },
+  });
 
   // Drag-drop mutation
   const updateEvent = trpc.calendar.update.useMutation({
@@ -450,11 +467,76 @@ export function CalendarContent() {
     setPopover(null);
   }, []);
 
+  // Import file handler
+  const handleImportFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result;
+        if (typeof content === "string") {
+          importIcal.mutate({ icsContent: content });
+        }
+      };
+      reader.onerror = () => {
+        toast.error("Failed to read the file");
+      };
+      reader.readAsText(file);
+
+      // Reset the input so the same file can be imported again
+      e.target.value = "";
+    },
+    [importIcal],
+  );
+
+  // Export handler
+  const handleExport = useCallback(async () => {
+    try {
+      const result = await utils.calendar.exportIcal.fetch({
+        startDate: dateRange.start,
+        endDate: dateRange.end,
+      });
+
+      const blob = new Blob([result.icsContent], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "orbyt-calendar.ics";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Exported ${result.eventCount} event${result.eventCount !== 1 ? "s" : ""}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to export calendar";
+      toast.error(message);
+    }
+  }, [utils, dateRange]);
+
+  // NLP parsed handler
+  const handleNlpParsed = useCallback(
+    (parsed: { title: string; startAt: string; endAt: string | null; allDay: boolean }) => {
+      setSelectedEventId(null);
+      setDefaultTitle(parsed.title);
+      // Use the parsed startAt as the default date for the drawer
+      const dateStr = parsed.startAt.includes("T")
+        ? parsed.startAt.slice(0, 16)
+        : parsed.startAt.slice(0, 10);
+      setSelectedDate(dateStr);
+      setDrawerOpen(true);
+    },
+    [],
+  );
+
   function closeDrawer() {
     setDrawerOpen(false);
     setTimeout(() => {
       setSelectedEventId(null);
       setSelectedDate(null);
+      setDefaultTitle(null);
     }, 300);
   }
 
@@ -474,18 +556,50 @@ export function CalendarContent() {
             <h1 className="font-display text-3xl font-bold text-text">Calendar</h1>
             <p className="mt-1 text-text-muted">Shared family schedule</p>
           </div>
-          <button
-            onClick={() => {
-              const today = new Date().toISOString().slice(0, 10);
-              setSelectedDate(today);
-              setSelectedEventId(null);
-              setDrawerOpen(true);
-            }}
-            className="orbyt-button-accent shrink-0"
-          >
-            + Add Event
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Hidden file input for iCal import */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".ics"
+              className="hidden"
+              onChange={handleImportFile}
+              aria-label="Import iCal file"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importIcal.isPending}
+              aria-label="Import calendar"
+              className="orbyt-button-ghost flex items-center gap-2 shrink-0"
+            >
+              <Upload className="h-4 w-4" />
+              <span className="hidden sm:inline">Import</span>
+            </button>
+            <button
+              onClick={handleExport}
+              aria-label="Export calendar"
+              className="orbyt-button-ghost flex items-center gap-2 shrink-0"
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+            <button
+              onClick={() => {
+                const today = new Date().toISOString().slice(0, 10);
+                setSelectedDate(today);
+                setSelectedEventId(null);
+                setDefaultTitle(null);
+                setDrawerOpen(true);
+              }}
+              className="orbyt-button-accent shrink-0"
+            >
+              + Add Event
+            </button>
+          </div>
         </div>
+
+        {/* NLP Quick Add Input */}
+        <NlpEventInput onParsed={handleNlpParsed} />
 
         {/* Toolbar */}
         <CalendarToolbar
@@ -603,6 +717,7 @@ export function CalendarContent() {
       <EventDrawer
         eventId={selectedEventId}
         defaultDate={selectedDate}
+        defaultTitle={defaultTitle}
         open={drawerOpen}
         onClose={closeDrawer}
         dateRange={dateRange}

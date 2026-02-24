@@ -525,7 +525,7 @@ Sprint 15 adds push notification infrastructure (web-push + VAPID, Vercel cron f
 
 Sprint 16 delivers a unified Smart Agenda view aggregating events, bills, tasks, and contact birthdays/anniversaries into a single day-grouped feed with typed icons. Adds `calendar.getAgendaItems` procedure, recurring event exception handling (edit/delete "this only" and "this and future"), member color coding via `displayColor`, and a recurrence mode picker in the event drawer.
 
-### Web App — Sprint 17A: Google/Outlook Calendar Sync (OAuth + Read Import) — 🔄 In Progress
+### Web App — Sprint 17A: Google/Outlook Calendar Sync (OAuth + Read Import) — ✅ Complete
 
 Sprint 17A integrates third-party calendar providers (Google Calendar, Microsoft Outlook) via OAuth2, enabling users to sync and view read-only external events alongside their Orbyt calendar. Includes token storage and refresh, calendar event sync, and a dedicated Integrations settings tab.
 
@@ -1822,7 +1822,7 @@ Sprint 16 transforms the calendar into a true household intelligence hub by unif
 - [ ] Recurrence mode picker is keyboard-accessible (Radix Dialog)
 - [ ] `pnpm turbo typecheck` passes
 
-### Sprint 17A — Google Calendar & Outlook Sync (OAuth + Read Import) 🔜
+### Sprint 17A — Google Calendar & Outlook Sync (OAuth + Read Import) ✅ Complete
 
 **Estimated effort:** 4 days
 **Branch:** `main`
@@ -1937,9 +1937,32 @@ Two new catch-all routes in the Next.js app:
 
 Write external events back to Google/Microsoft calendars, bi-directional sync conflict resolution, import Google/Outlook contacts to Orbyt.
 
-### Sprint 18 — Calendar Power Features 🔜
+### Sprint 18 — Calendar Power Features 🔄 In Progress
 
-Natural language quick-add event bar, mini calendar sidebar, event templates, iCal import/export, timezone support.
+**Goal:** NLP quick-add ("dentist tomorrow 3pm"), iCal import/export, mini calendar dashboard widget.
+
+**Deliverables:**
+1. `parseNaturalLanguageDate` API procedure — chrono-node NLP date parsing, returns pre-filled event fields
+2. `importIcal` API procedure — parse .ics string, bulk insert events with deduplication
+3. `exportIcal` API procedure — generate .ics string from household events
+4. NLP quick-add input above calendar — text input, calls parse, pre-populates event drawer on success
+5. Import/Export buttons on calendar page — file upload for import, download for export
+6. Mini calendar widget on dashboard — month grid with event dots, click navigates to calendar day
+
+**Key Packages (server-side only):**
+- `chrono-node` — NLP date/time parsing
+- `ical.js` — iCal (.ics) parser
+- `ical-generator` — iCal (.ics) generator
+
+**Performance Note:** All three packages must stay server-side only (imported in tRPC procedures). NOT in client bundle.
+
+**Acceptance Criteria:**
+- [ ] "Dentist tomorrow 3pm" creates event with correct date/time
+- [ ] .ics file import creates events in household calendar
+- [ ] .ics export downloads valid file openable in Google Calendar / Apple Calendar
+- [ ] Dashboard mini calendar shows event dots for days with events
+- [ ] All three packages excluded from client bundle (verified via performance audit)
+- [ ] Typecheck passes, QA PASS/WARN only, E2E tests pass
 
 ---
 

@@ -64,3 +64,24 @@ export type UpdateEventInput = z.infer<typeof UpdateEventSchema>;
 export type ListEventsInput = z.infer<typeof ListEventsSchema>;
 export type SearchEventsInput = z.infer<typeof SearchEventsSchema>;
 export type GetAgendaItemsInput = z.infer<typeof GetAgendaItemsSchema>;
+
+export const ImportICalSchema = z.object({
+  icsContent: z.string().min(1).max(5_000_000), // Max ~5MB of iCal text
+});
+
+export type ImportICalInput = z.infer<typeof ImportICalSchema>;
+
+export const ExportICalSchema = z.object({
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  eventIds: z.array(z.string().uuid()).optional(),
+});
+
+export type ExportICalInput = z.infer<typeof ExportICalSchema>;
+
+export const ParseNaturalLanguageDateSchema = z.object({
+  text: z.string().min(1).max(500),
+  referenceDate: z.string().datetime().optional(),
+});
+
+export type ParseNaturalLanguageDateInput = z.infer<typeof ParseNaturalLanguageDateSchema>;

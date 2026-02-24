@@ -481,10 +481,12 @@ function EventFormFields({
 
 function CreateEventForm({
   defaultDate,
+  defaultTitle,
   onClose,
   dateRange,
 }: {
   defaultDate: string;
+  defaultTitle?: string;
   onClose: () => void;
   dateRange: { start: string; end: string };
 }) {
@@ -494,7 +496,7 @@ function CreateEventForm({
     ? defaultDate
     : `${defaultDate}T09:00`;
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(defaultTitle ?? "");
   const [startAt, setStartAt] = useState(defaultStart);
   const [endAt, setEndAt] = useState(`${defaultDate.slice(0, 10)}T10:00`);
   const [allDay, setAllDay] = useState(false);
@@ -935,12 +937,13 @@ function ViewEvent({
 interface EventDrawerProps {
   eventId: string | null;
   defaultDate: string | null;
+  defaultTitle?: string | null;
   open: boolean;
   onClose: () => void;
   dateRange: { start: string; end: string };
 }
 
-export function EventDrawer({ eventId, defaultDate, open, onClose, dateRange }: EventDrawerProps) {
+export function EventDrawer({ eventId, defaultDate, defaultTitle, open, onClose, dateRange }: EventDrawerProps) {
   const [isEditing, setIsEditing] = useState(false);
 
   const { data: event, isLoading } = trpc.calendar.getById.useQuery(
@@ -989,7 +992,7 @@ export function EventDrawer({ eventId, defaultDate, open, onClose, dateRange }: 
           <p className="py-8 text-center text-sm text-text-muted">Event not found.</p>
         )
       ) : defaultDate ? (
-        <CreateEventForm defaultDate={defaultDate} onClose={handleClose} dateRange={dateRange} />
+        <CreateEventForm defaultDate={defaultDate} defaultTitle={defaultTitle ?? undefined} onClose={handleClose} dateRange={dateRange} />
       ) : null}
     </Drawer>
   );
