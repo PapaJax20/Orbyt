@@ -4,11 +4,11 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 3.0 |
-| **Last updated** | February 23, 2026 |
+| **Version** | 3.1 |
+| **Last updated** | February 24, 2026 |
 | **GitHub** | https://github.com/PapaJax20/Orbyt |
 | **Local path** | `C:\Users\jmoon\Orbyt` |
-| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprints 13–17A complete. Sprint 17B (Calendar Sync Write-Back & Webhooks) in progress. |
+| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprints 13–19 complete. Custom domain `orbythq.com` live on Vercel. |
 | **Project Lead** | J. Moon |
 | **Development Environment** | Claude Code Agent Teams (see Section 26) |
 
@@ -533,6 +533,63 @@ Sprint 17A integrates third-party calendar providers (Google Calendar, Microsoft
 
 Sprint 17B upgrades calendar integrations from read-only to full bidirectional sync. Orbyt events written back to connected Google/Microsoft calendars via async fire-and-forget. Real-time push via Google Watch API and Microsoft Graph Subscriptions. Incremental sync with `syncToken` / `deltaLink`. New `webhook_subscriptions` table; daily cron renews expiring channels.
 
+### Web App — Sprint 18: UX Polish — ✅ Complete
+
+Sprint 18 delivers five UX polish fixes across the app, introducing four new shared UI components and relaxing category validators to support custom categories.
+
+**New shared UI components (`apps/web/components/ui/`):**
+
+| File | What it does |
+|---|---|
+| `time-select.tsx` | Google Calendar-style time dropdown. 48 options in 30-minute intervals, 12-hour display labels, 24-hour string values |
+| `recurrence-picker.tsx` | Shared RRULE recurrence dropdown with contextual labels derived from a `referenceDate` prop (e.g., "Weekly on Tuesday"). Used by event drawer, bill drawer, and task drawer |
+| `day-of-month-picker.tsx` | Visual 7×5 grid of days 1–31 for bill due date selection. 44px touch targets, accent ring on the selected day |
+| `category-select.tsx` | Dropdown combining preset categories with a custom-entry path. Selecting "Other..." reveals a text input. Custom categories persist and surface via the `listCategories` API procedures |
+
+**Validator changes (`packages/shared/src/validators/`):**
+
+`EventCategorySchema`, `BillCategorySchema`, `TransactionCategorySchema`, and `BudgetCategorySchema` all relaxed from `z.enum([...])` to `z.string().min(1).max(50)`. The underlying DB columns were already `varchar(50)` so no migration was needed.
+
+**New API procedures:**
+
+- `calendar.listCategories` — `SELECT DISTINCT category FROM events` for the household. Powers CategorySelect autocomplete on event forms.
+- `finances.listBillCategories` — `SELECT DISTINCT category FROM bills` for the household. Powers CategorySelect on bill forms.
+- `finances.listTransactionCategories` — `SELECT DISTINCT category FROM transactions` for the household. Powers CategorySelect on transaction forms.
+
+**Component changes:**
+
+- **Shopping `list-panel.tsx`** — Header "+ New List" button is conditionally hidden when no lists exist so the EmptyState CTA is the sole call to action.
+- **Bill drawer** — Due date input replaced with `DayOfMonthPicker`. Recurrence now uses `RecurrencePicker` (default `FREQ=MONTHLY`). Category uses `CategorySelect` with custom-category support.
+- **Event drawer** — Date and time inputs split: date picker + `TimeSelect`. End time auto-adjusts +1 hour when start time changes. Recurrence uses `RecurrencePicker` with contextual labels. Category uses `CategorySelect`.
+- **Task drawer** — `RecurrencePicker` added below due date field. `rrule` state wired. `onError` toast added to all four mutations (QA fix).
+- **Transactions tab** — Category input replaced with `CategorySelect` with custom-category support.
+
+**Existing utilities reused:** `buildRRule()` / `describeRRule()` from `packages/shared/src/utils/recurrence.ts`, `EVENT_CATEGORIES` / `BILL_CATEGORIES` from `packages/shared/src/constants/categories.ts`.
+
+### Web App — Sprint 19: Theme Sync + Dashboard CTA Fix — ✅ Complete
+
+Sprint 19 delivers two targeted fixes: cross-device theme synchronization and dashboard empty-state CTA buttons that directly open the relevant create drawers.
+
+**Fix 1 — Theme Sync Across Devices (`apps/web/components/household-guard.tsx`):**
+
+Theme was stored only in `localStorage`, so switching devices showed the default theme. `household-guard.tsx` now reads `profiles.theme` from the `household.getCurrent` response once the household resolves. If `localStorage` is empty, the DB value is applied to the DOM and written to `localStorage`. Existing `localStorage` values are not overwritten, preserving the fast-apply pattern.
+
+**Fix 2 — Dashboard CTA Buttons Open Drawers:**
+
+Empty-state action buttons on the dashboard previously navigated to the feature page without opening the create drawer. All four CTAs now include `?action=create` in the target href. Each feature page consumes the param with `useSearchParams`, auto-opens its create form/drawer on mount, then cleans the URL with `window.history.replaceState` to prevent re-opening on refresh.
+
+| File | Change |
+|---|---|
+| `components/dashboard-content.tsx` | Updated all 4 empty-state `actionHref` values to append `?action=create` |
+| `components/tasks/tasks-content.tsx` | `useSearchParams` → auto-open task drawer when `?action=create` present |
+| `components/calendar/calendar-content.tsx` | `useSearchParams` → auto-open event drawer when `?action=create` present |
+| `components/finances/finances-content.tsx` + `bills-tab.tsx` | `useSearchParams` → `autoCreate` prop → auto-open bill drawer |
+| `components/shopping/shopping-content.tsx` + `list-panel.tsx` | `useSearchParams` → `autoCreate` prop → auto-open new list form |
+
+**Infrastructure:**
+
+Custom domain `orbythq.com` configured via Cloudflare DNS pointing to Vercel (A record + CNAME). Both `orbythq.com` and `www.orbythq.com` resolve to the production deployment.
+
 ---
 
 ## 8. BRAND & DESIGN LANGUAGE
@@ -707,6 +764,8 @@ No secondary font. One font family, multiple weights. This keeps the app unified
 
 #### Calendar Event Category Colors
 
+As of Sprint 18, `EventCategorySchema` accepts any string up to 50 characters (freeform, not an enum). The presets below remain the standard options shown in `CategorySelect`. Custom categories fall back to the "Other" gray styling. Custom categories are surfaced via `calendar.listCategories`.
+
 | Category | Color | CSS |
 |---|---|---|
 | Family | `#8B5CF6` (violet) | `bg-violet-500/20 text-violet-400` |
@@ -719,7 +778,7 @@ No secondary font. One font family, multiple weights. This keeps the app unified
 
 #### Bill Category Values `[v3 NEW]`
 
-The `bills.category` column is `varchar(50)`. The following are the standard category values used throughout the app. The front-end should use these as a select dropdown, not a freetext field:
+The `bills.category` column is `varchar(50)`. The following are the standard preset category values. As of Sprint 18, categories are **freeform strings** — the `BillCategorySchema` validator accepts any `string` up to 50 characters, not just the preset list. The front-end uses the `CategorySelect` component which shows presets plus a custom-entry path. Custom categories are surfaced via `finances.listBillCategories`.
 
 `housing`, `utilities`, `insurance`, `subscriptions`, `food`, `transport`, `internet`, `water`, `phone`, `other`
 
@@ -1233,7 +1292,7 @@ All interactive elements keyboard-accessible. Drawers trap focus and return it o
 
 **Household ID:** `localStorage.getItem('orbyt-household-id')`. Set on login/register. Read by `providers.tsx`, sent as `x-household-id` header.
 
-**Theme:** `data-theme` attribute on `<html>`. Read from profile on load, persisted via `trpc.household.updateProfile`. Apply immediately with `document.documentElement.setAttribute('data-theme', name)`.
+**Theme:** `data-theme` attribute on `<html>`. Persisted via `trpc.household.updateProfile`. Applied immediately with `document.documentElement.setAttribute('data-theme', name)`. As of Sprint 19, `household-guard.tsx` seeds `localStorage` from `profiles.theme` on first load if `localStorage` is empty, enabling cross-device theme sync. Always update both the DOM attribute and `localStorage` together when the user changes their theme.
 
 **UI State (local):** `useState` for component-local state: drawer open/close, active tab, selected list, form inputs, view mode. Don't lift unless two distant components share it.
 
@@ -1247,7 +1306,7 @@ The following state values are accessed by multiple components across the app. T
 |---|---|---|---|---|
 | Household ID | `localStorage` key `orbyt-household-id` | `login-form.tsx`, `register-form.tsx`, invite accept | `providers.tsx` → `x-household-id` header on every tRPC call | Direct `localStorage` read |
 | Current User Profile | TanStack Query cache via `household.getCurrent` | `household.updateProfile` mutation → invalidates cache | Dashboard header (avatar, name), Settings profile tab, any component needing user info | `trpc.household.getCurrent.useQuery()` — the `members` array includes the current user. Filter by matching `userId` to Supabase auth user ID. |
-| Active Theme | `data-theme` attribute on `<html>` | Settings appearance tab → `updateProfile({ theme })` + `setAttribute` | All CSS via theme variables (automatic) | CSS variables resolve automatically. To read the current theme name in JS: `document.documentElement.getAttribute('data-theme')` |
+| Active Theme | `data-theme` attribute on `<html>` + `localStorage` key `orbyt-theme` + `profiles.theme` in DB | Settings appearance tab → `updateProfile({ theme })` + `setAttribute` + `localStorage.setItem` | All CSS via theme variables (automatic) | CSS variables resolve automatically. To read the current theme name in JS: `document.documentElement.getAttribute('data-theme')`. As of Sprint 19, `household-guard.tsx` syncs DB → `localStorage` on first load, enabling cross-device theme persistence. |
 | Sidebar Collapsed | Component-local `useState` in `sidebar.tsx` | Sidebar toggle button | Sidebar component only | Not shared. If future features need it, lift to a context provider in dashboard layout. |
 | Notification Unread Count | TanStack Query cache via `notifications.getUnread` (or computed from `notifications.list`) | Notification mutations (mark read) → invalidate | Dashboard header bell icon badge | `trpc.notifications.list.useQuery()` → filter `readAt === null` → `.length` |
 | AI Persona | Profile field `aiPersona` from `household.getCurrent` | Registration wizard, Settings profile tab | Empty state components (choose Rosie vs Eddie illustration) | Read from the current user's profile in the `getCurrent` response |
@@ -2108,32 +2167,90 @@ Six new tRPC procedures added to `packages/api/src/routers/integrations.ts`:
 - [ ] `pnpm turbo typecheck` passes
 - [ ] E2E: Create Orbyt event → verify event appears in connected Google/Microsoft calendar
 
-### Sprint 18 — Calendar Power Features 🔄 In Progress
+### Sprint 18 — UX Polish ✅ COMPLETED — February 2026
 
-**Goal:** NLP quick-add ("dentist tomorrow 3pm"), iCal import/export, mini calendar dashboard widget.
+**Estimated effort:** 1-2 days
+**Branch:** `main`
 
-**Deliverables:**
-1. `parseNaturalLanguageDate` API procedure — chrono-node NLP date parsing, returns pre-filled event fields
-2. `importIcal` API procedure — parse .ics string, bulk insert events with deduplication
-3. `exportIcal` API procedure — generate .ics string from household events
-4. NLP quick-add input above calendar — text input, calls parse, pre-populates event drawer on success
-5. Import/Export buttons on calendar page — file upload for import, download for export
-6. Mini calendar widget on dashboard — month grid with event dots, click navigates to calendar day
+Sprint 18 delivers five UX polish fixes: four new shared UI components and relaxed category validators enabling custom categories across events, bills, and transactions.
 
-**Key Packages (server-side only):**
-- `chrono-node` — NLP date/time parsing
-- `ical.js` — iCal (.ics) parser
-- `ical-generator` — iCal (.ics) generator
+#### 18A — New Shared UI Components
 
-**Performance Note:** All three packages must stay server-side only (imported in tRPC procedures). NOT in client bundle.
+| Component | File | Description |
+|---|---|---|
+| TimeSelect | `apps/web/components/ui/time-select.tsx` | Google Calendar-style 30-min interval time dropdown. 48 options, 12-hour display, 24-hour value |
+| RecurrencePicker | `apps/web/components/ui/recurrence-picker.tsx` | Shared RRULE dropdown with contextual labels from `referenceDate` (e.g., "Weekly on Tuesday"). Used by event, bill, and task drawers |
+| DayOfMonthPicker | `apps/web/components/ui/day-of-month-picker.tsx` | Visual 7×5 grid of days 1–31 for bill due date selection. 44px touch targets, accent ring on selected |
+| CategorySelect | `apps/web/components/ui/category-select.tsx` | Dropdown with preset + custom categories. "Other..." option reveals text input. Persists via `listCategories` API |
 
-**Acceptance Criteria:**
-- [ ] "Dentist tomorrow 3pm" creates event with correct date/time
-- [ ] .ics file import creates events in household calendar
-- [ ] .ics export downloads valid file openable in Google Calendar / Apple Calendar
-- [ ] Dashboard mini calendar shows event dots for days with events
-- [ ] All three packages excluded from client bundle (verified via performance audit)
-- [ ] Typecheck passes, QA PASS/WARN only, E2E tests pass
+#### 18B — Custom Category Support
+
+- `EventCategorySchema`, `BillCategorySchema`, `TransactionCategorySchema`, `BudgetCategorySchema` all changed from `z.enum([...])` to `z.string().min(1).max(50)`. No migration required (columns were already `varchar(50)`).
+- New API procedures: `calendar.listCategories`, `finances.listBillCategories`, `finances.listTransactionCategories` — each runs `SELECT DISTINCT category` for the household.
+
+#### 18C — Component Wiring
+
+- **Bill drawer** — `DayOfMonthPicker` for due date, `RecurrencePicker` (default `FREQ=MONTHLY`), `CategorySelect`
+- **Event drawer** — Split date/time fields using `TimeSelect`. End time auto-adjusts +1 hour when start changes. `RecurrencePicker` + `CategorySelect`
+- **Task drawer** — `RecurrencePicker` below due date, `rrule` state wired, `onError` toast on all 4 mutations
+- **Transactions tab** — `CategorySelect` with custom-category support
+- **Shopping `list-panel.tsx`** — "+ New List" header button hidden when no lists exist (EmptyState CTA handles first creation)
+
+#### Acceptance Criteria
+
+- [x] TimeSelect renders 48 options, selects correct 24-hour value
+- [x] RecurrencePicker shows contextual label (e.g., "Weekly on Tuesday") from referenceDate
+- [x] DayOfMonthPicker 7×5 grid renders days 1–31 with 44px targets
+- [x] CategorySelect shows presets + "Other..." custom path
+- [x] Custom categories persist and reappear in the dropdown via listCategories API
+- [x] Bill drawer uses DayOfMonthPicker + RecurrencePicker + CategorySelect
+- [x] Event drawer has split date/time + auto-adjust end time + RecurrencePicker + CategorySelect
+- [x] Task drawer has RecurrencePicker + onError toasts on all mutations
+- [x] `pnpm turbo typecheck` passes
+
+---
+
+### Sprint 19 — Theme Sync + Dashboard CTA Fix ✅ COMPLETED — February 2026
+
+**Estimated effort:** 0.5 days
+**Branch:** `main`
+
+Sprint 19 delivers two targeted fixes: cross-device theme persistence and dashboard empty-state CTA buttons that directly open the relevant create drawers.
+
+#### 19A — Theme Sync Across Devices
+
+**Problem:** Theme was only stored in `localStorage`. Opening the app on a new device showed the default theme.
+
+**Fix:** `apps/web/components/household-guard.tsx` now reads `profiles.theme` from the `household.getCurrent` response after the household resolves. If `localStorage` has no theme value, the DB value is applied to the DOM and written to `localStorage`. Existing `localStorage` values are not overwritten.
+
+#### 19B — Dashboard CTA Buttons Open Drawers
+
+**Problem:** Empty-state action buttons on the dashboard navigated to the feature page but did not open the create drawer.
+
+**Fix:** All four CTA hrefs now append `?action=create`. Each feature page reads the param with `useSearchParams` and auto-opens its create form/drawer on mount. The URL param is cleaned with `window.history.replaceState` after consumption.
+
+| File | Change |
+|---|---|
+| `components/dashboard-content.tsx` | All 4 `actionHref` values append `?action=create` |
+| `components/tasks/tasks-content.tsx` | `useSearchParams` → auto-open task drawer |
+| `components/calendar/calendar-content.tsx` | `useSearchParams` → auto-open event drawer |
+| `components/finances/finances-content.tsx` + `bills-tab.tsx` | `useSearchParams` → `autoCreate` prop → auto-open bill drawer |
+| `components/shopping/shopping-content.tsx` + `list-panel.tsx` | `useSearchParams` → `autoCreate` prop → auto-open new list form |
+
+#### 19C — Custom Domain
+
+`orbythq.com` and `www.orbythq.com` now point to the Vercel deployment via Cloudflare DNS (A record + CNAME).
+
+#### Acceptance Criteria
+
+- [x] Log in on a device with no localStorage → theme from DB is applied immediately
+- [x] Dashboard → "Add Your First Task" → lands on /tasks with task drawer open
+- [x] Dashboard → "Create an Event" → lands on /calendar with event drawer open
+- [x] Dashboard → "Add a Bill" → lands on /finances with bill drawer open
+- [x] Dashboard → "Create a List" → lands on /shopping with new-list form open
+- [x] URL param `?action=create` is cleaned from the address bar after the drawer opens
+- [x] `orbythq.com` resolves to the production app
+- [x] `pnpm turbo typecheck` passes
 
 ---
 
@@ -2543,6 +2660,16 @@ Input: `{ daysAhead: number }` (default 30)
 Output: `Array<{ ...Bill, nextDueDate: Date }>` sorted by `nextDueDate` ASC
 Notes: Not documented in original bible. Filters active bills to those with `nextDueDate` within `daysAhead` days.
 
+**`finances.listBillCategories`** — Procedure: `householdProcedure` `[Sprint 18 NEW]`
+Input: none
+Output: `string[]` — distinct non-null category values from the household's bills, sorted alphabetically
+Notes: Powers the `CategorySelect` component's custom-category suggestions in the bill drawer.
+
+**`finances.listTransactionCategories`** — Procedure: `householdProcedure` `[Sprint 18 NEW]`
+Input: none
+Output: `string[]` — distinct non-null category values from the household's transactions, sorted alphabetically
+Notes: Powers the `CategorySelect` component's custom-category suggestions in the transactions tab.
+
 ### 17.3 Calendar Router (`packages/api/src/routers/calendar.ts`)
 
 **`calendar.list`** — Procedure: `householdProcedure`
@@ -2572,6 +2699,11 @@ Input: `DeleteEventSchema` — `{ id: string }`
 Output: `{ success: true }`
 Errors: `NOT_FOUND`
 Notes: Hard delete.
+
+**`calendar.listCategories`** — Procedure: `householdProcedure` `[Sprint 18 NEW]`
+Input: none
+Output: `string[]` — distinct non-null category values from the household's events, sorted alphabetically
+Notes: Powers the `CategorySelect` component's custom-category suggestions in the event drawer.
 
 ### 17.4 Contacts Router (`packages/api/src/routers/contacts.ts`)
 
@@ -3239,6 +3371,12 @@ Financial savings goals (already built in the Finances module) would automatical
 | `calendar.update` recurrence exceptions | Incomplete | Low | Phase 2 | "this" / "this_and_future" have TODO |
 | AI schema tables unused | Intentional | N/A | Phase 3 | `ai_conversations`, `ai_messages` — do not modify |
 | Mobile app | Phase 2 | N/A | — | `apps/mobile/` empty |
+| Theme persistence across devices | Fixed | Done | Sprint 19 | `household-guard.tsx` seeds localStorage from `profiles.theme` on first load |
+| Dashboard CTAs don't open drawers | Fixed | Done | Sprint 19 | `?action=create` param consumed by each feature page |
+| Category fields are enum-only | Fixed | Done | Sprint 18 | All category validators relaxed to `z.string().min(1).max(50)` |
+| No time picker on event form | Fixed | Done | Sprint 18 | `TimeSelect` component with 30-min intervals |
+| Bill due date is plain number input | Fixed | Done | Sprint 18 | `DayOfMonthPicker` visual 7×5 grid |
+| Recurrence UI not shared across features | Fixed | Done | Sprint 18 | `RecurrencePicker` used by event, bill, and task drawers |
 
 ---
 
@@ -3921,6 +4059,13 @@ These gates should be verified by the QA reviewer agent (`.claude/agents/qa-revi
 ## 27. GIT COMMIT HISTORY
 
 ```
+(Sprint 19)  Sprint 19: Theme sync across devices + dashboard CTA drawer open
+(Sprint 18)  Sprint 18: UX Polish — TimeSelect, RecurrencePicker, DayOfMonthPicker, CategorySelect, custom categories
+b1a70d9  Sprint 13: Fix open issues — avatar picker, E2E expansion, bible cleanup
+afd5cb4  Sprint 12: Analytics charts, CSV import & final polish
+a9822d8  Sprint 11: Toggleable finance modules — net worth, debt planner, goals edit
+a5c08f5  Sprint 10B: Bill-task integration — auto-create, auto-complete, paid notifications
+1fe3aea  Sprint 10: Household finance features — expense splitting, ownership, member filters
 f235458  Sprint 4A: Tasks feature page — Kanban board + list view
 d00c984  Add standard Next.js TypeScript compiler options
 a688be3  Sprint 3: wire dashboard to real tRPC data
@@ -4007,4 +4152,4 @@ claude --continue                       # Continue most recent
 
 ---
 
-*END OF ORBYT PROJECT BIBLE v3.0*
+*END OF ORBYT PROJECT BIBLE v3.1*
