@@ -3,7 +3,16 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   // Allow imports from workspace packages
-  transpilePackages: ["@orbyt/ui", "@orbyt/shared"],
+  transpilePackages: ["@orbyt/ui", "@orbyt/shared", "@orbyt/api"],
+
+  // Resolve .js imports to .ts files (NodeNext moduleResolution compatibility)
+  webpack: (config) => {
+    config.resolve.extensionAlias = {
+      ".js": [".ts", ".tsx", ".js", ".jsx"],
+      ".mjs": [".mts", ".mjs"],
+    };
+    return config;
+  },
 
   // Image domains for Supabase Storage
   images: {
