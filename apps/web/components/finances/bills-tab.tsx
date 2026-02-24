@@ -205,7 +205,7 @@ export function BillsTab({ autoCreate = false }: { autoCreate?: boolean }) {
       openCreate();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoCreate]);
+  }, []);
 
   return (
     <>
