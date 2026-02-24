@@ -6,4 +6,5 @@ export * from "./shopping";
 export * from "./contacts";
 export * from "./notifications";
 export * from "./ai";
+export * from "./integrations";
 export * from "./relations";

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import * as Tabs from "@radix-ui/react-tabs";
 import { motion } from "framer-motion";
-import { trpc } from "@/lib/trpc/client";
 
 // ── Tab imports ───────────────────────────────────────────────────────────────
 
@@ -11,6 +11,7 @@ import { ProfileTab } from "./profile-tab";
 import { HouseholdTab } from "./household-tab";
 import { AppearanceTab } from "./appearance-tab";
 import { NotificationsTab } from "./notifications-tab";
+import { IntegrationsTab } from "./integrations-tab";
 
 // ── Tabs config ───────────────────────────────────────────────────────────────
 
@@ -19,14 +20,24 @@ const TABS = [
   { id: "household", label: "Household" },
   { id: "appearance", label: "Appearance" },
   { id: "notifications", label: "Notifications" },
+  { id: "integrations", label: "Integrations" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
+const VALID_TAB_IDS = new Set<string>(TABS.map((t) => t.id));
+
 // ── SettingsContent ───────────────────────────────────────────────────────────
 
 export function SettingsContent() {
-  const [activeTab, setActiveTab] = useState<TabId>("profile");
+  const searchParams = useSearchParams();
+
+  // Resolve initial tab from URL param (e.g. /settings?tab=integrations from OAuth callback)
+  const tabParam = searchParams.get("tab");
+  const initialTab: TabId =
+    tabParam && VALID_TAB_IDS.has(tabParam) ? (tabParam as TabId) : "profile";
+
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
   return (
     <motion.div
@@ -70,6 +81,9 @@ export function SettingsContent() {
         </Tabs.Content>
         <Tabs.Content value="notifications" className="mt-6 focus:outline-none">
           <NotificationsTab />
+        </Tabs.Content>
+        <Tabs.Content value="integrations" className="mt-6 focus:outline-none">
+          <IntegrationsTab />
         </Tabs.Content>
       </Tabs.Root>
     </motion.div>

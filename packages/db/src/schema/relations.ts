@@ -12,6 +12,7 @@ import { shoppingLists, shoppingItems } from "./shopping";
 import { contacts, contactRelationships, contactNotes } from "./contacts";
 import { notifications, pushTokens } from "./notifications";
 import { aiConversations, aiMessages } from "./ai";
+import { connectedAccounts, externalEvents } from "./integrations";
 
 // --- Profiles ---
 export const profilesRelations = relations(profiles, ({ many }) => ({
@@ -22,6 +23,7 @@ export const profilesRelations = relations(profiles, ({ many }) => ({
   notifications: many(notifications),
   pushTokens: many(pushTokens),
   aiConversations: many(aiConversations),
+  connectedAccounts: many(connectedAccounts),
 }));
 
 // --- Households ---
@@ -341,5 +343,25 @@ export const aiMessagesRelations = relations(aiMessages, ({ one }) => ({
   conversation: one(aiConversations, {
     fields: [aiMessages.conversationId],
     references: [aiConversations.id],
+  }),
+}));
+
+// --- Integrations ---
+export const connectedAccountsRelations = relations(connectedAccounts, ({ one, many }) => ({
+  profile: one(profiles, {
+    fields: [connectedAccounts.userId],
+    references: [profiles.id],
+  }),
+  externalEvents: many(externalEvents),
+}));
+
+export const externalEventsRelations = relations(externalEvents, ({ one }) => ({
+  connectedAccount: one(connectedAccounts, {
+    fields: [externalEvents.connectedAccountId],
+    references: [connectedAccounts.id],
+  }),
+  profile: one(profiles, {
+    fields: [externalEvents.userId],
+    references: [profiles.id],
   }),
 }));

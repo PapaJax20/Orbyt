@@ -521,9 +521,13 @@ Sprint 14 delivers a fully polished calendar experience: drag-and-drop event man
 
 Sprint 15 adds push notification infrastructure (web-push + VAPID, Vercel cron for reminder dispatch, service worker push/notificationclick handlers), a NotificationCenter bell in the header with unread badge, per-event `reminderMinutes` field, and a full Notifications settings tab with opt-out preference toggles.
 
-### Web App — Sprint 16: Calendar Intelligence — 🔄 In Progress
+### Web App — Sprint 16: Calendar Intelligence — ✅ Complete
 
 Sprint 16 delivers a unified Smart Agenda view aggregating events, bills, tasks, and contact birthdays/anniversaries into a single day-grouped feed with typed icons. Adds `calendar.getAgendaItems` procedure, recurring event exception handling (edit/delete "this only" and "this and future"), member color coding via `displayColor`, and a recurrence mode picker in the event drawer.
+
+### Web App — Sprint 17A: Google/Outlook Calendar Sync (OAuth + Read Import) — 🔄 In Progress
+
+Sprint 17A integrates third-party calendar providers (Google Calendar, Microsoft Outlook) via OAuth2, enabling users to sync and view read-only external events alongside their Orbyt calendar. Includes token storage and refresh, calendar event sync, and a dedicated Integrations settings tab.
 
 ---
 
@@ -1818,9 +1822,120 @@ Sprint 16 transforms the calendar into a true household intelligence hub by unif
 - [ ] Recurrence mode picker is keyboard-accessible (Radix Dialog)
 - [ ] `pnpm turbo typecheck` passes
 
-### Sprint 17 — Google Calendar & Outlook Sync 🔜
+### Sprint 17A — Google Calendar & Outlook Sync (OAuth + Read Import) 🔜
 
-Google Calendar OAuth + 2-way sync, Outlook Calendar OAuth + 2-way sync, Google/Outlook contacts import, connected accounts settings UI, multiple calendar layers.
+**Estimated effort:** 4 days
+**Branch:** `main`
+
+Sprint 17A integrates Google Calendar and Microsoft Outlook via OAuth2 PKCE (Google) / Authorization Code (Microsoft) flows. Users can authorize their accounts, and Orbyt syncs external calendar events as read-only records, displaying them in the calendar UI with distinct visual treatment. Refresh tokens are stored encrypted; access tokens are refreshed automatically. Phase 1 focuses on read-only sync; bidirectional write-back is deferred to Sprint 17B.
+
+#### 17A-A — `connected_accounts` Table
+
+New Drizzle schema in `packages/db/src/schema/`:
+```sql
+create table connected_accounts (
+  id uuid primary key default gen_random_uuid(),
+  householdId uuid not null references households(id) on delete cascade,
+  userId uuid not null references auth.users(id) on delete cascade,
+  provider text not null, -- 'google' | 'microsoft'
+  providerAccountId text not null, -- user's ID at the provider (email or account ID)
+  accessToken text not null, -- encrypted with AES-256-GCM
+  refreshToken text not null, -- encrypted with AES-256-GCM
+  tokenExpiresAt timestamp not null,
+  syncStatus text default 'pending', -- 'pending' | 'syncing' | 'synced' | 'error'
+  lastSyncedAt timestamp,
+  lastError text,
+  createdAt timestamp default now(),
+  updatedAt timestamp default now(),
+  constraint unique_provider_account unique(householdId, provider, providerAccountId)
+);
+```
+
+Validator: `packages/shared/src/validators/integration.ts` with Zod shapes for OAuth callback payloads and sync request bodies.
+
+#### 17A-B — `external_events` Table
+
+New Drizzle schema to store read-only synced events:
+```sql
+create table external_events (
+  id uuid primary key default gen_random_uuid(),
+  householdId uuid not null references households(id) on delete cascade,
+  connectedAccountId uuid not null references connected_accounts(id) on delete cascade,
+  externalId text not null, -- e.g., Google event ID
+  title text not null,
+  description text,
+  startTime timestamp not null,
+  endTime timestamp not null,
+  isAllDay boolean default false,
+  recurrenceRule text, -- iCal RRULE for recurring external events
+  organizer text, -- organizer name/email
+  attendees jsonb, -- array of {email, responseStatus}
+  lastSyncedAt timestamp,
+  createdAt timestamp default now(),
+  updatedAt timestamp default now(),
+  constraint unique_external_event unique(connectedAccountId, externalId)
+);
+```
+
+#### 17A-C — Integrations Router
+
+New tRPC router in `packages/api/src/routers/integrations.ts` with procedures:
+
+- `getAuthUrl(provider)` — Returns OAuth authorization URL (PKCE-generated code challenge for Google, standard Authorization Code for Microsoft)
+- `handleCallback({ provider, code, codeVerifier })` — Exchanges auth code for tokens, stores encrypted tokens in `connected_accounts`, triggers initial sync
+- `listConnectedAccounts()` — Returns user's connected accounts (scoped to household) with sync status and last-synced timestamp
+- `disconnectAccount(connectedAccountId)` — Deletes account + associated external events
+- `syncNow(connectedAccountId)` — Manually trigger sync from specified provider; returns job status
+- `listExternalEvents({ startDate, endDate, connectedAccountId? })` — Fetch synced external events for date range; optionally filter by account
+- `refreshAccessToken(connectedAccountId)` — Internal procedure to refresh expired token before API call (called automatically during sync)
+
+#### 17A-D — Settings Integrations Tab
+
+New component in `apps/web/components/settings/integrations-tab.tsx`:
+- Display list of connected accounts with provider icon, email/account ID, sync status badge, last-synced time
+- "Connect Google" and "Connect Microsoft" buttons that trigger OAuth flow via `getAuthUrl`
+- "Disconnect" button per account (with confirmation modal)
+- "Sync Now" button per account
+- If sync is in progress, show spinner; if error, show error message with retry button
+- Empty state: "No integrations connected — link your calendar to sync external events."
+
+UI pattern: Cards with provider branding (Google blue, Microsoft teal), account email in smaller text, status badge (Syncing, Synced 2 min ago, Error).
+
+#### 17A-E — External Events Merged into Calendar View
+
+Merge external events with internal Orbyt events in calendar display:
+- External events render with dashed border (`border-dashed`) and muted colors (`opacity-75`, `text-muted`)
+- Hover state shows organizer name + "External event — read-only"
+- Click does not open the event drawer (external events are immutable in Phase 1)
+- External events appear in all calendar views: Month, Week, Day, Agenda, List
+- No drag-and-drop for external events; clicks are ignored for edit intent
+
+In `apps/web/components/calendar/calendar-content.tsx`, merge the results of `calendar.listEvents` and `integrations.listExternalEvents` by date range before rendering.
+
+#### 17A-F — OAuth Callback Routes
+
+Two new catch-all routes in the Next.js app:
+- `apps/web/app/auth/oauth/google/callback/route.ts` — Handles GET redirect from Google OAuth with `code` and `state`. Calls `integrations.handleCallback({ provider: "google", code, codeVerifier })`, stores session token, redirects to `/settings/integrations` with success toast.
+- `apps/web/app/auth/oauth/microsoft/callback/route.ts` — Handles GET redirect from Microsoft OAuth with `code` and `state`. Same flow for Microsoft.
+
+#### Acceptance Criteria
+
+- [ ] `connected_accounts` table exists with encrypted token storage (AES-256-GCM via INTEGRATION_ENCRYPTION_KEY)
+- [ ] `external_events` table mirrors Google Calendar and Microsoft Outlook events
+- [ ] `integrations.getAuthUrl` generates valid OAuth URLs with PKCE (Google) and Authorization Code (Microsoft) parameters
+- [ ] OAuth callback routes exchange code for tokens, store encrypted tokens, and trigger initial sync
+- [ ] `integrations.listConnectedAccounts` returns accounts with sync status and last-synced timestamp
+- [ ] `integrations.syncNow` fetches events from Google Calendar API or Microsoft Graph API and stores them in `external_events`
+- [ ] `integrations.refreshAccessToken` automatically refreshes expired tokens before API calls
+- [ ] Settings Integrations tab displays connected accounts, allows connect/disconnect, and shows sync status
+- [ ] External events appear in Calendar Month, Week, Day, Agenda, and List views with dashed border and muted styling
+- [ ] External events are read-only (no drag, no edit, click is ignored)
+- [ ] `pnpm turbo typecheck` passes
+- [ ] E2E test: Connect Google account, verify sync completes, verify external events appear in calendar
+
+### Sprint 17B — Calendar Sync Write-Back & Contacts Import 🔜
+
+Write external events back to Google/Microsoft calendars, bi-directional sync conflict resolution, import Google/Outlook contacts to Orbyt.
 
 ### Sprint 18 — Calendar Power Features 🔜
 

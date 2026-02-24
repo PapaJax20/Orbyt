@@ -32,6 +32,10 @@ const FullCalendar = dynamic(() => import("./full-calendar-wrapper"), { ssr: fal
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type CalendarEvent = RouterOutput["calendar"]["list"][number];
+type ExternalEvent = RouterOutput["integrations"]["listExternalEvents"][number];
+
+/** Neutral slate color for all external calendar events */
+const EXTERNAL_EVENT_COLOR = "#64748B";
 
 // ── CSS overrides for FullCalendar theming ────────────────────────────────────
 
@@ -56,6 +60,7 @@ const calendarStyles = `
   .fc-list-empty { background: transparent; }
   .fc-list-event-title a { color: var(--color-text); text-decoration: none; }
   .fc-list-day-cushion { background: var(--color-surface) !important; color: var(--color-text-muted); font-size: 0.8125rem; }
+  .fc-event.fc-event-external { opacity: 0.75; border: 1px dashed var(--color-border) !important; }
 `;
 
 // ── Popover state type ────────────────────────────────────────────────────────
@@ -256,6 +261,12 @@ export function CalendarContent() {
     endDate: dateRange.end,
   });
 
+  // Query external events from connected calendars (Google/Microsoft)
+  const { data: externalEventsData } = trpc.integrations.listExternalEvents.useQuery({
+    startDate: dateRange.start,
+    endDate: dateRange.end,
+  });
+
   // Search query
   const { data: searchResults } = trpc.calendar.search.useQuery(
     { query: debouncedSearch },
@@ -322,6 +333,31 @@ export function CalendarContent() {
       };
     }) ?? [];
 
+  // Map external events to FullCalendar EventInput format
+  const externalCalendarEvents: EventInput[] =
+    externalEventsData?.map((event: ExternalEvent) => ({
+      id: `ext-${event.id}`,
+      title: event.title,
+      start: event.startAt instanceof Date ? event.startAt.toISOString() : String(event.startAt),
+      end: event.endAt
+        ? (event.endAt instanceof Date ? event.endAt.toISOString() : String(event.endAt))
+        : undefined,
+      allDay: event.allDay,
+      backgroundColor: EXTERNAL_EVENT_COLOR,
+      borderColor: "transparent",
+      textColor: "#ffffff",
+      editable: false,
+      classNames: ["fc-event-external"],
+      extendedProps: {
+        isExternal: true,
+        category: "external",
+        location: event.location ?? undefined,
+      },
+    })) ?? [];
+
+  // Merge Orbyt events with external calendar events
+  const allCalendarEvents: EventInput[] = [...calendarEvents, ...externalCalendarEvents];
+
   // Toolbar handlers
   const handlePrev = useCallback(() => {
     calendarRef.current?.getApi().prev();
@@ -356,6 +392,13 @@ export function CalendarContent() {
   }, []);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
+    // External events are read-only — show info toast instead of opening the drawer
+    if (info.event.extendedProps?.isExternal) {
+      toast.info(`External event: ${info.event.title}`, {
+        description: "This event is synced from an external calendar and cannot be edited in Orbyt.",
+      });
+      return;
+    }
     setSelectedDate(null);
     setSelectedEventId(info.event.id);
     setDrawerOpen(true);
@@ -523,7 +566,7 @@ export function CalendarContent() {
                 initialView={view}
                 headerToolbar={false}
                 height={isMobile ? "calc(100vh - 344px)" : "calc(100vh - 280px)"}
-                events={calendarEvents}
+                events={allCalendarEvents}
                 dateClick={handleDateClick}
                 eventClick={handleEventClick}
                 datesSet={handleDatesSet}
