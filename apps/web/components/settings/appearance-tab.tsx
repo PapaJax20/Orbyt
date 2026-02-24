@@ -51,6 +51,7 @@ export function AppearanceTab() {
     const profileTheme = me?.profile?.theme;
     if (profileTheme) {
       setActiveTheme(profileTheme as Theme);
+      localStorage.setItem("orbyt-theme", profileTheme);
     }
   }, [me?.profile?.theme]);
 
@@ -66,6 +67,7 @@ export function AppearanceTab() {
     setActiveTheme(theme);
     // Immediately apply to DOM
     document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("orbyt-theme", theme);
     // Persist
     updateProfile.mutate({ theme });
   }

@@ -16,6 +16,14 @@ export function HouseholdGuard({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Apply saved theme immediately on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("orbyt-theme");
+    if (saved) {
+      document.documentElement.setAttribute("data-theme", saved);
+    }
+  }, []);
+
   const householdsQuery = trpc.household.list.useQuery(undefined, {
     retry: 1,
   });
