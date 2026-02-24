@@ -47,7 +47,10 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head />
+      <head>
+        {/* Blocking script to prevent theme FOUC — runs before first paint */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('orbyt-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}})()` }} />
+      </head>
       <body
         className={`${urbanist.variable} font-body`}
         suppressHydrationWarning

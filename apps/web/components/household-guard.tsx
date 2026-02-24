@@ -18,14 +18,6 @@ export function HouseholdGuard({ children }: { children: React.ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
 
-  // Apply saved theme immediately on mount (fast paint for returning devices)
-  useEffect(() => {
-    const saved = localStorage.getItem("orbyt-theme");
-    if (saved) {
-      document.documentElement.setAttribute("data-theme", saved);
-    }
-  }, []);
-
   // Fetch the current user's auth ID so we can locate their profile in the members list
   useEffect(() => {
     createClient()
