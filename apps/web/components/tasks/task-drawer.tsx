@@ -8,6 +8,7 @@ import type { inferRouterOutputs } from "@trpc/server";
 import { trpc } from "@/lib/trpc/client";
 import { Drawer } from "@/components/ui/drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { RecurrencePicker } from "@/components/ui/recurrence-picker";
 import { formatFriendlyDate } from "@orbyt/shared/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -97,6 +98,7 @@ export function TaskDrawer({
   const [priority, setPriority]       = useState("medium");
   const [status, setStatus]           = useState(defaultStatus);
   const [dueAt, setDueAt]             = useState("");
+  const [rrule, setRrule]             = useState("");
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [newComment, setNewComment]   = useState("");
   const [isEditing, setIsEditing]     = useState(false);
@@ -110,6 +112,7 @@ export function TaskDrawer({
       setPriority("medium");
       setStatus(defaultStatus);
       setDueAt("");
+      setRrule("");
       setAssigneeIds([]);
       setIsEditing(false);
     }
@@ -124,6 +127,7 @@ export function TaskDrawer({
       setDueAt(
         task.dueAt ? new Date(task.dueAt).toISOString().split("T")[0]! : "",
       );
+      setRrule((task.rrule ?? "").replace(/^RRULE:/i, ""));
       setAssigneeIds(task.assignees.map((a) => a.userId));
       setIsEditing(false);
     }
@@ -151,6 +155,7 @@ export function TaskDrawer({
       dueAt: dueAt ? new Date(dueAt).toISOString() : null,
       assigneeIds,
       tags: [] as string[],
+      rrule: rrule || null,
     };
 
     if (isCreating) {
@@ -242,6 +247,18 @@ export function TaskDrawer({
           value={dueAt}
           onChange={(e) => setDueAt(e.target.value)}
           className="orbyt-input w-full"
+        />
+      </div>
+
+      {/* Recurrence */}
+      <div>
+        <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-text-muted">
+          Repeats
+        </label>
+        <RecurrencePicker
+          value={rrule}
+          onChange={setRrule}
+          referenceDate={dueAt ? new Date(dueAt) : undefined}
         />
       </div>
 

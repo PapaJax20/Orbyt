@@ -7,6 +7,10 @@ import { trpc } from "@/lib/trpc/client";
 import { createClient } from "@/lib/supabase/client";
 import { Drawer } from "@/components/ui/drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { TimeSelect } from "@/components/ui/time-select";
+import { RecurrencePicker } from "@/components/ui/recurrence-picker";
+import { CategorySelect } from "@/components/ui/category-select";
+import { EVENT_CATEGORIES } from "@orbyt/shared/constants";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@orbyt/api";
 import { getCategoryColor } from "@/lib/calendar-colors";
@@ -17,26 +21,7 @@ type EventDetail = RouterOutput["calendar"]["getById"];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const CATEGORIES = [
-  "family",
-  "work",
-  "medical",
-  "school",
-  "social",
-  "sports",
-  "holiday",
-  "birthday",
-  "other",
-] as const;
-type EventCategory = (typeof CATEGORIES)[number];
-
-const RECURRENCE_OPTIONS = [
-  { label: "Does not repeat", value: "" },
-  { label: "Daily", value: "FREQ=DAILY" },
-  { label: "Weekly", value: "FREQ=WEEKLY" },
-  { label: "Monthly", value: "FREQ=MONTHLY" },
-  { label: "Yearly", value: "FREQ=YEARLY" },
-];
+type EventCategory = string;
 
 const COLOR_SWATCHES = [
   "",
@@ -245,10 +230,14 @@ function RecurrenceModePicker({
 function EventFormFields({
   title,
   setTitle,
-  startAt,
-  setStartAt,
-  endAt,
-  setEndAt,
+  startDate,
+  setStartDate,
+  startTime,
+  setStartTime,
+  endDate,
+  setEndDate,
+  endTime,
+  setEndTime,
   allDay,
   setAllDay,
   category,
@@ -272,10 +261,14 @@ function EventFormFields({
 }: {
   title: string;
   setTitle: (v: string) => void;
-  startAt: string;
-  setStartAt: (v: string) => void;
-  endAt: string;
-  setEndAt: (v: string) => void;
+  startDate: string;
+  setStartDate: (v: string) => void;
+  startTime: string;
+  setStartTime: (v: string) => void;
+  endDate: string;
+  setEndDate: (v: string) => void;
+  endTime: string;
+  setEndTime: (v: string) => void;
   allDay: boolean;
   setAllDay: (v: boolean) => void;
   category: EventCategory;
@@ -297,6 +290,7 @@ function EventFormFields({
   onSubmit: (e: React.FormEvent) => void;
   onCancel?: () => void;
 }) {
+  const { data: customCats } = trpc.calendar.listCategories.useQuery();
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4 pb-6">
       {/* Title */}
@@ -342,24 +336,30 @@ function EventFormFields({
       {!allDay ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label className="orbyt-label" htmlFor="event-start">Start</label>
-            <input
-              id="event-start"
-              type="datetime-local"
-              value={startAt}
-              onChange={(e) => setStartAt(e.target.value)}
-              className="orbyt-input mt-1 w-full"
-            />
+            <label className="orbyt-label" htmlFor="event-start-date">Start</label>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <input
+                id="event-start-date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="orbyt-input"
+              />
+              <TimeSelect value={startTime} onChange={setStartTime} id="event-start-time" />
+            </div>
           </div>
           <div>
-            <label className="orbyt-label" htmlFor="event-end">End</label>
-            <input
-              id="event-end"
-              type="datetime-local"
-              value={endAt}
-              onChange={(e) => setEndAt(e.target.value)}
-              className="orbyt-input mt-1 w-full"
-            />
+            <label className="orbyt-label" htmlFor="event-end-date">End</label>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <input
+                id="event-end-date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="orbyt-input"
+              />
+              <TimeSelect value={endTime} onChange={setEndTime} id="event-end-time" />
+            </div>
           </div>
         </div>
       ) : (
@@ -368,10 +368,10 @@ function EventFormFields({
           <input
             id="event-date"
             type="date"
-            value={startAt.slice(0, 10)}
+            value={startDate}
             onChange={(e) => {
-              setStartAt(`${e.target.value}T00:00`);
-              setEndAt(`${e.target.value}T00:00`);
+              setStartDate(e.target.value);
+              setEndDate(e.target.value);
             }}
             className="orbyt-input mt-1 w-full"
           />
@@ -380,17 +380,14 @@ function EventFormFields({
 
       {/* Category */}
       <div>
-        <label className="orbyt-label" htmlFor="event-category">Category</label>
-        <select
-          id="event-category"
+        <CategorySelect
           value={category}
-          onChange={(e) => setCategory(e.target.value as EventCategory)}
-          className="orbyt-input mt-1 w-full capitalize"
-        >
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c} className="capitalize">{c}</option>
-          ))}
-        </select>
+          onChange={(v) => setCategory(v as EventCategory)}
+          presets={EVENT_CATEGORIES}
+          customCategories={customCats ?? []}
+          label="Category"
+          id="event-category"
+        />
       </div>
 
       {/* Custom Color */}
@@ -429,17 +426,13 @@ function EventFormFields({
 
       {/* Recurrence */}
       <div>
-        <label className="orbyt-label" htmlFor="event-recurrence">Recurrence</label>
-        <select
-          id="event-recurrence"
+        <label className="orbyt-label">Recurrence</label>
+        <RecurrencePicker
           value={rrule}
-          onChange={(e) => setRrule(e.target.value)}
-          className="orbyt-input mt-1 w-full"
-        >
-          {RECURRENCE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
+          onChange={setRrule}
+          referenceDate={new Date(`${startDate}T${startTime}`)}
+          className="mt-1"
+        />
       </div>
 
       {/* Attendees */}
@@ -509,13 +502,15 @@ function CreateEventForm({
 }) {
   const utils = trpc.useUtils();
 
-  const defaultStart = defaultDate.includes("T")
-    ? defaultDate
-    : `${defaultDate}T09:00`;
+  const defaultDatePart = defaultDate.slice(0, 10);
+  const defaultTimePart = defaultDate.includes("T") ? defaultDate.slice(11, 16) : "09:00";
 
   const [title, setTitle] = useState(defaultTitle ?? "");
-  const [startAt, setStartAt] = useState(defaultStart);
-  const [endAt, setEndAt] = useState(`${defaultDate.slice(0, 10)}T10:00`);
+  const [startDate, setStartDate] = useState(defaultDatePart);
+  const [startTime, setStartTime] = useState(defaultTimePart);
+  const [endDate, setEndDate] = useState(defaultDatePart);
+  const [endTime, setEndTime] = useState("10:00");
+  const [userSetEnd, setUserSetEnd] = useState(false);
   const [allDay, setAllDay] = useState(false);
   const [category, setCategory] = useState<EventCategory>("family");
   const [description, setDescription] = useState("");
@@ -524,6 +519,25 @@ function CreateEventForm({
   const [color, setColor] = useState("");
   const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
   const [reminderMinutes, setReminderMinutes] = useState<number[]>([]);
+
+  function handleStartTimeChange(newTime: string) {
+    setStartTime(newTime);
+    if (!userSetEnd) {
+      const [h, m] = newTime.split(":").map(Number);
+      const endH = (h! + 1) % 24;
+      setEndTime(`${String(endH).padStart(2, "0")}:${String(m!).padStart(2, "0")}`);
+      if (endH < h!) {
+        const nextDay = new Date(startDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        setEndDate(nextDay.toISOString().slice(0, 10));
+      }
+    }
+  }
+
+  function handleEndTimeChange(newTime: string) {
+    setEndTime(newTime);
+    setUserSetEnd(true);
+  }
 
   const createEvent = trpc.calendar.create.useMutation({
     onSuccess: () => {
@@ -553,8 +567,8 @@ function CreateEventForm({
     if (!title.trim()) return;
     createEvent.mutate({
       title: title.trim(),
-      startAt: toISO(startAt),
-      endAt: allDay ? undefined : toISO(endAt),
+      startAt: toISO(`${startDate}T${startTime}`),
+      endAt: allDay ? undefined : toISO(`${endDate}T${endTime}`),
       allDay,
       category,
       description: description.trim() || undefined,
@@ -570,10 +584,14 @@ function CreateEventForm({
     <EventFormFields
       title={title}
       setTitle={setTitle}
-      startAt={startAt}
-      setStartAt={setStartAt}
-      endAt={endAt}
-      setEndAt={setEndAt}
+      startDate={startDate}
+      setStartDate={setStartDate}
+      startTime={startTime}
+      setStartTime={handleStartTimeChange}
+      endDate={endDate}
+      setEndDate={setEndDate}
+      endTime={endTime}
+      setEndTime={handleEndTimeChange}
       allDay={allDay}
       setAllDay={setAllDay}
       category={category}
@@ -612,11 +630,15 @@ function EditEventForm({
 }) {
   const utils = trpc.useUtils();
 
+  const existingStart = toDatetimeLocal(event.startAt);
+  const existingEnd = event.endAt ? toDatetimeLocal(event.endAt) : existingStart;
+
   const [title, setTitle] = useState(event.title);
-  const [startAt, setStartAt] = useState(toDatetimeLocal(event.startAt));
-  const [endAt, setEndAt] = useState(
-    event.endAt ? toDatetimeLocal(event.endAt) : toDatetimeLocal(event.startAt),
-  );
+  const [startDate, setStartDate] = useState(existingStart.slice(0, 10));
+  const [startTime, setStartTime] = useState(existingStart.slice(11, 16));
+  const [endDate, setEndDate] = useState(existingEnd.slice(0, 10));
+  const [endTime, setEndTime] = useState(existingEnd.slice(11, 16));
+  const [userSetEnd, setUserSetEnd] = useState(true); // editing = user already set the end
   const [allDay, setAllDay] = useState(event.allDay);
   const [category, setCategory] = useState<EventCategory>(
     (event.category as EventCategory) ?? "other",
@@ -657,6 +679,25 @@ function EditEventForm({
     );
   }
 
+  function handleStartTimeChange(newTime: string) {
+    setStartTime(newTime);
+    if (!userSetEnd) {
+      const [h, m] = newTime.split(":").map(Number);
+      const endH = (h! + 1) % 24;
+      setEndTime(`${String(endH).padStart(2, "0")}:${String(m!).padStart(2, "0")}`);
+      if (endH < h!) {
+        const nextDay = new Date(startDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        setEndDate(nextDay.toISOString().slice(0, 10));
+      }
+    }
+  }
+
+  function handleEndTimeChange(newTime: string) {
+    setEndTime(newTime);
+    setUserSetEnd(true);
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
@@ -678,8 +719,8 @@ function EditEventForm({
       instanceDate: new Date(event.startAt).toISOString(),
       data: {
         title: title.trim(),
-        startAt: toISO(startAt),
-        endAt: allDay ? undefined : toISO(endAt),
+        startAt: toISO(`${startDate}T${startTime}`),
+        endAt: allDay ? undefined : toISO(`${endDate}T${endTime}`),
         allDay,
         category,
         description: description.trim() || undefined,
@@ -697,10 +738,14 @@ function EditEventForm({
     <EventFormFields
       title={title}
       setTitle={setTitle}
-      startAt={startAt}
-      setStartAt={setStartAt}
-      endAt={endAt}
-      setEndAt={setEndAt}
+      startDate={startDate}
+      setStartDate={setStartDate}
+      startTime={startTime}
+      setStartTime={handleStartTimeChange}
+      endDate={endDate}
+      setEndDate={setEndDate}
+      endTime={endTime}
+      setEndTime={handleEndTimeChange}
       allDay={allDay}
       setAllDay={setAllDay}
       category={category}

@@ -8,6 +8,10 @@ import { trpc } from "@/lib/trpc/client";
 import { Drawer } from "@/components/ui/drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { MarkPaidModal } from "./mark-paid-modal";
+import { DayOfMonthPicker } from "@/components/ui/day-of-month-picker";
+import { RecurrencePicker } from "@/components/ui/recurrence-picker";
+import { CategorySelect } from "@/components/ui/category-select";
+import { BILL_CATEGORIES } from "@orbyt/shared/constants";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@orbyt/api";
 
@@ -21,18 +25,7 @@ function formatCurrency(amount: number | string, currency = "USD"): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(num);
 }
 
-const CATEGORIES = [
-  "housing",
-  "utilities",
-  "insurance",
-  "transportation",
-  "subscriptions",
-  "food",
-  "healthcare",
-  "other",
-] as const;
-
-type BillCategory = (typeof CATEGORIES)[number];
+type BillCategory = string;
 
 function cn(...classes: (string | boolean | undefined | null)[]) {
   return classes.filter(Boolean).join(" ");
@@ -49,6 +42,8 @@ function BillFormFields({
   setDueDay,
   category,
   setCategory,
+  rrule,
+  setRrule,
   autoPay,
   setAutoPay,
   currency,
@@ -75,6 +70,8 @@ function BillFormFields({
   setDueDay: (v: number) => void;
   category: BillCategory;
   setCategory: (v: BillCategory) => void;
+  rrule: string;
+  setRrule: (v: string) => void;
   autoPay: boolean;
   setAutoPay: (v: boolean) => void;
   currency: string;
@@ -93,6 +90,8 @@ function BillFormFields({
   onSubmit: (e: React.FormEvent) => void;
   onCancel?: () => void;
 }) {
+  const { data: customCats } = trpc.finances.listBillCategories.useQuery();
+
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-5 pb-6">
       {/* Name */}
@@ -145,34 +144,34 @@ function BillFormFields({
         </div>
       </div>
 
-      {/* Due Day + Category */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="orbyt-label" htmlFor="bill-due-day">Due Day (1-31)</label>
-          <input
-            id="bill-due-day"
-            type="number"
-            min={1}
-            max={31}
-            value={dueDay}
-            onChange={(e) => setDueDay(Number(e.target.value))}
-            className="orbyt-input mt-1 w-full"
-            required
-          />
+      {/* Category */}
+      <div>
+        <CategorySelect
+          value={category}
+          onChange={(v) => setCategory(v as BillCategory)}
+          presets={BILL_CATEGORIES}
+          customCategories={customCats}
+          label="Category"
+          id="bill-category"
+        />
+      </div>
+
+      {/* Due Day of Month */}
+      <div>
+        <label className="orbyt-label">Due Day of Month</label>
+        <div className="mt-1">
+          <DayOfMonthPicker value={dueDay} onChange={setDueDay} />
         </div>
-        <div>
-          <label className="orbyt-label" htmlFor="bill-category">Category</label>
-          <select
-            id="bill-category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value as BillCategory)}
-            className="orbyt-input mt-1 w-full capitalize"
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c} className="capitalize">{c}</option>
-            ))}
-          </select>
-        </div>
+      </div>
+
+      {/* Repeats */}
+      <div>
+        <label className="orbyt-label">Repeats</label>
+        <RecurrencePicker
+          value={rrule}
+          onChange={setRrule}
+          className="mt-1"
+        />
       </div>
 
       {/* Auto-pay (external) toggle */}
@@ -330,6 +329,7 @@ function CreateBillForm({
   const [amount, setAmount] = useState("");
   const [dueDay, setDueDay] = useState<number>(1);
   const [category, setCategory] = useState<BillCategory>("other");
+  const [rrule, setRrule] = useState("FREQ=MONTHLY");
   const [autoPay, setAutoPay] = useState(false);
   const [currency, setCurrency] = useState("USD");
   const [notes, setNotes] = useState("");
@@ -364,7 +364,7 @@ function CreateBillForm({
       amount: trimmedAmount,
       dueDay,
       category,
-      rrule: "FREQ=MONTHLY",
+      rrule: rrule || "FREQ=MONTHLY",
       autoPay,
       currency,
       notes: notes.trim() || null,
@@ -384,6 +384,8 @@ function CreateBillForm({
       setDueDay={setDueDay}
       category={category}
       setCategory={setCategory}
+      rrule={rrule}
+      setRrule={setRrule}
       autoPay={autoPay}
       setAutoPay={setAutoPay}
       currency={currency}
@@ -423,6 +425,7 @@ function EditBillForm({
   const [category, setCategory] = useState<BillCategory>(
     (bill.category as BillCategory) ?? "other",
   );
+  const [rrule, setRrule] = useState(bill.rrule ?? "FREQ=MONTHLY");
   const [autoPay, setAutoPay] = useState(bill.autoPay);
   const [currency, setCurrency] = useState(bill.currency ?? "USD");
   const [notes, setNotes] = useState(bill.notes ?? "");
@@ -460,7 +463,7 @@ function EditBillForm({
         amount: trimmedAmount,
         dueDay,
         category,
-        rrule: "FREQ=MONTHLY",
+        rrule: rrule || "FREQ=MONTHLY",
         autoPay,
         currency,
         notes: notes.trim() || null,
@@ -481,6 +484,8 @@ function EditBillForm({
       setDueDay={setDueDay}
       category={category}
       setCategory={setCategory}
+      rrule={rrule}
+      setRrule={setRrule}
       autoPay={autoPay}
       setAutoPay={setAutoPay}
       currency={currency}

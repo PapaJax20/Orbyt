@@ -330,14 +330,16 @@ export function ListPanel({ selectedListId, onSelectList }: ListPanelProps) {
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <h1 className="font-display text-lg font-bold text-text">Shopping Lists</h1>
-        <button
-          onClick={() => setShowNewForm((v) => !v)}
-          aria-label="New list"
-          className="orbyt-button-accent flex items-center gap-1.5 text-sm"
-        >
-          <Plus className="h-4 w-4" />
-          New List
-        </button>
+        {lists && lists.length > 0 && (
+          <button
+            onClick={() => setShowNewForm((v) => !v)}
+            aria-label="New list"
+            className="orbyt-button-accent flex items-center gap-1.5 text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            New List
+          </button>
+        )}
       </div>
 
       {/* Inline new-list form */}

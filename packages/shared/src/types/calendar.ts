@@ -1,13 +1,16 @@
-export type EventCategory =
-  | "school"
-  | "medical"
-  | "work"
-  | "sports"
-  | "social"
-  | "family"
-  | "holiday"
-  | "birthday"
-  | "other";
+export const EVENT_CATEGORY_PRESETS = [
+  "family",
+  "work",
+  "medical",
+  "school",
+  "social",
+  "sports",
+  "holiday",
+  "birthday",
+  "other",
+] as const;
+
+export type EventCategory = string;
 
 export type RsvpStatus = "pending" | "accepted" | "declined";
 

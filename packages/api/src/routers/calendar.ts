@@ -998,4 +998,15 @@ export const calendarRouter = router({
 
       return { icsContent: calendar.toString(), eventCount: eventList.length };
     }),
+
+  /**
+   * List distinct event categories used by this household.
+   */
+  listCategories: householdProcedure.query(async ({ ctx }) => {
+    const result = await ctx.db
+      .selectDistinct({ category: events.category })
+      .from(events)
+      .where(eq(events.householdId, ctx.householdId));
+    return result.map((r) => r.category);
+  }),
 });

@@ -1,12 +1,15 @@
-export type BillCategory =
-  | "housing"
-  | "utilities"
-  | "insurance"
-  | "transportation"
-  | "subscriptions"
-  | "food"
-  | "healthcare"
-  | "other";
+export const BILL_CATEGORY_PRESETS = [
+  "housing",
+  "utilities",
+  "insurance",
+  "transportation",
+  "subscriptions",
+  "food",
+  "healthcare",
+  "other",
+] as const;
+
+export type BillCategory = string;
 
 export type BillPaymentStatus = "paid" | "pending" | "overdue";
 

@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Drawer } from "@/components/ui/drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CategorySelect } from "@/components/ui/category-select";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,11 @@ const TRANSACTION_CATEGORIES: TransactionCategory[] = [
   "transfer",
   "other",
 ];
+
+const CATEGORY_PRESETS = TRANSACTION_CATEGORIES.map((c) => ({
+  value: c,
+  label: c.charAt(0).toUpperCase() + c.slice(1),
+}));
 
 const CATEGORY_COLORS: Record<string, string> = {
   housing: "bg-blue-500/15 text-blue-400",
@@ -142,6 +148,7 @@ function TransactionDrawer({
 
   const { data: accountsData } = trpc.finances.listAccounts.useQuery();
   const { data: membersData } = trpc.finances.listHouseholdMembers.useQuery();
+  const { data: customTransCats } = trpc.finances.listTransactionCategories.useQuery();
   const members = membersData ?? [];
   const accounts = accountsData?.accounts ?? [];
 
@@ -323,17 +330,15 @@ function TransactionDrawer({
           {/* Category + Date */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="orbyt-label" htmlFor="tx-category">Category</label>
-              <select
-                id="tx-category"
+              <label className="orbyt-label" htmlFor="txn-category">Category</label>
+              <CategorySelect
                 value={category}
-                onChange={(e) => setCategory(e.target.value as TransactionCategory)}
-                className="orbyt-input mt-1 w-full capitalize"
-              >
-                {TRANSACTION_CATEGORIES.map((c) => (
-                  <option key={c} value={c} className="capitalize">{c}</option>
-                ))}
-              </select>
+                onChange={(val) => setCategory(val as TransactionCategory)}
+                presets={CATEGORY_PRESETS}
+                customCategories={customTransCats}
+                id="txn-category"
+                className="mt-1"
+              />
             </div>
             <div>
               <label className="orbyt-label" htmlFor="tx-date">Date</label>

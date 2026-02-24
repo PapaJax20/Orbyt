@@ -1651,4 +1651,26 @@ export const financesRouter = router({
 
       return { count: inserted.length };
     }),
+
+  /**
+   * List distinct bill categories used by this household.
+   */
+  listBillCategories: householdProcedure.query(async ({ ctx }) => {
+    const result = await ctx.db
+      .selectDistinct({ category: bills.category })
+      .from(bills)
+      .where(eq(bills.householdId, ctx.householdId));
+    return result.map((r) => r.category);
+  }),
+
+  /**
+   * List distinct transaction categories used by this household.
+   */
+  listTransactionCategories: householdProcedure.query(async ({ ctx }) => {
+    const result = await ctx.db
+      .selectDistinct({ category: transactions.category })
+      .from(transactions)
+      .where(eq(transactions.householdId, ctx.householdId));
+    return result.map((r) => r.category);
+  }),
 });

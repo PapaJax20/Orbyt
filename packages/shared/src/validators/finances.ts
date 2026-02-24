@@ -1,15 +1,6 @@
 import { z } from "zod";
 
-const BillCategorySchema = z.enum([
-  "housing",
-  "utilities",
-  "insurance",
-  "transportation",
-  "subscriptions",
-  "food",
-  "healthcare",
-  "other",
-]);
+export const BillCategorySchema = z.string().min(1).max(50);
 
 export const CreateBillSchema = z.object({
   name: z.string().min(1, "Name is required").max(255),
@@ -68,26 +59,7 @@ export const UpdateAccountSchema = CreateAccountSchema.partial();
 
 const TransactionTypeSchema = z.enum(["expense", "income", "transfer"]);
 
-const TransactionCategorySchema = z.enum([
-  "housing",
-  "utilities",
-  "groceries",
-  "dining",
-  "transportation",
-  "healthcare",
-  "insurance",
-  "entertainment",
-  "shopping",
-  "education",
-  "personal",
-  "gifts",
-  "income",
-  "salary",
-  "freelance",
-  "investment",
-  "transfer",
-  "other",
-]);
+export const TransactionCategorySchema = z.string().min(1).max(50);
 
 export const CreateTransactionSchema = z.object({
   accountId: z.string().uuid().nullable().optional(),
@@ -120,22 +92,7 @@ export const ListTransactionsFilterSchema = z.object({
 
 // --- Budget Validators ---
 
-const BudgetCategorySchema = z.enum([
-  "housing",
-  "utilities",
-  "groceries",
-  "dining",
-  "transportation",
-  "healthcare",
-  "insurance",
-  "entertainment",
-  "shopping",
-  "education",
-  "personal",
-  "subscriptions",
-  "savings",
-  "other",
-]);
+export const BudgetCategorySchema = z.string().min(1).max(50);
 
 export const CreateBudgetSchema = z.object({
   category: BudgetCategorySchema,
@@ -219,12 +176,7 @@ export const ImportTransactionsSchema = z.object({
     type: z.enum(["expense", "income", "transfer"]),
     amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount"),
     currency: z.string().length(3).default("USD"),
-    category: z.enum([
-      "housing", "utilities", "groceries", "dining", "transportation",
-      "healthcare", "insurance", "entertainment", "shopping", "education",
-      "personal", "gifts", "income", "salary", "freelance", "investment",
-      "transfer", "other",
-    ]),
+    category: z.string().min(1).max(50),
     description: z.string().min(1).max(255),
     date: z.string().datetime(),
     notes: z.string().max(2000).nullable().optional(),

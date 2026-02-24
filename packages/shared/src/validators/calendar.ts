@@ -1,16 +1,6 @@
 import { z } from "zod";
 
-const EventCategorySchema = z.enum([
-  "school",
-  "medical",
-  "work",
-  "sports",
-  "social",
-  "family",
-  "holiday",
-  "birthday",
-  "other",
-]);
+export const EventCategorySchema = z.string().min(1).max(50);
 
 export const CreateEventSchema = z.object({
   title: z.string().min(1, "Title is required").max(255),
