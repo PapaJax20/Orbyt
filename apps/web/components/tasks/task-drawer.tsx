@@ -74,15 +74,18 @@ export function TaskDrawer({
       toast.success("Task created");
       onSuccess();
     },
+    onError: (err) => toast.error(err.message ?? "Failed to create task"),
   });
   const updateTask = trpc.tasks.update.useMutation({
     onSuccess: () => {
       toast.success("Task updated");
       onSuccess();
     },
+    onError: (err) => toast.error(err.message ?? "Failed to update task"),
   });
   const addComment = trpc.tasks.addComment.useMutation({
     onSuccess: () => utils.tasks.listComments.invalidate({ taskId: taskId! }),
+    onError: (err) => toast.error(err.message ?? "Failed to add comment"),
   });
   const deleteTask = trpc.tasks.delete.useMutation({
     onSuccess: () => {
@@ -90,6 +93,7 @@ export function TaskDrawer({
       utils.tasks.list.invalidate();
       onClose();
     },
+    onError: (err) => toast.error(err.message ?? "Failed to delete task"),
   });
 
   // ── Form state ───────────────────────────────────────────────────────────────
