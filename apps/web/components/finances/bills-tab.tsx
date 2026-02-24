@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Plus,
   Home,
@@ -172,7 +172,7 @@ function BillCardSkeleton() {
 
 // ── BillsTab (main export) ──────────────────────────────────────────────────
 
-export function BillsTab() {
+export function BillsTab({ autoCreate = false }: { autoCreate?: boolean }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
 
@@ -198,6 +198,14 @@ export function BillsTab() {
     setDrawerOpen(false);
     setTimeout(() => setSelectedBillId(null), 300);
   }
+
+  // Auto-open the create drawer when navigated from the dashboard empty-state CTA
+  useEffect(() => {
+    if (autoCreate) {
+      openCreate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoCreate]);
 
   return (
     <>

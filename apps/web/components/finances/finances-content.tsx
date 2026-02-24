@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -414,11 +415,27 @@ function OverviewTab({
 export function FinancesContent() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [userId, setUserId] = useState<string | null>(null);
+  const [autoCreateBill, setAutoCreateBill] = useState(false);
+  const autoCreateHandled = useRef(false);
 
   useEffect(() => {
     createClient()
       .auth.getUser()
       .then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
+  const searchParams = useSearchParams();
+
+  // Auto-switch to Bills tab and open the create drawer when navigated from the dashboard empty-state CTA
+  useEffect(() => {
+    if (autoCreateHandled.current) return;
+    if (searchParams.get("action") === "create") {
+      autoCreateHandled.current = true;
+      setActiveTab("bills");
+      setAutoCreateBill(true);
+      window.history.replaceState({}, "", "/finances");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const { data: household } = trpc.household.getCurrent.useQuery();
@@ -486,7 +503,7 @@ export function FinancesContent() {
       {activeTab === "accounts" && <AccountsTab />}
       {activeTab === "transactions" && <TransactionsTab />}
       {activeTab === "budgets" && <BudgetsTab />}
-      {activeTab === "bills" && <BillsTab />}
+      {activeTab === "bills" && <BillsTab autoCreate={autoCreateBill} />}
       {activeTab === "goals" && <GoalsTab />}
       {activeTab === "netWorth" && <NetWorthTab />}
       {activeTab === "debtPlanner" && <DebtPlannerTab />}

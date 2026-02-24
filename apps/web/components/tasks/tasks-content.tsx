@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   DndContext,
   useDroppable,
@@ -330,6 +331,17 @@ export function TasksContent() {
   useEffect(() => {
     if (isMobile) setView("list");
   }, [isMobile]);
+
+  const searchParams = useSearchParams();
+
+  // Auto-open the create drawer when navigated from the dashboard empty-state CTA
+  useEffect(() => {
+    if (searchParams.get("action") === "create") {
+      openCreate();
+      window.history.replaceState({}, "", "/tasks");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const utils = trpc.useUtils();
 

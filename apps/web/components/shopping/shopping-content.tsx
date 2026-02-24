@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@orbyt/api";
@@ -15,6 +16,18 @@ export function ShoppingContent() {
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   // Mobile view: "lists" | "items"
   const [mobileView, setMobileView] = useState<"lists" | "items">("lists");
+  const [autoCreate, setAutoCreate] = useState(false);
+
+  const searchParams = useSearchParams();
+
+  // Auto-open the new list form when navigated from the dashboard empty-state CTA
+  useEffect(() => {
+    if (searchParams.get("action") === "create") {
+      setAutoCreate(true);
+      window.history.replaceState({}, "", "/shopping");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleSelectList(id: string) {
     setSelectedListId(id);
@@ -42,6 +55,7 @@ export function ShoppingContent() {
         <ListPanel
           selectedListId={selectedListId}
           onSelectList={handleSelectList}
+          autoCreate={autoCreate}
         />
       </div>
 

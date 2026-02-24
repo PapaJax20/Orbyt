@@ -301,13 +301,22 @@ function NewListForm({
 interface ListPanelProps {
   selectedListId: string | null;
   onSelectList: (id: string) => void;
+  autoCreate?: boolean;
 }
 
-export function ListPanel({ selectedListId, onSelectList }: ListPanelProps) {
+export function ListPanel({ selectedListId, onSelectList, autoCreate = false }: ListPanelProps) {
   const utils = trpc.useUtils();
   const [showNewForm, setShowNewForm] = useState(false);
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const [deletingListId, setDeletingListId] = useState<string | null>(null);
+
+  // Auto-open the new list form when navigated from the dashboard empty-state CTA
+  useEffect(() => {
+    if (autoCreate) {
+      setShowNewForm(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data: lists, isLoading } = trpc.shopping.listLists.useQuery();
 

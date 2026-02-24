@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
+import { createClient } from "@/lib/supabase/client";
 
 /**
  * Ensures the user has a household selected before rendering dashboard content.
@@ -14,14 +15,22 @@ export function HouseholdGuard({ children }: { children: React.ReactNode }) {
   const [householdName, setHouseholdName] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
 
-  // Apply saved theme immediately on mount
+  // Apply saved theme immediately on mount (fast paint for returning devices)
   useEffect(() => {
     const saved = localStorage.getItem("orbyt-theme");
     if (saved) {
       document.documentElement.setAttribute("data-theme", saved);
     }
+  }, []);
+
+  // Fetch the current user's auth ID so we can locate their profile in the members list
+  useEffect(() => {
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
   const householdsQuery = trpc.household.list.useQuery(undefined, {
@@ -39,6 +48,29 @@ export function HouseholdGuard({ children }: { children: React.ReactNode }) {
       setCreating(false);
     },
   });
+
+  // Fetch household (and member profiles) only once we know the user has one.
+  // This is used to sync the theme from the DB on devices without a cached theme.
+  const { data: currentHousehold } = trpc.household.getCurrent.useQuery(
+    undefined,
+    { enabled: hasHousehold === true }
+  );
+
+  // If localStorage has no theme yet, read it from the user's profile in the DB.
+  // "cosmic" is the DB default and maps to the "orbit" theme token in the UI.
+  useEffect(() => {
+    if (!currentHousehold || !userId) return;
+    const alreadyCached = localStorage.getItem("orbyt-theme");
+    if (alreadyCached) return;
+
+    const me = currentHousehold.members.find((m) => m.userId === userId);
+    const profileTheme = me?.profile?.theme;
+    if (profileTheme) {
+      // DB stores "cosmic" which is the CSS data-theme value (label "Orbit" in the UI)
+      document.documentElement.setAttribute("data-theme", profileTheme);
+      localStorage.setItem("orbyt-theme", profileTheme);
+    }
+  }, [currentHousehold, userId]);
 
   useEffect(() => {
     // Check localStorage first

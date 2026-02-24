@@ -167,7 +167,7 @@ export function DashboardContent() {
               title="Your calendar is wide open."
               description="Add events and I'll make sure the family stays in sync."
               actionLabel="Add Event"
-              actionHref="/calendar"
+              actionHref="/calendar?action=create"
             />
           )}
         </div>
@@ -211,7 +211,7 @@ export function DashboardContent() {
               title="No bills being tracked."
               description="Add your household bills and I'll keep an eye on what's due."
               actionLabel="Add Bill"
-              actionHref="/finances"
+              actionHref="/finances?action=create"
             />
           )}
         </div>
@@ -255,7 +255,7 @@ export function DashboardContent() {
               title="All clear! Nothing on the to-do list."
               description="When you add tasks, I'll help keep everyone on track."
               actionLabel="Add Task"
-              actionHref="/tasks"
+              actionHref="/tasks?action=create"
             />
           )}
         </div>
@@ -301,7 +301,7 @@ export function DashboardContent() {
               title="No shopping lists yet."
               description="Create a list and I'll make sure nothing gets forgotten."
               actionLabel="Create List"
-              actionHref="/shopping"
+              actionHref="/shopping?action=create"
             />
           )}
         </div>

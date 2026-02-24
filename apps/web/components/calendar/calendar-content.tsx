@@ -15,6 +15,7 @@ import listPlugin from "@fullcalendar/list";
 import type { EventInput, DatesSetArg, EventClickArg } from "@fullcalendar/core";
 import type { DateClickArg } from "@fullcalendar/interaction";
 import { trpc } from "@/lib/trpc/client";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeInvalidation } from "@/hooks/use-realtime";
 import { CATEGORY_COLORS } from "@/lib/calendar-colors";
@@ -270,6 +271,22 @@ export function CalendarContent() {
   // FullCalendar ref — typed as any to avoid issues with the dynamic import wrapper
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const calendarRef = useRef<any>(null);
+
+  const searchParams = useSearchParams();
+
+  // Auto-open the create drawer when navigated from the dashboard empty-state CTA
+  useEffect(() => {
+    if (searchParams.get("action") === "create") {
+      const today = new Date().toISOString().slice(0, 10);
+      setSelectedDate(today);
+      setSelectedEventId(null);
+      setDefaultTitle(null);
+      setExternalEventData(null);
+      setDrawerOpen(true);
+      window.history.replaceState({}, "", "/calendar");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Get current user ID for week start preference
   const [userId, setUserId] = useState<string | null>(null);
