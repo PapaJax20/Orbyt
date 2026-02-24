@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 
 type Character = "rosie" | "eddie";
 type Expression = "happy" | "winking" | "thinking" | "concerned" | "celebrating";
@@ -12,6 +13,7 @@ interface EmptyStateProps {
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
+  actionHref?: string;
   compact?: boolean;
 }
 
@@ -22,6 +24,7 @@ export function EmptyState({
   description,
   actionLabel,
   onAction,
+  actionHref,
   compact = false,
 }: EmptyStateProps) {
   const src = `/characters/${character}/full-body-${expression}.svg`;
@@ -67,13 +70,30 @@ export function EmptyState({
         </p>
       )}
 
-      {!compact && actionLabel && onAction && (
-        <button
-          onClick={onAction}
-          className="orbyt-button-accent"
-        >
-          {actionLabel}
-        </button>
+      {actionLabel && (actionHref || onAction) && (
+        actionHref ? (
+          <Link
+            href={actionHref}
+            className={
+              compact
+                ? "orbyt-button-accent text-xs px-4 py-1.5 mt-3 inline-block"
+                : "orbyt-button-accent mt-6 inline-block"
+            }
+          >
+            {actionLabel}
+          </Link>
+        ) : onAction ? (
+          <button
+            onClick={onAction}
+            className={
+              compact
+                ? "orbyt-button-accent text-xs px-4 py-1.5 mt-3"
+                : "orbyt-button-accent"
+            }
+          >
+            {actionLabel}
+          </button>
+        ) : null
       )}
     </div>
   );

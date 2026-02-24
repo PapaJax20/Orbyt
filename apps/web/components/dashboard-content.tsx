@@ -166,6 +166,8 @@ export function DashboardContent() {
               expression="happy"
               title="Your calendar is wide open."
               description="Add events and I'll make sure the family stays in sync."
+              actionLabel="Add Event"
+              actionHref="/calendar"
             />
           )}
         </div>
@@ -208,6 +210,8 @@ export function DashboardContent() {
               expression="thinking"
               title="No bills being tracked."
               description="Add your household bills and I'll keep an eye on what's due."
+              actionLabel="Add Bill"
+              actionHref="/finances"
             />
           )}
         </div>
@@ -250,6 +254,8 @@ export function DashboardContent() {
               expression="happy"
               title="All clear! Nothing on the to-do list."
               description="When you add tasks, I'll help keep everyone on track."
+              actionLabel="Add Task"
+              actionHref="/tasks"
             />
           )}
         </div>
@@ -294,6 +300,8 @@ export function DashboardContent() {
               expression="happy"
               title="No shopping lists yet."
               description="Create a list and I'll make sure nothing gets forgotten."
+              actionLabel="Create List"
+              actionHref="/shopping"
             />
           )}
         </div>
