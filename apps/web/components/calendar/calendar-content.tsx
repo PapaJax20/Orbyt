@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "framer-motion";
 import { format } from "date-fns";
-import { DollarSign, CheckSquare, Cake, Heart, Calendar as CalendarIcon, Upload, Download } from "lucide-react";
+import { DollarSign, CheckSquare, Cake, Heart, Calendar as CalendarIcon, Upload, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@orbyt/api";
@@ -35,8 +35,22 @@ type RouterOutput = inferRouterOutputs<AppRouter>;
 type CalendarEvent = RouterOutput["calendar"]["list"][number];
 type ExternalEvent = RouterOutput["integrations"]["listExternalEvents"][number];
 
+/** Data shape passed to EventDrawer when opening an external event */
+export interface ExternalEventData {
+  dbId: string; // external_events.id (UUID) for linking
+  externalId: string; // provider-issued external ID
+  title: string;
+  description: string | null;
+  location: string | null;
+  startAt: string;
+  endAt: string | null;
+  allDay: boolean;
+  provider: string; // "google" | "microsoft"
+  connectedAccountId: string;
+}
+
 /** Neutral slate color for all external calendar events */
-const EXTERNAL_EVENT_COLOR = "#64748B";
+const EXTERNAL_EVENT_COLOR = "#475569";
 
 // ── CSS overrides for FullCalendar theming ────────────────────────────────────
 
@@ -62,6 +76,19 @@ const calendarStyles = `
   .fc-list-event-title a { color: var(--color-text); text-decoration: none; }
   .fc-list-day-cushion { background: var(--color-surface) !important; color: var(--color-text-muted); font-size: 0.8125rem; }
   .fc-event.fc-event-external { opacity: 0.75; border: 1px dashed var(--color-border) !important; }
+  .fc-event.fc-event-synced { position: relative; }
+  .fc-event.fc-event-synced::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    width: 6px;
+    height: 6px;
+    background: var(--color-accent, #10B981);
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.2);
+    pointer-events: none;
+  }
 `;
 
 // ── Popover state type ────────────────────────────────────────────────────────
@@ -222,6 +249,9 @@ export function CalendarContent() {
   const [defaultTitle, setDefaultTitle] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // External event data for the drawer (when clicking an external event)
+  const [externalEventData, setExternalEventData] = useState<ExternalEventData | null>(null);
+
   // Import file input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -271,6 +301,27 @@ export function CalendarContent() {
     startDate: dateRange.start,
     endDate: dateRange.end,
   });
+
+  // Query connected accounts (for sync status indicator and provider mapping)
+  const { data: connectedAccounts } = trpc.integrations.listConnectedAccounts.useQuery();
+
+  // Build lookup: connectedAccountId -> provider label
+  const accountProviderMap = useMemo(() => {
+    const m = new Map<string, string>();
+    connectedAccounts?.forEach((a) => {
+      m.set(a.id, a.provider);
+    });
+    return m;
+  }, [connectedAccounts]);
+
+  // Sync status: determine if any account was synced recently (within 1 hour)
+  const syncedRecently = useMemo(() => {
+    if (!connectedAccounts || connectedAccounts.length === 0) return null; // no accounts, hide indicator
+    return connectedAccounts.some((a) => {
+      if (!a.lastSyncAt) return false;
+      return Date.now() - new Date(a.lastSyncAt).getTime() < 60 * 60 * 1000;
+    });
+  }, [connectedAccounts]);
 
   // Search query
   const { data: searchResults } = trpc.calendar.search.useQuery(
@@ -330,6 +381,8 @@ export function CalendarContent() {
     events?.map((event: CalendarEvent) => {
       const memberColor = memberColorMap.get(event.createdBy);
       const bgColor = event.color ?? memberColor ?? CATEGORY_COLORS[event.category ?? "other"] ?? "#6B7280";
+      const extEventId = (event as unknown as Record<string, unknown>).externalEventId as string | null | undefined;
+      const isSynced = !!extEventId;
       return {
         id: event.id,
         title: event.title,
@@ -341,11 +394,16 @@ export function CalendarContent() {
         backgroundColor: bgColor,
         borderColor: "transparent",
         textColor: "#ffffff",
+        classNames: isSynced ? ["fc-event-synced"] : [],
         extendedProps: {
           category: event.category ?? "other",
           location: event.location ?? undefined,
           color: event.color ?? undefined,
           memberColor,
+          isSynced,
+          externalEventId: extEventId ?? undefined,
+          externalProvider: (event as unknown as Record<string, unknown>).externalProvider ?? undefined,
+          connectedAccountId: (event as unknown as Record<string, unknown>).connectedAccountId ?? undefined,
         },
       };
     }) ?? [];
@@ -369,6 +427,18 @@ export function CalendarContent() {
         isExternal: true,
         category: "external",
         location: event.location ?? undefined,
+        dbId: event.id,
+        externalId: (event as unknown as Record<string, unknown>).externalId ?? "",
+        description: event.description ?? null,
+        startAt: event.startAt instanceof Date ? event.startAt.toISOString() : String(event.startAt),
+        endAt: event.endAt
+          ? (event.endAt instanceof Date ? event.endAt.toISOString() : String(event.endAt))
+          : null,
+        allDay: event.allDay,
+        connectedAccountId: (event as unknown as Record<string, unknown>).connectedAccountId ?? "",
+        provider: accountProviderMap.get(
+          String((event as unknown as Record<string, unknown>).connectedAccountId ?? "")
+        ) ?? "external",
       },
     })) ?? [];
 
@@ -404,18 +474,34 @@ export function CalendarContent() {
 
   const handleDateClick = useCallback((info: DateClickArg) => {
     setSelectedEventId(null);
+    setExternalEventData(null);
     setSelectedDate(info.dateStr);
     setDrawerOpen(true);
   }, []);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
-    // External events are read-only — show info toast instead of opening the drawer
+    // External events: open drawer in external view mode instead of toast
     if (info.event.extendedProps?.isExternal) {
-      toast.info(`External event: ${info.event.title}`, {
-        description: "This event is synced from an external calendar and cannot be edited in Orbyt.",
+      const props = info.event.extendedProps;
+      setSelectedEventId(null);
+      setSelectedDate(null);
+      setDefaultTitle(null);
+      setExternalEventData({
+        dbId: props.dbId as string,
+        externalId: props.externalId as string,
+        title: info.event.title,
+        description: (props.description as string) ?? null,
+        location: (props.location as string) ?? null,
+        startAt: props.startAt as string,
+        endAt: (props.endAt as string) ?? null,
+        allDay: props.allDay as boolean,
+        provider: props.provider as string,
+        connectedAccountId: props.connectedAccountId as string,
       });
+      setDrawerOpen(true);
       return;
     }
+    setExternalEventData(null);
     setSelectedDate(null);
     setSelectedEventId(info.event.id);
     setDrawerOpen(true);
@@ -520,6 +606,7 @@ export function CalendarContent() {
   const handleNlpParsed = useCallback(
     (parsed: { title: string; startAt: string; endAt: string | null; allDay: boolean }) => {
       setSelectedEventId(null);
+      setExternalEventData(null);
       setDefaultTitle(parsed.title);
       // Use the parsed startAt as the default date for the drawer
       const dateStr = parsed.startAt.includes("T")
@@ -537,6 +624,7 @@ export function CalendarContent() {
       setSelectedEventId(null);
       setSelectedDate(null);
       setDefaultTitle(null);
+      setExternalEventData(null);
     }, 300);
   }
 
@@ -552,9 +640,27 @@ export function CalendarContent() {
       >
         {/* Page header */}
         <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-text">Calendar</h1>
-            <p className="mt-1 text-text-muted">Shared family schedule</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="font-display text-3xl font-bold text-text">Calendar</h1>
+              <p className="mt-1 text-text-muted">Shared family schedule</p>
+            </div>
+            {/* Sync status indicator — only shown when connected accounts exist */}
+            {syncedRecently !== null && (
+              <span
+                className={[
+                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                  syncedRecently
+                    ? "bg-green-500/15 text-green-500"
+                    : "bg-amber-500/15 text-amber-500",
+                ].join(" ")}
+                title={syncedRecently ? "External calendars synced recently" : "Last sync was more than 1 hour ago"}
+                aria-label={syncedRecently ? "External calendars synced recently" : "Last sync was more than 1 hour ago"}
+              >
+                <RefreshCw size={12} aria-hidden="true" />
+                {syncedRecently ? "Synced" : "Stale"}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {/* Hidden file input for iCal import */}
@@ -589,6 +695,7 @@ export function CalendarContent() {
                 setSelectedDate(today);
                 setSelectedEventId(null);
                 setDefaultTitle(null);
+                setExternalEventData(null);
                 setDrawerOpen(true);
               }}
               className="orbyt-button-accent shrink-0"
@@ -630,6 +737,7 @@ export function CalendarContent() {
                     onClick={() => {
                       setSearchQuery("");
                       setSelectedDate(null);
+                      setExternalEventData(null);
                       setSelectedEventId(result.id);
                       setDrawerOpen(true);
                     }}
@@ -721,6 +829,7 @@ export function CalendarContent() {
         open={drawerOpen}
         onClose={closeDrawer}
         dateRange={dateRange}
+        externalEventData={externalEventData}
       />
     </>
   );

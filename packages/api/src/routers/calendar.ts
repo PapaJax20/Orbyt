@@ -20,7 +20,8 @@ import {
   getNextBirthday,
 } from "@orbyt/shared/utils";
 import { router, householdProcedure } from "../trpc";
-import { createNotification } from "./notifications";
+import { createNotification } from "./notifications.js";
+import { writeBackToConnectedAccounts } from "../lib/calendar-writeback.js";
 import * as chrono from "chrono-node";
 import ICAL from "ical.js";
 import icalGenerator from "ical-generator";
@@ -169,6 +170,24 @@ export const calendarRouter = router({
       );
     }
 
+    // Async write-back to connected external calendars (fire-and-forget)
+    void writeBackToConnectedAccounts(
+      ctx.db,
+      ctx.user.id,
+      {
+        id: event.id,
+        title: event.title,
+        description: event.description ?? null,
+        location: event.location ?? null,
+        startAt: new Date(event.startAt),
+        endAt: event.endAt ? new Date(event.endAt) : null,
+        allDay: event.allDay,
+        rrule: event.rrule ?? null,
+        color: event.color ?? null,
+      },
+      "create"
+    );
+
     return event;
   }),
 
@@ -217,6 +236,26 @@ export const calendarRouter = router({
               }))
             );
           }
+        }
+
+        // Async write-back to connected external calendars (fire-and-forget)
+        if (updated) {
+          void writeBackToConnectedAccounts(
+            ctx.db,
+            ctx.user.id,
+            {
+              id: updated.id,
+              title: updated.title,
+              description: updated.description ?? null,
+              location: updated.location ?? null,
+              startAt: new Date(updated.startAt),
+              endAt: updated.endAt ? new Date(updated.endAt) : null,
+              allDay: updated.allDay,
+              rrule: updated.rrule ?? null,
+              color: updated.color ?? null,
+            },
+            "update"
+          );
         }
 
         return updated;
@@ -288,6 +327,26 @@ export const calendarRouter = router({
               userId,
               rsvpStatus: userId === ctx.user.id ? "accepted" : "pending",
             }))
+          );
+        }
+
+        // Async write-back to connected external calendars (fire-and-forget)
+        if (exception) {
+          void writeBackToConnectedAccounts(
+            ctx.db,
+            ctx.user.id,
+            {
+              id: exception.id,
+              title: exception.title,
+              description: exception.description ?? null,
+              location: exception.location ?? null,
+              startAt: new Date(exception.startAt),
+              endAt: exception.endAt ? new Date(exception.endAt) : null,
+              allDay: exception.allDay,
+              rrule: exception.rrule ?? null,
+              color: exception.color ?? null,
+            },
+            "create"
           );
         }
 
@@ -391,6 +450,26 @@ export const calendarRouter = router({
           }
         }
 
+        // Async write-back to connected external calendars (fire-and-forget)
+        if (newSeries) {
+          void writeBackToConnectedAccounts(
+            ctx.db,
+            ctx.user.id,
+            {
+              id: newSeries.id,
+              title: newSeries.title,
+              description: newSeries.description ?? null,
+              location: newSeries.location ?? null,
+              startAt: new Date(newSeries.startAt),
+              endAt: newSeries.endAt ? new Date(newSeries.endAt) : null,
+              allDay: newSeries.allDay,
+              rrule: newSeries.rrule ?? null,
+              color: newSeries.color ?? null,
+            },
+            "create"
+          );
+        }
+
         return newSeries;
       }
 
@@ -410,6 +489,25 @@ export const calendarRouter = router({
     if (!existing.rrule || input.deleteMode === "all") {
       // Non-recurring or "delete all" — hard delete base event (cascade deletes attendees + children)
       await ctx.db.delete(events).where(eq(events.id, input.id));
+
+      // Async write-back to connected external calendars (fire-and-forget)
+      void writeBackToConnectedAccounts(
+        ctx.db,
+        ctx.user.id,
+        {
+          id: input.id,
+          title: existing.title,
+          description: existing.description ?? null,
+          location: existing.location ?? null,
+          startAt: new Date(existing.startAt),
+          endAt: existing.endAt ? new Date(existing.endAt) : null,
+          allDay: existing.allDay,
+          rrule: existing.rrule ?? null,
+          color: existing.color ?? null,
+        },
+        "delete"
+      );
+
       return { success: true };
     }
 

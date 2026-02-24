@@ -10,6 +10,10 @@ import {
   ExternalLink,
   CheckCircle2,
   Loader2,
+  Shield,
+  ShieldAlert,
+  Bell,
+  BellOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -33,6 +37,15 @@ const PROVIDERS = [
 
 type Provider = (typeof PROVIDERS)[number]["id"];
 
+// ── Scope helpers ────────────────────────────────────────────────────────────
+
+function hasWriteScopes(provider: string, scopes: string | null): boolean {
+  if (!scopes) return false;
+  if (provider === "google") return scopes.includes("calendar.events");
+  if (provider === "microsoft") return scopes.includes("ReadWrite");
+  return false;
+}
+
 // ── Relative time helper ─────────────────────────────────────────────────────
 
 function relativeTime(date: Date | string | null): string {
@@ -53,6 +66,13 @@ function relativeTime(date: Date | string | null): string {
   return d.toLocaleDateString();
 }
 
+/** Returns true when lastSyncAt is more than 1 hour ago or missing */
+function isSyncStale(lastSyncAt: Date | string | null): boolean {
+  if (!lastSyncAt) return true;
+  const d = new Date(lastSyncAt);
+  return Date.now() - d.getTime() > 60 * 60 * 1000;
+}
+
 // ── IntegrationsTab ──────────────────────────────────────────────────────────
 
 export function IntegrationsTab() {
@@ -65,6 +85,8 @@ export function IntegrationsTab() {
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   // Track whether the OAuth callback has been handled
   const [callbackHandled, setCallbackHandled] = useState(false);
+  // Client-side webhook active tracking (optimistic) keyed by accountId
+  const [webhookActive, setWebhookActive] = useState<Record<string, boolean>>({});
 
   // ── Queries ──────────────────────────────────────────────────────────────────
 
@@ -103,6 +125,28 @@ export function IntegrationsTab() {
     },
     onError: (err) => {
       toast.error(err.message ?? "Failed to disconnect calendar");
+    },
+  });
+
+  const registerWebhookMutation = trpc.integrations.registerWebhook.useMutation({
+    onSuccess: (_data, variables) => {
+      utils.integrations.listConnectedAccounts.invalidate();
+      setWebhookActive((prev) => ({ ...prev, [variables.accountId]: true }));
+      toast.success("Real-time sync enabled");
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to enable real-time sync");
+    },
+  });
+
+  const unregisterWebhookMutation = trpc.integrations.unregisterWebhook.useMutation({
+    onSuccess: (_data, variables) => {
+      utils.integrations.listConnectedAccounts.invalidate();
+      setWebhookActive((prev) => ({ ...prev, [variables.accountId]: false }));
+      toast.success("Real-time sync disabled");
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to disable real-time sync");
     },
   });
 
@@ -189,6 +233,22 @@ export function IntegrationsTab() {
     [disconnectMutation],
   );
 
+  // ── Webhook handlers ─────────────────────────────────────────────────────────
+
+  const handleEnableWebhook = useCallback(
+    (accountId: string) => {
+      registerWebhookMutation.mutate({ accountId });
+    },
+    [registerWebhookMutation],
+  );
+
+  const handleDisableWebhook = useCallback(
+    (accountId: string) => {
+      unregisterWebhookMutation.mutate({ accountId });
+    },
+    [unregisterWebhookMutation],
+  );
+
   // ── Loading state ────────────────────────────────────────────────────────────
 
   if (isLoading) {
@@ -211,8 +271,7 @@ export function IntegrationsTab() {
       <div>
         <p className="orbyt-label">Connected Calendars</p>
         <p className="mb-3 mt-1 text-xs text-text-muted">
-          Connect your Google or Microsoft calendar to see external events alongside your Orbyt
-          events.
+          Connect your Google or Microsoft calendar to sync events bidirectionally with Orbyt.
         </p>
       </div>
 
@@ -225,6 +284,23 @@ export function IntegrationsTab() {
             const isDisconnecting =
               disconnectMutation.isPending && disconnectMutation.variables?.accountId === account.id;
             const showDisconnectConfirm = disconnectingId === account.id;
+
+            // Scope detection — use scopes from listConnectedAccounts
+            const hasWrite = hasWriteScopes(account.provider, account.scopes ?? null);
+            const needsReauth = !hasWrite;
+
+            // Webhook state (optimistic)
+            const isWebhookActive = webhookActive[account.id] ?? false;
+            const isRegisteringWebhook =
+              registerWebhookMutation.isPending &&
+              registerWebhookMutation.variables?.accountId === account.id;
+            const isUnregisteringWebhook =
+              unregisterWebhookMutation.isPending &&
+              unregisterWebhookMutation.variables?.accountId === account.id;
+
+            // Sync status for enhanced display
+            const hasSyncError = !!account.syncError;
+            const stale = isSyncStale(account.lastSyncAt);
 
             return (
               <div
@@ -251,21 +327,63 @@ export function IntegrationsTab() {
                       {account.email ?? "Unknown email"}
                     </p>
                   </div>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2.5 py-0.5 text-xs font-medium text-green-500">
-                    <CheckCircle2 size={12} aria-hidden="true" />
-                    Connected
-                  </span>
-                </div>
-
-                {/* Sync info + error */}
-                <div className="flex items-center gap-2 text-xs text-text-muted">
-                  <span>Last synced: {relativeTime(account.lastSyncAt)}</span>
-                  {account.syncError && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-red-400">
-                      <AlertCircle size={12} aria-hidden="true" />
-                      Sync error
+                  {/* Scope badge */}
+                  {hasWrite ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2.5 py-0.5 text-xs font-medium text-green-500">
+                      <Shield size={12} aria-hidden="true" />
+                      Read &amp; Write
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-500">
+                      <ShieldAlert size={12} aria-hidden="true" />
+                      Read-only
                     </span>
                   )}
+                </div>
+
+                {/* Upgrade permissions prompt for read-only accounts */}
+                {needsReauth && (
+                  <button
+                    type="button"
+                    onClick={() => handleConnect(account.provider as Provider)}
+                    disabled={connectingProvider === account.provider}
+                    className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-500 transition-colors hover:bg-amber-500/20 disabled:opacity-50"
+                  >
+                    {connectingProvider === account.provider ? (
+                      <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Shield size={14} aria-hidden="true" />
+                    )}
+                    Upgrade Permissions
+                  </button>
+                )}
+
+                {/* Enhanced sync status display */}
+                <div className="flex items-center gap-2 text-xs text-text-muted">
+                  {hasSyncError ? (
+                    <>
+                      <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-red-500" />
+                      <span className="text-red-400">Sync error</span>
+                    </>
+                  ) : isWebhookActive ? (
+                    <>
+                      <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-green-500" />
+                      <span className="text-green-500">Real-time sync active</span>
+                    </>
+                  ) : (
+                    <>
+                      <span
+                        className={[
+                          "inline-block h-2 w-2 shrink-0 rounded-full",
+                          stale ? "bg-amber-500" : "bg-green-500",
+                        ].join(" ")}
+                      />
+                      <span>Manual sync only</span>
+                    </>
+                  )}
+                  <span className="ml-auto">
+                    Last synced: {relativeTime(account.lastSyncAt)}
+                  </span>
                 </div>
 
                 {/* Sync error details */}
@@ -276,7 +394,7 @@ export function IntegrationsTab() {
                 )}
 
                 {/* Actions */}
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => handleSync(account.id)}
@@ -291,6 +409,45 @@ export function IntegrationsTab() {
                     )}
                     {isSyncing ? "Syncing..." : "Sync Now"}
                   </button>
+
+                  {/* Webhook toggle — requires write scopes */}
+                  {isWebhookActive ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDisableWebhook(account.id)}
+                      disabled={isUnregisteringWebhook}
+                      aria-label="Disable real-time sync"
+                      className="flex min-h-[44px] items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-medium text-text transition-colors hover:bg-surface disabled:opacity-50"
+                    >
+                      {isUnregisteringWebhook ? (
+                        <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                      ) : (
+                        <BellOff size={14} aria-hidden="true" />
+                      )}
+                      {isUnregisteringWebhook ? "Disabling..." : "Disable Real-time Sync"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleEnableWebhook(account.id)}
+                      disabled={isRegisteringWebhook || !hasWrite}
+                      aria-label={hasWrite ? "Enable real-time sync" : "Upgrade permissions to enable real-time sync"}
+                      title={!hasWrite ? "Write permissions required for real-time sync" : undefined}
+                      className={[
+                        "flex min-h-[44px] items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-colors disabled:opacity-50",
+                        hasWrite
+                          ? "border border-accent/30 bg-accent/10 text-accent hover:bg-accent/20"
+                          : "border border-border bg-surface/50 text-text-muted cursor-not-allowed",
+                      ].join(" ")}
+                    >
+                      {isRegisteringWebhook ? (
+                        <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                      ) : (
+                        <Bell size={14} aria-hidden="true" />
+                      )}
+                      {isRegisteringWebhook ? "Enabling..." : "Enable Real-time Sync"}
+                    </button>
+                  )}
 
                   {showDisconnectConfirm ? (
                     <div className="flex items-center gap-2">

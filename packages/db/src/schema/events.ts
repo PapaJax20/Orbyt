@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { households } from "./households";
 import { profiles } from "./households";
+import { connectedAccounts } from "./integrations";
 
 export const events = pgTable("events", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -32,6 +33,12 @@ export const events = pgTable("events", {
   color: varchar("color", { length: 7 }),
   metadata: jsonb("metadata").default({}),
   reminderMinutes: integer("reminder_minutes").array().notNull().default([]),
+  // Sprint 17B: bidirectional external calendar linking
+  externalEventId: varchar("external_event_id", { length: 255 }),
+  externalProvider: varchar("external_provider", { length: 20 }),
+  connectedAccountId: uuid("connected_account_id").references(() => connectedAccounts.id, { onDelete: "set null" }),
+  externalEtag: text("external_etag"), // provider-supplied ETag for conflict detection
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

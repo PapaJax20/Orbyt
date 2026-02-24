@@ -12,7 +12,7 @@ import { shoppingLists, shoppingItems } from "./shopping";
 import { contacts, contactRelationships, contactNotes } from "./contacts";
 import { notifications, pushTokens } from "./notifications";
 import { aiConversations, aiMessages } from "./ai";
-import { connectedAccounts, externalEvents } from "./integrations";
+import { connectedAccounts, externalEvents, webhookSubscriptions } from "./integrations";
 
 // --- Profiles ---
 export const profilesRelations = relations(profiles, ({ many }) => ({
@@ -73,6 +73,10 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
     references: [profiles.id],
   }),
   attendees: many(eventAttendees),
+  connectedAccount: one(connectedAccounts, {
+    fields: [events.connectedAccountId],
+    references: [connectedAccounts.id],
+  }),
 }));
 
 export const eventAttendeesRelations = relations(eventAttendees, ({ one }) => ({
@@ -353,6 +357,7 @@ export const connectedAccountsRelations = relations(connectedAccounts, ({ one, m
     references: [profiles.id],
   }),
   externalEvents: many(externalEvents),
+  webhookSubscriptions: many(webhookSubscriptions),
 }));
 
 export const externalEventsRelations = relations(externalEvents, ({ one }) => ({
@@ -363,5 +368,16 @@ export const externalEventsRelations = relations(externalEvents, ({ one }) => ({
   profile: one(profiles, {
     fields: [externalEvents.userId],
     references: [profiles.id],
+  }),
+  orbytEvent: one(events, {
+    fields: [externalEvents.orbytEventId],
+    references: [events.id],
+  }),
+}));
+
+export const webhookSubscriptionsRelations = relations(webhookSubscriptions, ({ one }) => ({
+  connectedAccount: one(connectedAccounts, {
+    fields: [webhookSubscriptions.connectedAccountId],
+    references: [connectedAccounts.id],
   }),
 }));

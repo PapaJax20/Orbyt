@@ -8,7 +8,7 @@
 | **Last updated** | February 23, 2026 |
 | **GitHub** | https://github.com/PapaJax20/Orbyt |
 | **Local path** | `C:\Users\jmoon\Orbyt` |
-| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprint 13 (Fix Open Issues & Known Issues Cleanup) complete. Sprint 14 (Calendar UX Polish) complete. Sprint 15 (Notifications & Reminders) complete. Sprint 16 (Calendar Intelligence) in progress. |
+| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprints 13–17A complete. Sprint 17B (Calendar Sync Write-Back & Webhooks) in progress. |
 | **Project Lead** | J. Moon |
 | **Development Environment** | Claude Code Agent Teams (see Section 26) |
 
@@ -528,6 +528,10 @@ Sprint 16 delivers a unified Smart Agenda view aggregating events, bills, tasks,
 ### Web App — Sprint 17A: Google/Outlook Calendar Sync (OAuth + Read Import) — ✅ Complete
 
 Sprint 17A integrates third-party calendar providers (Google Calendar, Microsoft Outlook) via OAuth2, enabling users to sync and view read-only external events alongside their Orbyt calendar. Includes token storage and refresh, calendar event sync, and a dedicated Integrations settings tab.
+
+### Web App — Sprint 17B: Calendar Sync Write-Back & Webhooks — 🔄 In Progress
+
+Sprint 17B upgrades calendar integrations from read-only to full bidirectional sync. Orbyt events written back to connected Google/Microsoft calendars via async fire-and-forget. Real-time push via Google Watch API and Microsoft Graph Subscriptions. Incremental sync with `syncToken` / `deltaLink`. New `webhook_subscriptions` table; daily cron renews expiring channels.
 
 ---
 
@@ -1933,9 +1937,176 @@ Two new catch-all routes in the Next.js app:
 - [ ] `pnpm turbo typecheck` passes
 - [ ] E2E test: Connect Google account, verify sync completes, verify external events appear in calendar
 
-### Sprint 17B — Calendar Sync Write-Back & Contacts Import 🔜
+### Sprint 17B — Calendar Sync Write-Back & Webhooks 🔄 In Progress
 
-Write external events back to Google/Microsoft calendars, bi-directional sync conflict resolution, import Google/Outlook contacts to Orbyt.
+**Estimated effort:** 4 days
+**Branch:** `main`
+
+Sprint 17B upgrades calendar integrations from read-only to full bidirectional sync. Orbyt events created, updated, or deleted are written back to the user's connected Google or Microsoft calendar. Real-time push notifications via Google Watch API and Microsoft Graph Subscriptions replace polling. Incremental sync (syncToken / deltaLink) eliminates redundant full re-fetches.
+
+#### 17B-A — `webhook_subscriptions` Table
+
+New table in `packages/db/src/schema/integrations.ts`:
+
+```sql
+create table webhook_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  connectedAccountId uuid not null references connected_accounts(id) on delete cascade,
+  provider text not null,                  -- 'google' | 'microsoft'
+  subscriptionId text not null,            -- provider-assigned channel/subscription ID
+  resourceId text,                         -- Google resource ID (for stop-channel calls)
+  notificationUrl text not null,           -- public webhook endpoint URL
+  expiresAt timestamp not null,            -- provider-set expiry; renewed by cron
+  syncToken text,                          -- Google syncToken for incremental sync
+  deltaLink text,                          -- Microsoft deltaLink for incremental sync
+  isActive boolean default true,
+  createdAt timestamp default now(),
+  updatedAt timestamp default now()
+);
+```
+
+#### 17B-B — Schema Additions to Existing Tables
+
+New columns added via migration `018_writeback.sql`:
+
+**`events` table:**
+- `externalEventId text` — provider event ID for events originated in Orbyt and written to an external calendar
+- `externalProvider text` — `'google'` | `'microsoft'` | `null`
+- `connectedAccountId uuid` — references `connected_accounts(id)`, identifies which account the write-back targets
+- `externalEtag text` — provider ETag for optimistic conflict detection
+- `lastSyncedAt timestamp` — time of last successful write-back or inbound sync
+
+**`external_events` table:**
+- `orbytEventId uuid` — references `events(id)`; set when a provider event is linked to an Orbyt event after bidirectional mapping
+- `etag text` — provider ETag stored at last sync; used for conflict detection
+
+**`connected_accounts` table:**
+- `syncToken text` — Google incremental sync token; persisted after each successful sync
+- `deltaLink text` — Microsoft incremental sync URL; persisted after each successful sync
+
+#### 17B-C — Write-Back Architecture
+
+Write-back is **async fire-and-forget**: after every calendar CRUD mutation in the tRPC router (`createEvent`, `updateEvent`, `deleteEvent`), the router calls `writeBackToConnectedAccounts()` without awaiting the result. External API failures are logged via Sentry but do not surface to the user and do not block the mutation response.
+
+```
+User creates event in Orbyt
+  → DB insert (awaited)
+  → tRPC returns success to client
+  → writeBackToConnectedAccounts(eventId) runs in background
+      → for each active connected_account in the household:
+          → POST to Google Calendar / PATCH to Microsoft Graph
+          → store externalEventId + externalEtag on events row
+          → on error: log to Sentry, update connected_accounts.lastError
+```
+
+Helper in `packages/api/src/lib/calendar-writeback.ts`.
+
+#### 17B-D — Scope Upgrade
+
+| Provider | Phase 1 (17A) | Phase 2 (17B) |
+|---|---|---|
+| Google | `calendar.readonly` | `calendar.events` |
+| Microsoft | `Calendars.Read` | `Calendars.ReadWrite` |
+
+Users with accounts authorized under old scopes see a persistent "Upgrade Permissions" banner in Settings > Integrations. Clicking it re-initiates the OAuth flow with the new scope set. Old tokens remain valid for read-only operations until re-authorized.
+
+#### 17B-E — Webhook Infrastructure
+
+**Google — Watch API:**
+- `POST https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events/watch` with a channel ID and `notificationUrl` pointing to `/api/webhooks/google`
+- Channels expire in ≤ 7 days; renewed by cron (see 17B-G)
+- Webhook payload contains only channel metadata; handler fetches incremental changes via `syncToken`
+
+**Microsoft — Graph Subscriptions:**
+- `POST https://graph.microsoft.com/v1.0/subscriptions` with `changeType: "created,updated,deleted"` and `notificationUrl` pointing to `/api/webhooks/microsoft`
+- Subscriptions expire in ~3 days; renewed by cron
+- Webhook payload includes partial event data; handler fetches full event via `deltaLink`
+
+Both webhook routes live in `apps/web/app/api/webhooks/`:
+- `google/route.ts` — validates `X-Goog-Channel-Token`, processes incremental sync, updates `external_events`
+- `microsoft/route.ts` — validates client state token, processes delta, updates `external_events`
+
+#### 17B-F — Incremental Sync
+
+Replace full 90-day re-fetch with provider-native incremental sync:
+
+- **Google**: After first full sync, persist `syncToken` from the response on `webhook_subscriptions`. Subsequent syncs call `GET .../events?syncToken={token}`. On `410 GONE` (expired token), fall back to a new full sync and issue a new `syncToken`.
+- **Microsoft**: After first full sync, persist `deltaLink` from the response. Subsequent syncs call `GET {deltaLink}`. On `410 GONE` or expired link, fall back to full sync.
+
+Incremental sync is triggered by incoming webhooks and by the manual "Sync Now" button (existing `integrations.syncNow` procedure, updated internally).
+
+#### 17B-G — Subscription Renewal Cron
+
+Vercel cron at `/api/cron/renew-webhooks` runs daily at 06:00 UTC:
+1. Query `webhook_subscriptions` where `isActive = true` and `expiresAt < now() + 24h`
+2. For each expiring subscription:
+   - Google: call stop-channel then re-register a new watch channel
+   - Microsoft: call `PATCH .../subscriptions/{id}` with a new `expirationDateTime`
+3. Update `webhook_subscriptions.expiresAt` and `subscriptionId` (if re-registered)
+4. Log renewal count and any failures via Sentry
+
+#### 17B-H — Conflict Resolution
+
+Last-write-wins by timestamp:
+
+1. On incoming webhook: compare provider event's `updatedAt` (from API) against `external_events.updatedAt` and, if linked, `events.updatedAt`
+2. If provider event is newer → update local record
+3. If Orbyt event is newer and write-back is pending → skip inbound update, re-queue write-back
+4. On genuine conflict (both updated within 60 seconds of each other) → keep the newer version, create an in-app notification: "A calendar conflict was detected for [event title]. The most recent version was kept."
+
+Notification uses the existing `createNotification` internal utility from Sprint 15.
+
+#### 17B-I — Event Linking (`integrations.linkEvent` / `integrations.unlinkEvent`)
+
+Two new tRPC procedures for manual association of an Orbyt event with an external provider event:
+
+- `linkEvent({ orbytEventId, externalEventId, connectedAccountId })` — writes `externalEventId`, `externalProvider`, `connectedAccountId` onto `events` row and `orbytEventId` onto `external_events` row
+- `unlinkEvent({ orbytEventId })` — clears the four write-back columns on `events`, clears `orbytEventId` on `external_events`
+
+Auto-linking occurs during write-back: when `writeBackToConnectedAccounts` successfully creates an event in the provider, it calls `linkEvent` internally.
+
+#### 17B-J — New API Procedures
+
+Six new tRPC procedures added to `packages/api/src/routers/integrations.ts`:
+
+| Procedure | Description |
+|---|---|
+| `checkScopes(connectedAccountId)` | Inspects stored token scopes; returns `{ hasWriteScope: boolean }` |
+| `writeBackEvent({ eventId, connectedAccountId })` | Manually trigger write-back for a single event; returns provider event ID |
+| `registerWebhook(connectedAccountId)` | Register Google watch channel or Microsoft subscription; stores in `webhook_subscriptions` |
+| `unregisterWebhook(connectedAccountId)` | Stop Google channel / delete Microsoft subscription; marks row `isActive = false` |
+| `linkEvent({ orbytEventId, externalEventId, connectedAccountId })` | Bidirectionally link Orbyt ↔ provider event IDs |
+| `unlinkEvent({ orbytEventId })` | Clear bidirectional link |
+
+#### 17B-K — New Files
+
+| File | Purpose |
+|---|---|
+| `packages/db/migrations/018_writeback.sql` | Raw SQL migration: new columns on `events`, `external_events`, `connected_accounts`; creates `webhook_subscriptions` table |
+| `packages/api/src/lib/encryption.ts` | AES-256-GCM encrypt/decrypt for token storage (extracted from inline logic in 17A for reuse) |
+| `packages/api/src/lib/calendar-writeback.ts` | `writeBackToConnectedAccounts()` — fire-and-forget helper called after CRUD mutations |
+| `packages/api/src/lib/webhook-handlers.ts` | Shared processing logic: incremental sync, conflict resolution, `external_events` upsert |
+| `apps/web/app/api/webhooks/google/route.ts` | Google Watch API webhook endpoint |
+| `apps/web/app/api/webhooks/microsoft/route.ts` | Microsoft Graph subscription webhook endpoint |
+| `apps/web/app/api/cron/renew-webhooks/route.ts` | Daily cron: renew expiring Google channels and Microsoft subscriptions |
+
+#### Acceptance Criteria
+
+- [ ] `webhook_subscriptions` table created with all columns; migration `018_writeback.sql` runs cleanly
+- [ ] New columns added to `events`, `external_events`, and `connected_accounts`
+- [ ] Creating an Orbyt event writes back to all connected accounts in the household (fire-and-forget)
+- [ ] Updating an Orbyt event sends PATCH to provider; deleting sends DELETE to provider
+- [ ] Write-back failures are logged to Sentry and do not surface errors to the user
+- [ ] `integrations.checkScopes` returns correct write-scope status for old and new tokens
+- [ ] Users with read-only scopes see "Upgrade Permissions" banner in Settings > Integrations
+- [ ] `/api/webhooks/google` validates channel token and processes incremental sync via `syncToken`
+- [ ] `/api/webhooks/microsoft` validates state token and processes delta via `deltaLink`
+- [ ] Incremental sync updates `external_events`; full sync triggered on 410 GONE
+- [ ] `/api/cron/renew-webhooks` renews subscriptions expiring within 24 hours
+- [ ] Conflict resolution creates an in-app notification on genuine conflicts
+- [ ] `integrations.linkEvent` and `integrations.unlinkEvent` correctly update both tables
+- [ ] `pnpm turbo typecheck` passes
+- [ ] E2E: Create Orbyt event → verify event appears in connected Google/Microsoft calendar
 
 ### Sprint 18 — Calendar Power Features 🔄 In Progress
 

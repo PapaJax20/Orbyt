@@ -6,7 +6,8 @@
     ".": "./src/index.ts",
     "./trpc": "./src/trpc.ts",
     "./context": "./src/context.ts",
-    "./routers/*": "./src/routers/*.ts"
+    "./routers/*": "./src/routers/*.ts",
+    "./lib/*": "./src/lib/*.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
