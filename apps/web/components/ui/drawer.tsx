@@ -1,7 +1,7 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { X } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
@@ -73,7 +73,7 @@ function DesktopPanel({
       transition={{ type: "spring", damping: 30, stiffness: 300 }}
     >
       <DrawerHeader title={title} onClose={onClose} />
-      <div className="flex-1 overflow-y-auto p-6">{children}</div>
+      <div className="flex-1 min-h-0 overflow-y-auto p-6">{children}</div>
     </motion.div>
   );
 }
@@ -87,6 +87,8 @@ function MobileSheet({
   children: React.ReactNode;
   onClose: () => void;
 }) {
+  const dragControls = useDragControls();
+
   return (
     <motion.div
       className="fixed inset-x-0 bottom-0 bg-bg z-50 flex flex-col rounded-t-2xl overflow-hidden shadow-2xl max-h-[92vh]"
@@ -95,18 +97,23 @@ function MobileSheet({
       exit={{ y: "100%" }}
       transition={{ type: "spring", damping: 30, stiffness: 300 }}
       drag="y"
+      dragControls={dragControls}
+      dragListener={false}
       dragConstraints={{ top: 0 }}
       dragElastic={0.1}
       onDragEnd={(_, info) => {
         if (info.offset.y > window.innerHeight * 0.3) onClose();
       }}
     >
-      {/* Drag handle */}
-      <div className="flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing">
+      {/* Drag handle — only element that initiates drag-to-dismiss */}
+      <div
+        className="flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing touch-none"
+        onPointerDown={(e) => dragControls.start(e)}
+      >
         <div className="w-10 h-1 rounded-full bg-border" />
       </div>
       <DrawerHeader title={title} onClose={onClose} />
-      <div className="flex-1 overflow-y-auto p-4">{children}</div>
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">{children}</div>
     </motion.div>
   );
 }
