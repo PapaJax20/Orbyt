@@ -73,6 +73,8 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        // handleMicrosoftWebhook validates the subscription exists (subscriptionId)
+        // before processing. Unknown subscriptions are silently ignored.
         await handleMicrosoftWebhook(getDb(), subscriptionId, changeType, resource, clientState ?? undefined);
       } catch (error) {
         // Log per-notification errors so one bad notification doesn't abort the rest.

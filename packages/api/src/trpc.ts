@@ -4,6 +4,35 @@ import { eq, and } from "drizzle-orm";
 import { householdMembers } from "@orbyt/db/schema";
 import type { Context } from "./context";
 
+// Simple in-memory rate limiter (per-user, mutations only)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 100; // max mutations per window
+const RATE_WINDOW_MS = 60_000; // 1 minute
+
+function checkRateLimit(userId: string): void {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return;
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT) {
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: "Rate limit exceeded. Please wait before making more requests.",
+    });
+  }
+}
+
+// Periodically clean up expired entries to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of rateLimitMap) {
+    if (now > val.resetAt) rateLimitMap.delete(key);
+  }
+}, 60_000);
+
 /**
  * Initialize tRPC with our context and SuperJSON transformer.
  * SuperJSON enables passing Dates, Maps, Sets, etc. over the wire.
@@ -45,6 +74,7 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
       message: "You must be logged in to perform this action",
     });
   }
+  checkRateLimit(ctx.user.id);
   return next({
     ctx: {
       ...ctx,

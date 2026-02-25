@@ -44,6 +44,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // handleGoogleWebhook validates the subscription exists (channelId + resourceId)
+    // before processing. Unknown subscriptions are silently ignored.
     const { handleGoogleWebhook } = await import("@orbyt/api/lib/webhook-handlers");
     await handleGoogleWebhook(getDb(), channelId, resourceId);
   } catch (error) {

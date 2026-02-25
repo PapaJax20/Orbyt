@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { eq, and, isNull, desc, gte, lte } from "drizzle-orm";
 import { notifications, pushTokens, profiles, events, eventAttendees } from "@orbyt/db/schema";
+import { TRPCError } from "@trpc/server";
 import { router, householdProcedure, protectedProcedure, publicProcedure } from "../trpc";
 import type { DbClient } from "@orbyt/db";
 
@@ -263,10 +264,21 @@ export const notificationsRouter = router({
    *
    * The calling cron route must validate CRON_SECRET before invoking this procedure.
    */
-  checkReminders: publicProcedure.mutation(async ({ ctx }) => {
+  checkReminders: publicProcedure
+    .input(z.object({ cronSecret: z.string() }).optional())
+    .mutation(async ({ ctx, input }) => {
+      // Validate cron secret — this procedure should only be called by the cron job
+      const expected = process.env["CRON_SECRET"];
+      if (!expected || input?.cronSecret !== expected) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Invalid cron secret",
+        });
+      }
+
     const now = new Date();
     // Look-back window: 5 minutes
-    const windowMs = 24 * 60 * 60 * 1000;
+    const windowMs = 5 * 60 * 1000;
 
     // Fetch future events that have at least one reminderMinutes value.
     // We use a broad query and filter in JS to avoid complex SQL on array columns.

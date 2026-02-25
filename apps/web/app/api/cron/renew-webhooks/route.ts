@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { createDbClient } from "@orbyt/db/client";
 
 /**
@@ -28,7 +29,12 @@ function getDb() {
 export async function POST(request: NextRequest) {
   // Validate CRON_SECRET to prevent unauthorized invocations.
   const authHeader = request.headers.get("authorization");
-  if (!process.env["CRON_SECRET"] || authHeader !== `Bearer ${process.env["CRON_SECRET"]}`) {
+  const expected = process.env["CRON_SECRET"];
+  if (!expected || !authHeader) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const expectedFull = `Bearer ${expected}`;
+  if (authHeader.length !== expectedFull.length || !timingSafeEqual(Buffer.from(authHeader), Buffer.from(expectedFull))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
