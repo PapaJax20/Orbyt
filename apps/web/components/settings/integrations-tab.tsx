@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
+import { ConnectedBanks } from "@/components/plaid/connected-banks";
+import { PlaidLinkButton } from "@/components/plaid/plaid-link-button";
 
 // ── Provider config ──────────────────────────────────────────────────────────
 
@@ -572,6 +574,24 @@ export function IntegrationsTab() {
           <p className="text-sm text-text">Connecting your calendar...</p>
         </div>
       )}
+
+      {/* Bank Connections (Plaid) */}
+      <div>
+        <p className="orbyt-label">Connected Banks</p>
+        <p className="mb-3 mt-1 text-xs text-text-muted">
+          Connect your bank accounts via Plaid to automatically import transactions and track balances.
+        </p>
+      </div>
+
+      <ConnectedBanks />
+
+      <div>
+        <p className="orbyt-label">Add a Bank Account</p>
+        <p className="mb-3 mt-1 text-xs text-text-muted">
+          Securely connect a new bank or credit card account.
+        </p>
+        <PlaidLinkButton />
+      </div>
     </div>
   );
 }

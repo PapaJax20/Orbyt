@@ -98,7 +98,7 @@ export function DashboardContent() {
       {/* Page header */}
       <div>
         <h1 className="font-display text-3xl font-bold text-text">
-          {getGreeting()} ✨
+          {getGreeting()} 🤖
         </h1>
         <p className="mt-1 text-text-muted">
           Here&apos;s what&apos;s happening in your household today.

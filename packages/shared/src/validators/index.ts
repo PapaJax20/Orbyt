@@ -5,3 +5,4 @@ export * from "./finances";
 export * from "./contacts";
 export * from "./shopping";
 export * from "./integrations";
+export * from "./plaid";

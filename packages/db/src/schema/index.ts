@@ -7,4 +7,5 @@ export * from "./contacts";
 export * from "./notifications";
 export * from "./ai";
 export * from "./integrations";
+export * from "./plaid";
 export * from "./relations";

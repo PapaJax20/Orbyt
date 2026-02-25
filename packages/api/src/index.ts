@@ -7,6 +7,7 @@ import { shoppingRouter } from "./routers/shopping";
 import { contactsRouter } from "./routers/contacts";
 import { notificationsRouter } from "./routers/notifications";
 import { integrationsRouter } from "./routers/integrations";
+import { plaidRouter } from "./routers/plaid";
 
 /**
  * The root tRPC router. This is the single AppRouter consumed by
@@ -21,6 +22,7 @@ export const appRouter = router({
   contacts: contactsRouter,
   notifications: notificationsRouter,
   integrations: integrationsRouter,
+  plaid: plaidRouter,
   // ai: aiRouter, — activated in Phase 2
 });
 

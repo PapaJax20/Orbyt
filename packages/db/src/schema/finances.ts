@@ -76,6 +76,8 @@ export const accounts = pgTable("accounts", {
   isActive: boolean("is_active").default(true).notNull(),
   ownerId: uuid("owner_id").references(() => profiles.id),
   ownership: varchar("ownership", { length: 10 }).default("ours").notNull(),
+  // Plaid sync column — nullable, no FK in Drizzle (referenced via plaid.ts at app level)
+  plaidAccountId: uuid("plaid_account_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -104,6 +106,12 @@ export const transactions = pgTable("transactions", {
     .default(sql`'{}'::text[]`),
   splitWith: jsonb("split_with"),
   ownership: varchar("ownership", { length: 10 }).default("ours").notNull(),
+  // Plaid sync columns — nullable for backward compatibility
+  plaidTransactionId: varchar("plaid_transaction_id", { length: 100 }).unique(),
+  pending: boolean("pending").default(false),
+  merchantName: varchar("merchant_name", { length: 200 }),
+  plaidCategory: jsonb("plaid_category"),
+  importSource: varchar("import_source", { length: 20 }).default("manual"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

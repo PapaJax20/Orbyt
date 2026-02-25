@@ -45,7 +45,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.googleapis.com https://graph.microsoft.com https://login.microsoftonline.com https://oauth2.googleapis.com; frame-src 'self' https://accounts.google.com https://login.microsoftonline.com; object-src 'none'; base-uri 'self'",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.googleapis.com https://graph.microsoft.com https://login.microsoftonline.com https://oauth2.googleapis.com https://*.plaid.com https://cdn.plaid.com; frame-src 'self' https://accounts.google.com https://login.microsoftonline.com https://cdn.plaid.com; object-src 'none'; base-uri 'self'",
           },
           {
             key: "Strict-Transport-Security",

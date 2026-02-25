@@ -13,6 +13,7 @@ import { contacts, contactRelationships, contactNotes } from "./contacts";
 import { notifications, pushTokens } from "./notifications";
 import { aiConversations, aiMessages } from "./ai";
 import { connectedAccounts, externalEvents, webhookSubscriptions } from "./integrations";
+import { plaidItems, plaidAccounts } from "./plaid";
 
 // --- Profiles ---
 export const profilesRelations = relations(profiles, ({ many }) => ({
@@ -379,5 +380,29 @@ export const webhookSubscriptionsRelations = relations(webhookSubscriptions, ({ 
   connectedAccount: one(connectedAccounts, {
     fields: [webhookSubscriptions.connectedAccountId],
     references: [connectedAccounts.id],
+  }),
+}));
+
+// --- Plaid ---
+export const plaidItemsRelations = relations(plaidItems, ({ one, many }) => ({
+  household: one(households, {
+    fields: [plaidItems.householdId],
+    references: [households.id],
+  }),
+  user: one(profiles, {
+    fields: [plaidItems.userId],
+    references: [profiles.id],
+  }),
+  plaidAccounts: many(plaidAccounts),
+}));
+
+export const plaidAccountsRelations = relations(plaidAccounts, ({ one }) => ({
+  plaidItem: one(plaidItems, {
+    fields: [plaidAccounts.plaidItemId],
+    references: [plaidItems.id],
+  }),
+  orbytAccount: one(accounts, {
+    fields: [plaidAccounts.orbytAccountId],
+    references: [accounts.id],
   }),
 }));
