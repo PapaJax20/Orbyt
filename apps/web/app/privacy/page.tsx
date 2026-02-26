@@ -250,8 +250,8 @@ export default function PrivacyPolicyPage() {
               If you have questions about this Privacy Policy or your data, contact us at:
             </p>
             <p className="mt-2 font-medium">
-              <a href="mailto:privacy@orbythq.com" className="text-accent underline">
-                privacy@orbythq.com
+              <a href="mailto:admin@orbythq.com" className="text-accent underline">
+                admin@orbythq.com
               </a>
             </p>
           </section>
