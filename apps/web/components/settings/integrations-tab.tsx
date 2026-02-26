@@ -43,7 +43,7 @@ type Provider = (typeof PROVIDERS)[number]["id"];
 
 function hasWriteScopes(provider: string, scopes: string | null): boolean {
   if (!scopes) return false;
-  if (provider === "google") return scopes.includes("calendar.events");
+  if (provider === "google") return scopes.includes("calendar");
   if (provider === "microsoft") return scopes.includes("ReadWrite");
   return false;
 }

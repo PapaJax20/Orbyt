@@ -275,7 +275,7 @@ export async function writeBackToConnectedAccounts(
       const scopes = account.scopes ?? "";
       const hasWriteScope =
         account.provider === "google"
-          ? scopes.includes("calendar.events")
+          ? scopes.includes("calendar")
           : scopes.includes("ReadWrite");
 
       if (!hasWriteScope) continue;

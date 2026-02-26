@@ -34,6 +34,7 @@ import { writeBackToConnectedAccounts } from "../lib/calendar-writeback";
 // ---------------------------------------------------------------------------
 
 function getBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return "http://localhost:3000";
 }
@@ -84,7 +85,10 @@ export const integrationsRouter = router({
         const oauth2Client = buildGoogleOAuthClient();
         const url = oauth2Client.generateAuthUrl({
           access_type: "offline",
-          scope: ["https://www.googleapis.com/auth/calendar.events"],
+          scope: [
+            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/userinfo.email",
+          ],
           state,
           prompt: "consent",
         });
@@ -159,7 +163,7 @@ export const integrationsRouter = router({
             accessToken: encryptedAccess,
             refreshToken: encryptedRefresh,
             tokenExpiresAt: expiresAt,
-            scopes: "https://www.googleapis.com/auth/calendar.events",
+            scopes: "https://www.googleapis.com/auth/calendar",
             isActive: true,
           })
           .onConflictDoUpdate({
@@ -173,7 +177,7 @@ export const integrationsRouter = router({
               accessToken: encryptedAccess,
               refreshToken: encryptedRefresh,
               tokenExpiresAt: expiresAt,
-              scopes: "https://www.googleapis.com/auth/calendar.events",
+              scopes: "https://www.googleapis.com/auth/calendar",
               isActive: true,
               syncError: null,
               updatedAt: new Date(),
@@ -893,7 +897,7 @@ export const integrationsRouter = router({
       const scopes = account.scopes ?? "";
       const hasWriteScope =
         account.provider === "google"
-          ? scopes.includes("calendar.events")
+          ? scopes.includes("calendar")
           : scopes.includes("ReadWrite");
 
       return { hasWriteScope, currentScopes: scopes, needsReauth: !hasWriteScope };
