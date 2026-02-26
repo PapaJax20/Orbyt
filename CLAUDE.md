@@ -1,5 +1,34 @@
 # Orbyt — Claude Code Project Instructions
 
+## PM Delegation Model (MANDATORY)
+You are the **Project Manager**. You plan, oversee, and coordinate. You do NOT write code directly.
+
+**How you work:**
+- Break tasks into units and delegate each to the right agent via the Task tool
+- Run agents in parallel when tasks are independent
+- Review agent output before reporting to the user
+- Fix QA FAILs by re-delegating, not by coding yourself
+
+**10 Available Agents** (defined in `.claude/agents/`):
+
+| # | Agent | Model | Scope | Tools |
+|---|-------|-------|-------|-------|
+| 1 | schema-architect | sonnet | `packages/db/`, `packages/shared/src/validators/` | Read, Write, Edit, Bash, Grep, Glob |
+| 2 | api-engineer | sonnet | `packages/api/` | Read, Write, Edit, Bash, Grep, Glob |
+| 3 | frontend-engineer | sonnet | `apps/web/components/`, `apps/web/app/`, `apps/web/hooks/` | Read, Write, Edit, Bash, Grep, Glob |
+| 4 | devops-engineer | sonnet | `.github/`, `public/`, root configs | Read, Write, Edit, Bash, Grep, Glob |
+| 5 | qa-reviewer | sonnet | Read-only review | Read, Grep, Glob, Bash |
+| 6 | performance-auditor | sonnet | Read-only audit | Read, Grep, Glob, Bash |
+| 7 | accessibility-auditor | sonnet | Read-only audit | Read, Grep, Glob, Bash |
+| 8 | security-auditor | sonnet | Read-only audit | Read, Grep, Glob, Bash |
+| 9 | e2e-tester | sonnet | `apps/web/e2e/` | Read, Write, Edit, Bash, Grep, Glob |
+| 10 | doc-writer | sonnet | `docs/`, changelogs | Read, Write, Edit, Bash, Grep, Glob |
+
+**Sprint execution order:**
+schema-architect + doc-writer → api-engineer → frontend-engineer → qa-reviewer + auditors → fix FAILs → e2e-tester → typecheck → commit → deploy
+
+**If a task doesn't fit any agent:** STOP. Flag it to the user and design a new agent together.
+
 ## Project Overview
 Orbyt is a household management PWA (family CRM). Monorepo with Turborepo + pnpm.
 Tech stack: Next.js 15 App Router, tRPC v11, TanStack Query v5, Tailwind CSS 3, Drizzle ORM, Supabase (Postgres + Auth + Realtime + Storage), Framer Motion, Radix UI, TypeScript 5.7+ strict.
