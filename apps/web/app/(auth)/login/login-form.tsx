@@ -52,7 +52,9 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
     // If the login email field already has a value, use it directly
     if (email) {
       setResetLoading(true);
-      await supabase.auth.resetPasswordForEmail(email);
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/api/auth/callback?next=/reset-password`,
+      });
       toast.success(
         "If an account exists with that email, a password reset link has been sent."
       );
@@ -67,7 +69,9 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   async function handleResetSubmit() {
     if (!resetEmail) return;
     setResetLoading(true);
-    await supabase.auth.resetPasswordForEmail(resetEmail);
+    await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/api/auth/callback?next=/reset-password`,
+    });
     toast.success(
       "If an account exists with that email, a password reset link has been sent."
     );
@@ -117,7 +121,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           <button
             type="button"
             onClick={handleForgotPassword}
-            className="text-xs text-accent hover:text-accent-hover transition-colors"
+            className="min-h-[44px] text-xs text-accent hover:text-accent-hover transition-colors"
           >
             Forgot password?
           </button>
@@ -148,13 +152,14 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
               placeholder="you@example.com"
               required
               autoComplete="email"
+              aria-label="Reset email address"
               className="orbyt-input flex-1 text-sm"
             />
             <button
               type="button"
               onClick={handleResetSubmit}
               disabled={resetLoading || !resetEmail}
-              className="orbyt-button-primary whitespace-nowrap px-3 py-1.5 text-xs"
+              className="orbyt-button-primary whitespace-nowrap px-3 min-h-[44px] text-xs"
             >
               {resetLoading ? "Sending..." : "Send Link"}
             </button>
@@ -165,7 +170,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
               setShowReset(false);
               setResetEmail("");
             }}
-            className="self-start text-xs text-text-muted hover:text-text transition-colors"
+            className="self-start min-h-[44px] text-xs text-text-muted hover:text-text transition-colors"
           >
             Cancel
           </button>

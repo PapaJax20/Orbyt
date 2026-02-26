@@ -1,3 +1,5 @@
+import { Toaster } from "sonner";
+
 /**
  * Auth layout — centered card with Orbyt branding and space background.
  * No sidebar, no nav — just the auth form.
@@ -53,6 +55,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {children}
         </div>
       </div>
+
+      <Toaster position="bottom-right" />
     </div>
   );
 }
