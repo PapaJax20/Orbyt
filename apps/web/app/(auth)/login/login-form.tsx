@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { trpcVanilla } from "@/lib/trpc/vanilla";
 import { toast } from "sonner";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const [email, setEmail] = useState("");
@@ -126,15 +127,13 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
             Forgot password?
           </button>
         </div>
-        <input
+        <PasswordInput
           id="password"
-          type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
           required
           autoComplete="current-password"
-          className="orbyt-input"
         />
       </div>
 

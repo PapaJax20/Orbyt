@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { trpcVanilla } from "@/lib/trpc/vanilla";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -61,7 +62,7 @@ function AcceptPanel({ token }: { token: string }) {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400" role="alert">
           {error}
         </div>
       )}
@@ -97,6 +98,7 @@ function RegisterAndAcceptPanel({ token }: { token: string }) {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -104,6 +106,10 @@ function RegisterAndAcceptPanel({ token }: { token: string }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -150,7 +156,7 @@ function RegisterAndAcceptPanel({ token }: { token: string }) {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400" role="alert">
           {error}
         </div>
       )}
@@ -190,16 +196,29 @@ function RegisterAndAcceptPanel({ token }: { token: string }) {
         <label htmlFor="password" className="text-sm font-medium text-text-muted">
           Password
         </label>
-        <input
+        <PasswordInput
           id="password"
-          type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="At least 8 characters"
           required
           minLength={8}
           autoComplete="new-password"
-          className="orbyt-input"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="confirmPassword" className="text-sm font-medium text-text-muted">
+          Confirm password
+        </label>
+        <PasswordInput
+          id="confirmPassword"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="Repeat your password"
+          required
+          minLength={8}
+          autoComplete="new-password"
         />
       </div>
 

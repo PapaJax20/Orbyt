@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export function ResetPasswordForm() {
   const [password, setPassword] = useState("");
@@ -90,16 +91,14 @@ export function ResetPasswordForm() {
         >
           New password
         </label>
-        <input
+        <PasswordInput
           id="new-password"
-          type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
           required
           minLength={8}
           autoComplete="new-password"
-          className="orbyt-input"
         />
       </div>
 
@@ -110,16 +109,14 @@ export function ResetPasswordForm() {
         >
           Confirm new password
         </label>
-        <input
+        <PasswordInput
           id="confirm-password"
-          type="password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           placeholder="••••••••"
           required
           minLength={8}
           autoComplete="new-password"
-          className="orbyt-input"
         />
       </div>
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { trpcVanilla } from "@/lib/trpc/vanilla";
+import { PasswordInput } from "@/components/ui/password-input";
 
 type Step = "account" | "household" | "persona";
 
@@ -13,6 +14,7 @@ export function RegisterForm() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    confirmPassword: "",
     displayName: "",
     householdName: "",
     persona: "rosie" as "rosie" | "eddie",
@@ -30,6 +32,10 @@ export function RegisterForm() {
     e.preventDefault();
 
     if (step === "account") {
+      if (formData.password !== formData.confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
       setStep("household");
       return;
     }
@@ -107,7 +113,7 @@ export function RegisterForm() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400" role="alert">
           {error}
         </div>
       )}
@@ -148,16 +154,28 @@ export function RegisterForm() {
             <label htmlFor="password" className="text-sm font-medium text-text-muted">
               Password
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               value={formData.password}
               onChange={(e) => update("password", e.target.value)}
               placeholder="At least 8 characters"
               required
               minLength={8}
               autoComplete="new-password"
-              className="orbyt-input"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="confirmPassword" className="text-sm font-medium text-text-muted">
+              Confirm password
+            </label>
+            <PasswordInput
+              id="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={(e) => update("confirmPassword", e.target.value)}
+              placeholder="Repeat your password"
+              required
+              minLength={8}
+              autoComplete="new-password"
             />
           </div>
         </>
