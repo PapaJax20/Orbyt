@@ -144,7 +144,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           <p className="text-xs text-text-muted">
             Enter your email to receive a password reset link.
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             <input
               type="email"
               value={resetEmail}
@@ -153,13 +153,13 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
               required
               autoComplete="email"
               aria-label="Reset email address"
-              className="orbyt-input flex-1 text-sm"
+              className="orbyt-input text-sm"
             />
             <button
               type="button"
               onClick={handleResetSubmit}
               disabled={resetLoading || !resetEmail}
-              className="orbyt-button-primary whitespace-nowrap px-3 min-h-[44px] text-xs"
+              className="orbyt-button-primary min-h-[44px] text-sm"
             >
               {resetLoading ? "Sending..." : "Send Link"}
             </button>
