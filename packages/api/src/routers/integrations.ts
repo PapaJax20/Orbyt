@@ -74,6 +74,13 @@ export const integrationsRouter = router({
       const state = randomBytes(16).toString("hex");
 
       if (input.provider === "google") {
+        if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Google Calendar integration is not yet configured. Please add OAuth credentials.",
+          });
+        }
         const oauth2Client = buildGoogleOAuthClient();
         const url = oauth2Client.generateAuthUrl({
           access_type: "offline",
@@ -85,6 +92,13 @@ export const integrationsRouter = router({
       }
 
       // Microsoft
+      if (!process.env.MICROSOFT_CLIENT_ID || !process.env.MICROSOFT_CLIENT_SECRET) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "Outlook Calendar integration is not yet configured. Please add OAuth credentials.",
+        });
+      }
       const cca = buildMsalApp();
       const url = await cca.getAuthCodeUrl({
         scopes: ["Calendars.ReadWrite"],
@@ -105,6 +119,13 @@ export const integrationsRouter = router({
       const userId = ctx.user.id;
 
       if (input.provider === "google") {
+        if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Google Calendar integration is not yet configured. Please add OAuth credentials.",
+          });
+        }
         const oauth2Client = buildGoogleOAuthClient();
 
         // Exchange the code for tokens
@@ -164,6 +185,13 @@ export const integrationsRouter = router({
       }
 
       // Microsoft
+      if (!process.env.MICROSOFT_CLIENT_ID || !process.env.MICROSOFT_CLIENT_SECRET) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "Outlook Calendar integration is not yet configured. Please add OAuth credentials.",
+        });
+      }
       const cca = buildMsalApp();
       const tokenResponse = await cca.acquireTokenByCode({
         code: input.code,
