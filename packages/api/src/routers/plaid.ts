@@ -1,11 +1,15 @@
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { router, householdProcedure } from "../trpc.js";
+// @ts-ignore — Turbopack .js→.ts resolution
+import { router, householdProcedure } from "../trpc";
 import { plaidItems, plaidAccounts, accounts, transactions } from "@orbyt/db/schema";
-import { encrypt, decrypt } from "../lib/encryption.js";
-import { getPlaidClient } from "../lib/plaid-client.js";
-import { mapPlaidCategory, mapPlaidTransactionType } from "../lib/plaid-category-map.js";
+// @ts-ignore — Turbopack .js→.ts resolution
+import { encrypt, decrypt } from "../lib/encryption";
+// @ts-ignore — Turbopack .js→.ts resolution
+import { getPlaidClient } from "../lib/plaid-client";
+// @ts-ignore — Turbopack .js→.ts resolution
+import { mapPlaidCategory, mapPlaidTransactionType } from "../lib/plaid-category-map";
 import {
   ExchangePublicTokenSchema,
   SyncTransactionsSchema,

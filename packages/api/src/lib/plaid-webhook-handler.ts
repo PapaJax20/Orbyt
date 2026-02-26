@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { plaidItems } from "@orbyt/db/schema";
-import { syncPlaidTransactionsForItem } from "../routers/plaid.js";
+// @ts-ignore — Turbopack .js→.ts resolution
+import { syncPlaidTransactionsForItem } from "../routers/plaid";
 
 /**
  * Handle a Plaid webhook notification.

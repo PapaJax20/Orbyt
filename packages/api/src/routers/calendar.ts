@@ -20,8 +20,11 @@ import {
   getNextBirthday,
 } from "@orbyt/shared/utils";
 import { router, householdProcedure } from "../trpc";
-import { createNotification } from "./notifications.js";
-import { writeBackToConnectedAccounts } from "../lib/calendar-writeback.js";
+// @ts-ignore — Turbopack .js→.ts resolution
+import { createNotification } from "./notifications";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore — Turbopack can't resolve .js→.ts extensionAlias; bundler resolves .ts directly
+import { writeBackToConnectedAccounts } from "../lib/calendar-writeback";
 import * as chrono from "chrono-node";
 import ICAL from "ical.js";
 import icalGenerator from "ical-generator";

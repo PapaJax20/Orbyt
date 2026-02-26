@@ -24,8 +24,10 @@ import {
   UnlinkEventSchema,
 } from "@orbyt/shared/validators";
 import { router, protectedProcedure } from "../trpc";
-import { encrypt, decrypt } from "../lib/encryption.js";
-import { writeBackToConnectedAccounts } from "../lib/calendar-writeback.js";
+// @ts-ignore — Turbopack .js→.ts resolution
+import { encrypt, decrypt } from "../lib/encryption";
+// @ts-ignore — Turbopack .js→.ts resolution
+import { writeBackToConnectedAccounts } from "../lib/calendar-writeback";
 
 // ---------------------------------------------------------------------------
 // URL helpers

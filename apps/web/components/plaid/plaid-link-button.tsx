@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePlaidLink } from "react-plaid-link";
 import { Loader2, Building2 } from "lucide-react";
 import { toast } from "sonner";
@@ -62,6 +62,19 @@ export function PlaidLinkButton({ onSuccess }: PlaidLinkButtonProps) {
     },
   });
 
+  const hasOpenedRef = useRef(false);
+
+  useEffect(() => {
+    hasOpenedRef.current = false;
+  }, [linkToken]);
+
+  useEffect(() => {
+    if (linkToken && ready && !hasOpenedRef.current) {
+      hasOpenedRef.current = true;
+      open();
+    }
+  }, [linkToken, ready, open]);
+
   const handleClick = useCallback(() => {
     if (linkToken && ready) {
       open();
@@ -69,12 +82,6 @@ export function PlaidLinkButton({ onSuccess }: PlaidLinkButtonProps) {
       createLinkToken.mutate();
     }
   }, [linkToken, ready, open, createLinkToken]);
-
-  // Open Plaid Link automatically when token is ready
-  if (linkToken && ready) {
-    // Auto-open on next tick
-    setTimeout(() => open(), 0);
-  }
 
   const isLoading = createLinkToken.isPending || exchangeToken.isPending;
 

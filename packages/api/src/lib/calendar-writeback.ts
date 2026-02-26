@@ -3,7 +3,8 @@ import { google } from "googleapis";
 import { ConfidentialClientApplication } from "@azure/msal-node";
 import { Client } from "@microsoft/microsoft-graph-client";
 import { connectedAccounts, events } from "@orbyt/db/schema";
-import { encrypt, decrypt } from "./encryption.js";
+// @ts-ignore — Turbopack .js→.ts resolution
+import { encrypt, decrypt } from "./encryption";
 
 // ---------------------------------------------------------------------------
 // Types

@@ -9,8 +9,10 @@ import {
   events,
   householdMembers,
 } from "@orbyt/db/schema";
-import { encrypt, decrypt } from "./encryption.js";
-import { createNotification } from "../routers/notifications.js";
+// @ts-ignore — Turbopack .js→.ts resolution
+import { encrypt, decrypt } from "./encryption";
+// @ts-ignore — Turbopack .js→.ts resolution
+import { createNotification } from "../routers/notifications";
 
 // ---------------------------------------------------------------------------
 // OAuth client builders (duplicated here to avoid circular imports)
