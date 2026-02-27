@@ -573,7 +573,7 @@ export const plaidRouter = router({
   /**
    * Reclassify existing Plaid-imported transactions whose type (income/expense)
    * was stored incorrectly due to the old mapPlaidTransactionType bug.
-   * Uses the stored plaidCategory.primary to determine the correct type.
+   * Uses plaidCategory.primary if available, falls back to the Orbyt category field.
    */
   reclassifyTransactions: householdProcedure
     .mutation(async ({ ctx }) => {
@@ -586,11 +586,18 @@ export const plaidRouter = router({
 
       let reclassified = 0;
       for (const txn of plaidTxns) {
+        // Try plaidCategory.primary first
         const plaidCat = txn.plaidCategory as { primary?: string } | null;
-        if (!plaidCat?.primary) continue;
+        let correctType: "income" | "expense";
 
-        // Use category to determine correct type (can't use amount since it's Math.abs'd)
-        const correctType = mapPlaidTransactionType(plaidCat.primary, 1);
+        if (plaidCat?.primary) {
+          correctType = mapPlaidTransactionType(plaidCat.primary, 1);
+        } else {
+          // Fallback: use the Orbyt category field (always populated)
+          // "income" category → income type, everything else → expense
+          correctType = txn.category === "income" ? "income" : "expense";
+        }
+
         if (txn.type !== correctType) {
           await ctx.db
             .update(transactions)

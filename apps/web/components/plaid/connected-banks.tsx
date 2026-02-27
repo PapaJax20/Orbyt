@@ -76,7 +76,11 @@ export function ConnectedBanks() {
       if (data.reclassified > 0) {
         utils.plaid.invalidate();
         utils.finances.invalidate();
+        toast.success(`Reclassified ${data.reclassified} transactions`);
       }
+    },
+    onError: (err) => {
+      toast.error(`Reclassify failed: ${err.message}`);
     },
   });
 
