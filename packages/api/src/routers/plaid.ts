@@ -18,7 +18,7 @@ import {
   UpdateAccountMappingSchema,
 } from "@orbyt/shared/validators";
 import type { PlaidItem } from "@orbyt/db/schema";
-import { Products, CountryCode, SandboxItemFireWebhookRequestWebhookCodeEnum, WebhookType } from "plaid";
+import { Products, CountryCode } from "plaid";
 
 // Rate limit sync: 1 sync per item per minute
 const syncCooldowns = new Map<string, number>();
@@ -572,12 +572,15 @@ export const plaidRouter = router({
     }),
 
   /**
-   * Sandbox only: create a realistic mix of income and expense transactions
-   * via the Plaid sandbox API, then immediately sync them into Orbyt.
-   * Uses the first active Plaid item for the household.
+   * Insert a realistic mix of income and expense transactions directly into
+   * the Orbyt transactions table, bypassing the Plaid sandbox API entirely.
+   * Uses importSource="manual" so the Reset button (which only deletes
+   * importSource="plaid" rows) does not wipe these test records.
+   * Uses the first active Plaid item for the household to find an account ID.
    */
   createTestTransactions: householdProcedure
     .mutation(async ({ ctx }) => {
+      // Find the first active plaid_item for the household
       const item = await ctx.db.query.plaidItems.findFirst({
         where: and(
           eq(plaidItems.householdId, ctx.householdId),
@@ -586,106 +589,158 @@ export const plaidRouter = router({
       });
 
       if (!item) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "No active Plaid item found" });
+        throw new TRPCError({ code: "NOT_FOUND", message: "No active Plaid item found. Connect a bank account first." });
       }
 
-      const client = getPlaidClient();
-      const accessToken = decrypt(item.accessToken);
+      // Find the first linked plaid_account to get an orbytAccountId (may be null)
+      const plaidAccount = await ctx.db.query.plaidAccounts.findFirst({
+        where: and(
+          eq(plaidAccounts.plaidItemId, item.id),
+          eq(plaidAccounts.isActive, true)
+        ),
+      });
+
+      const orbytAccountId = plaidAccount?.orbytAccountId ?? null;
 
       const today = new Date();
-      const fmt = (d: Date) => d.toISOString().slice(0, 10);
-      const daysAgo = (n: number) => {
+      const daysAgo = (n: number): string => {
         const d = new Date(today);
         d.setDate(d.getDate() - n);
-        return fmt(d);
+        return d.toISOString().slice(0, 10);
       };
 
-      // Create income transactions (negative amount = money in)
-      await client.sandboxTransactionsCreate({
-        access_token: accessToken,
-        transactions: [
-          {
-            date_transacted: daysAgo(1),
-            date_posted: daysAgo(1),
-            amount: -3500.00,
-            description: "Employer Direct Deposit - Payroll",
-            iso_currency_code: "USD",
-          },
-          {
-            date_transacted: daysAgo(3),
-            date_posted: daysAgo(3),
-            amount: -250.00,
-            description: "Venmo Transfer From John",
-            iso_currency_code: "USD",
-          },
-          {
-            date_transacted: daysAgo(7),
-            date_posted: daysAgo(7),
-            amount: -3500.00,
-            description: "Employer Direct Deposit - Payroll",
-            iso_currency_code: "USD",
-          },
-        ],
-      });
-      // Create expense transactions (positive amount = money out)
-      await client.sandboxTransactionsCreate({
-        access_token: accessToken,
-        transactions: [
-          {
-            date_transacted: daysAgo(1),
-            date_posted: daysAgo(1),
-            amount: 85.50,
-            description: "Whole Foods Market",
-            iso_currency_code: "USD",
-          },
-          {
-            date_transacted: daysAgo(2),
-            date_posted: daysAgo(2),
-            amount: 45.00,
-            description: "Shell Gas Station",
-            iso_currency_code: "USD",
-          },
-          {
-            date_transacted: daysAgo(3),
-            date_posted: daysAgo(3),
-            amount: 1200.00,
-            description: "Rent Payment - Apartment",
-            iso_currency_code: "USD",
-          },
-          {
-            date_transacted: daysAgo(4),
-            date_posted: daysAgo(4),
-            amount: 120.00,
-            description: "Electric Company - Monthly Bill",
-            iso_currency_code: "USD",
-          },
-          {
-            date_transacted: daysAgo(5),
-            date_posted: daysAgo(5),
-            amount: 65.00,
-            description: "Netflix and Spotify",
-            iso_currency_code: "USD",
-          },
-          {
-            date_transacted: daysAgo(6),
-            date_posted: daysAgo(6),
-            amount: 35.00,
-            description: "Target Shopping",
-            iso_currency_code: "USD",
-          },
-        ],
-      });
-      // Fire a sandbox webhook to notify Plaid that transactions are ready.
-      // sandboxTransactionsCreate is asynchronous on Plaid's side — transactions
-      // won't appear in /transactions/sync until after a short delay, so we skip
-      // the immediate sync here. The user clicks "Sync Transactions" after a few seconds.
-      await client.sandboxItemFireWebhook({
-        access_token: accessToken,
-        webhook_type: WebhookType.Transactions,
-        webhook_code: SandboxItemFireWebhookRequestWebhookCodeEnum.SyncUpdatesAvailable,
-      });
+      await ctx.db.insert(transactions).values([
+        // Income transactions
+        {
+          householdId: ctx.householdId,
+          accountId: orbytAccountId,
+          createdBy: ctx.user.id,
+          type: "income",
+          amount: "3500.00",
+          currency: "USD",
+          category: "income",
+          description: "Employer Direct Deposit - Payroll",
+          date: daysAgo(1),
+          merchantName: "Employer Direct Deposit - Payroll",
+          importSource: "manual",
+          pending: false,
+        },
+        {
+          householdId: ctx.householdId,
+          accountId: orbytAccountId,
+          createdBy: ctx.user.id,
+          type: "income",
+          amount: "250.00",
+          currency: "USD",
+          category: "income",
+          description: "Venmo Transfer From John",
+          date: daysAgo(3),
+          merchantName: "Venmo Transfer From John",
+          importSource: "manual",
+          pending: false,
+        },
+        {
+          householdId: ctx.householdId,
+          accountId: orbytAccountId,
+          createdBy: ctx.user.id,
+          type: "income",
+          amount: "3500.00",
+          currency: "USD",
+          category: "income",
+          description: "Employer Direct Deposit - Payroll",
+          date: daysAgo(7),
+          merchantName: "Employer Direct Deposit - Payroll",
+          importSource: "manual",
+          pending: false,
+        },
+        // Expense transactions
+        {
+          householdId: ctx.householdId,
+          accountId: orbytAccountId,
+          createdBy: ctx.user.id,
+          type: "expense",
+          amount: "85.50",
+          currency: "USD",
+          category: "food",
+          description: "Whole Foods Market",
+          date: daysAgo(1),
+          merchantName: "Whole Foods Market",
+          importSource: "manual",
+          pending: false,
+        },
+        {
+          householdId: ctx.householdId,
+          accountId: orbytAccountId,
+          createdBy: ctx.user.id,
+          type: "expense",
+          amount: "45.00",
+          currency: "USD",
+          category: "transportation",
+          description: "Shell Gas Station",
+          date: daysAgo(2),
+          merchantName: "Shell Gas Station",
+          importSource: "manual",
+          pending: false,
+        },
+        {
+          householdId: ctx.householdId,
+          accountId: orbytAccountId,
+          createdBy: ctx.user.id,
+          type: "expense",
+          amount: "1200.00",
+          currency: "USD",
+          category: "housing",
+          description: "Rent Payment - Apartment",
+          date: daysAgo(3),
+          merchantName: "Rent Payment - Apartment",
+          importSource: "manual",
+          pending: false,
+        },
+        {
+          householdId: ctx.householdId,
+          accountId: orbytAccountId,
+          createdBy: ctx.user.id,
+          type: "expense",
+          amount: "120.00",
+          currency: "USD",
+          category: "utilities",
+          description: "Electric Company - Monthly Bill",
+          date: daysAgo(4),
+          merchantName: "Electric Company - Monthly Bill",
+          importSource: "manual",
+          pending: false,
+        },
+        {
+          householdId: ctx.householdId,
+          accountId: orbytAccountId,
+          createdBy: ctx.user.id,
+          type: "expense",
+          amount: "65.00",
+          currency: "USD",
+          category: "entertainment",
+          description: "Netflix and Spotify",
+          date: daysAgo(5),
+          merchantName: "Netflix and Spotify",
+          importSource: "manual",
+          pending: false,
+        },
+        {
+          householdId: ctx.householdId,
+          accountId: orbytAccountId,
+          createdBy: ctx.user.id,
+          type: "expense",
+          amount: "35.00",
+          currency: "USD",
+          category: "shopping",
+          description: "Target Shopping",
+          date: daysAgo(6),
+          merchantName: "Target Shopping",
+          importSource: "manual",
+          pending: false,
+        },
+      ]);
 
-      return { created: true, message: "Test transactions created. Click Sync Transactions to pull them in." };
+      return { created: 9, message: "Created 9 test transactions (3 income + 6 expense)" };
     }),
 
   /**
