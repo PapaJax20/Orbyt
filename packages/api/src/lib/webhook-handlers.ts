@@ -149,6 +149,46 @@ async function upsertGoogleEvents(
         },
       });
 
+    // Auto-import: if not yet linked, create a native Orbyt event and link it
+    const extRow = await db.query.externalEvents.findFirst({
+      where: and(
+        eq(externalEvents.connectedAccountId, account.id),
+        eq(externalEvents.externalId, item.id)
+      ),
+      columns: { id: true, orbytEventId: true },
+    });
+
+    if (extRow && !extRow.orbytEventId) {
+      const householdId = await getUserHouseholdId(db, account.userId);
+
+      if (householdId) {
+        const [newEvent] = await db
+          .insert(events)
+          .values({
+            householdId,
+            createdBy: account.userId,
+            title: item.summary ?? "Untitled",
+            startAt,
+            endAt,
+            allDay,
+            category: "other",
+            description: item.description ?? null,
+            location: item.location ?? null,
+            externalEventId: item.id,
+            connectedAccountId: account.id,
+            lastSyncedAt: new Date(),
+          })
+          .returning({ id: events.id });
+
+        if (newEvent) {
+          await db
+            .update(externalEvents)
+            .set({ orbytEventId: newEvent.id, updatedAt: new Date() })
+            .where(eq(externalEvents.id, extRow.id));
+        }
+      }
+    }
+
     // Conflict detection: if this external event is linked to an Orbyt event
     const linked = await db.query.externalEvents.findFirst({
       where: and(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Pencil, Trash2, Check, X, ExternalLink, Link2, Loader2, Upload, ChevronDown } from "lucide-react";
+import { Pencil, Trash2, Check, X, ExternalLink, Link2, Loader2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { createClient } from "@/lib/supabase/client";
@@ -784,19 +784,9 @@ function EditEventForm({
 
 function ExternalEventView({
   extEvent,
-  onClose,
-  dateRange,
 }: {
   extEvent: ExternalEventData;
-  onClose: () => void;
-  dateRange: { start: string; end: string };
 }) {
-  const utils = trpc.useUtils();
-
-  const createOrbytEvent = trpc.calendar.create.useMutation();
-  const linkEventMutation = trpc.integrations.linkEvent.useMutation();
-  const [isImporting, setIsImporting] = useState(false);
-
   const start = new Date(extEvent.startAt);
   const end = extEvent.endAt ? new Date(extEvent.endAt) : null;
 
@@ -806,41 +796,6 @@ function ExternalEventView({
       " \u00B7 " +
       start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) +
       (end ? " \u2013 " + end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "");
-
-  async function handleImportToOrbyt() {
-    setIsImporting(true);
-    try {
-      // 1. Create Orbyt event with external event data
-      const newEvent = await createOrbytEvent.mutateAsync({
-        title: extEvent.title,
-        startAt: extEvent.startAt,
-        endAt: extEvent.endAt ?? undefined,
-        allDay: extEvent.allDay,
-        category: "other",
-        description: extEvent.description ?? undefined,
-        location: extEvent.location ?? undefined,
-        attendeeIds: [],
-      });
-
-      // 2. Link the new Orbyt event to the external event
-      await linkEventMutation.mutateAsync({
-        eventId: newEvent.id,
-        externalEventId: extEvent.dbId,
-      });
-
-      // 3. Invalidate caches
-      utils.calendar.list.invalidate({ startDate: dateRange.start, endDate: dateRange.end });
-      utils.integrations.listExternalEvents.invalidate();
-
-      toast.success("Event imported and linked to Orbyt");
-      onClose();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to import event";
-      toast.error(message);
-    } finally {
-      setIsImporting(false);
-    }
-  }
 
   return (
     <div className="flex flex-col gap-5 pb-6">
@@ -869,23 +824,8 @@ function ExternalEventView({
         )}
       </div>
 
-      {/* Import to Orbyt action */}
-      <button
-        type="button"
-        onClick={handleImportToOrbyt}
-        disabled={isImporting}
-        className="orbyt-button-accent flex items-center justify-center gap-2"
-      >
-        {isImporting ? (
-          <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-        ) : (
-          <Upload size={16} aria-hidden="true" />
-        )}
-        {isImporting ? "Importing..." : "Import to Orbyt"}
-      </button>
-
-      <p className="text-center text-xs text-text-muted">
-        This will create an Orbyt event with the same details and link it to the external event for bidirectional sync.
+      <p className="text-sm text-text/50 text-center">
+        This event is synced from Google Calendar and will update automatically.
       </p>
     </div>
   );
@@ -1283,8 +1223,6 @@ export function EventDrawer({ eventId, defaultDate, defaultTitle, open, onClose,
       {externalEventData ? (
         <ExternalEventView
           extEvent={externalEventData}
-          onClose={handleClose}
-          dateRange={dateRange}
         />
       ) : eventId ? (
         isLoading ? (

@@ -435,6 +435,14 @@ export const integrationsRouter = router({
 
           const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
+          // Look up the user's primary household once for auto-import
+          const membershipRow = await ctx.db.query.householdMembers.findFirst({
+            where: eq(householdMembers.userId, ctx.user.id),
+            orderBy: (table, { asc }) => [asc(table.joinedAt)],
+            columns: { householdId: true },
+          });
+          const userHouseholdId = membershipRow?.householdId ?? null;
+
           // Incremental sync: use syncToken if available
           let fullSync = !account.syncToken;
 
@@ -516,6 +524,44 @@ export const integrationsRouter = router({
                       updatedAt: new Date(),
                     },
                   });
+
+                // Auto-import: create a linked Orbyt event if not already linked
+                if (userHouseholdId) {
+                  const extRowInc = await ctx.db.query.externalEvents.findFirst({
+                    where: and(
+                      eq(externalEvents.connectedAccountId, account.id),
+                      eq(externalEvents.externalId, item.id)
+                    ),
+                    columns: { id: true, orbytEventId: true },
+                  });
+
+                  if (extRowInc && !extRowInc.orbytEventId) {
+                    const [newEvent] = await ctx.db
+                      .insert(events)
+                      .values({
+                        householdId: userHouseholdId,
+                        createdBy: ctx.user.id,
+                        title: item.summary ?? "Untitled",
+                        startAt,
+                        endAt,
+                        allDay,
+                        category: "other",
+                        description: item.description ?? null,
+                        location: item.location ?? null,
+                        externalEventId: item.id,
+                        connectedAccountId: account.id,
+                        lastSyncedAt: new Date(),
+                      })
+                      .returning({ id: events.id });
+
+                    if (newEvent) {
+                      await ctx.db
+                        .update(externalEvents)
+                        .set({ orbytEventId: newEvent.id, updatedAt: new Date() })
+                        .where(eq(externalEvents.id, extRowInc.id));
+                    }
+                  }
+                }
 
                 syncedCount++;
               }
@@ -617,6 +663,44 @@ export const integrationsRouter = router({
                     updatedAt: new Date(),
                   },
                 });
+
+              // Auto-import: create a linked Orbyt event if not already linked
+              if (userHouseholdId) {
+                const extRowFull = await ctx.db.query.externalEvents.findFirst({
+                  where: and(
+                    eq(externalEvents.connectedAccountId, account.id),
+                    eq(externalEvents.externalId, item.id)
+                  ),
+                  columns: { id: true, orbytEventId: true },
+                });
+
+                if (extRowFull && !extRowFull.orbytEventId) {
+                  const [newEvent] = await ctx.db
+                    .insert(events)
+                    .values({
+                      householdId: userHouseholdId,
+                      createdBy: ctx.user.id,
+                      title: item.summary ?? "Untitled",
+                      startAt,
+                      endAt,
+                      allDay,
+                      category: "other",
+                      description: item.description ?? null,
+                      location: item.location ?? null,
+                      externalEventId: item.id,
+                      connectedAccountId: account.id,
+                      lastSyncedAt: new Date(),
+                    })
+                    .returning({ id: events.id });
+
+                  if (newEvent) {
+                    await ctx.db
+                      .update(externalEvents)
+                      .set({ orbytEventId: newEvent.id, updatedAt: new Date() })
+                      .where(eq(externalEvents.id, extRowFull.id));
+                  }
+                }
+              }
 
               syncedCount++;
             }
@@ -1317,9 +1401,8 @@ export async function renewExpiringSubscriptions(
         continue;
       }
 
-      const baseUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+        ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
       if (account.provider === "google") {
         try {
