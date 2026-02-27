@@ -156,9 +156,8 @@ export function IntegrationsTab() {
 
   const testTxnMutation = trpc.plaid.createTestTransactions.useMutation({
     onSuccess: (data) => {
-      utils.finances.invalidate();
       utils.plaid.invalidate();
-      toast.success(`Created test data: ${data.added} added, ${data.modified} updated`);
+      toast.success(data.message ?? "Test transactions created — click Sync Transactions to pull them in");
     },
     onError: (err) => {
       toast.error(err.message ?? "Failed to create test transactions");
