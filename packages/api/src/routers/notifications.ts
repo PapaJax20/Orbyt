@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { z } from "zod";
 import { eq, and, isNull, desc, gte, lte } from "drizzle-orm";
 import { notifications, pushTokens, profiles, events, eventAttendees } from "@orbyt/db/schema";
@@ -269,7 +270,12 @@ export const notificationsRouter = router({
     .mutation(async ({ ctx, input }) => {
       // Validate cron secret — this procedure should only be called by the cron job
       const expected = process.env["CRON_SECRET"];
-      if (!expected || input?.cronSecret !== expected) {
+      if (
+        !expected ||
+        !input?.cronSecret ||
+        input.cronSecret.length !== expected.length ||
+        !timingSafeEqual(Buffer.from(input.cronSecret), Buffer.from(expected))
+      ) {
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message: "Invalid cron secret",

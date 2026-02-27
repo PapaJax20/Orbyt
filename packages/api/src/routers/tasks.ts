@@ -201,6 +201,12 @@ export const tasksRouter = router({
   listComments: householdProcedure
     .input(z.object({ taskId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      // Verify task belongs to household
+      const task = await ctx.db.query.tasks.findFirst({
+        where: and(eq(tasks.id, input.taskId), eq(tasks.householdId, ctx.householdId)),
+      });
+      if (!task) throw new TRPCError({ code: "NOT_FOUND" });
+
       return ctx.db.query.taskComments.findMany({
         where: eq(taskComments.taskId, input.taskId),
         with: { profile: true },

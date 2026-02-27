@@ -101,6 +101,15 @@ export const shoppingRouter = router({
   checkItem: householdProcedure
     .input(CheckShoppingItemSchema)
     .mutation(async ({ ctx, input }) => {
+      // Verify item belongs to a list in this household
+      const item = await ctx.db.query.shoppingItems.findFirst({
+        where: eq(shoppingItems.id, input.itemId),
+        with: { list: true },
+      });
+      if (!item || item.list.householdId !== ctx.householdId) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
       const [updated] = await ctx.db
         .update(shoppingItems)
         .set({
@@ -121,6 +130,15 @@ export const shoppingRouter = router({
   deleteItem: householdProcedure
     .input(z.object({ itemId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      // Verify item belongs to a list in this household
+      const item = await ctx.db.query.shoppingItems.findFirst({
+        where: eq(shoppingItems.id, input.itemId),
+        with: { list: true },
+      });
+      if (!item || item.list.householdId !== ctx.householdId) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
       await ctx.db.delete(shoppingItems).where(eq(shoppingItems.id, input.itemId));
       return { success: true };
     }),
@@ -131,7 +149,16 @@ export const shoppingRouter = router({
   clearChecked: householdProcedure
     .input(z.object({ listId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const result = await ctx.db
+      // Verify list belongs to household
+      const list = await ctx.db.query.shoppingLists.findFirst({
+        where: and(
+          eq(shoppingLists.id, input.listId),
+          eq(shoppingLists.householdId, ctx.householdId),
+        ),
+      });
+      if (!list) throw new TRPCError({ code: "NOT_FOUND" });
+
+      await ctx.db
         .delete(shoppingItems)
         .where(and(eq(shoppingItems.listId, input.listId), eq(shoppingItems.checked, true)));
       return { success: true };

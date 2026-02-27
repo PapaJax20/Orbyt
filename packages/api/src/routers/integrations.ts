@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { randomBytes, createHmac, timingSafeEqual } from "crypto";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { google } from "googleapis";
@@ -74,6 +74,14 @@ export const integrationsRouter = router({
     .query(async ({ input }) => {
       const state = randomBytes(16).toString("hex");
 
+      // Sign state with HMAC for server-side verification
+      const encryptionKey = process.env["INTEGRATION_ENCRYPTION_KEY"];
+      if (!encryptionKey) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Missing encryption key" });
+      }
+      const hmac = createHmac("sha256", encryptionKey).update(state).digest("hex");
+      const signedState = `${state}.${hmac}`;
+
       if (input.provider === "google") {
         if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
           throw new TRPCError({
@@ -89,10 +97,10 @@ export const integrationsRouter = router({
             "https://www.googleapis.com/auth/calendar",
             "https://www.googleapis.com/auth/userinfo.email",
           ],
-          state,
+          state: signedState,
           prompt: "consent",
         });
-        return { url, state };
+        return { url, state: signedState };
       }
 
       // Microsoft
@@ -107,9 +115,9 @@ export const integrationsRouter = router({
       const url = await cca.getAuthCodeUrl({
         scopes: ["Calendars.ReadWrite"],
         redirectUri: `${getBaseUrl()}/api/auth/callback/microsoft`,
-        state,
+        state: signedState,
       });
-      return { url, state };
+      return { url, state: signedState };
     }),
 
   /**
@@ -120,6 +128,27 @@ export const integrationsRouter = router({
   handleCallback: protectedProcedure
     .input(HandleCallbackSchema)
     .mutation(async ({ ctx, input }) => {
+      // Verify HMAC on state
+      const encryptionKey = process.env["INTEGRATION_ENCRYPTION_KEY"];
+      if (!encryptionKey) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Missing encryption key" });
+      }
+
+      const parts = input.state.split(".");
+      if (parts.length !== 2) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid OAuth state" });
+      }
+
+      const [stateValue, receivedHmac] = parts;
+      const expectedHmac = createHmac("sha256", encryptionKey).update(stateValue!).digest("hex");
+
+      if (
+        receivedHmac!.length !== expectedHmac.length ||
+        !timingSafeEqual(Buffer.from(receivedHmac!), Buffer.from(expectedHmac))
+      ) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid OAuth state" });
+      }
+
       const userId = ctx.user.id;
 
       if (input.provider === "google") {
