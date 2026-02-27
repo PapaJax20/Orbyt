@@ -18,7 +18,7 @@ import {
   UpdateAccountMappingSchema,
 } from "@orbyt/shared/validators";
 import type { PlaidItem } from "@orbyt/db/schema";
-import { Products, CountryCode } from "plaid";
+import { Products, CountryCode, SandboxItemFireWebhookRequestWebhookCodeEnum, WebhookType } from "plaid";
 
 // Rate limit sync: 1 sync per item per minute
 const syncCooldowns = new Map<string, number>();
@@ -675,6 +675,16 @@ export const plaidRouter = router({
             iso_currency_code: "USD",
           },
         ],
+      });
+
+      // Fire a sandbox webhook to make the newly created transactions available
+      // for /transactions/sync. Plaid sandbox does not surface sandboxTransactionsCreate
+      // results until SYNC_UPDATES_AVAILABLE is fired — without this step the sync
+      // call immediately below would return "0 added, 0 updated".
+      await client.sandboxItemFireWebhook({
+        access_token: accessToken,
+        webhook_type: WebhookType.Transactions,
+        webhook_code: SandboxItemFireWebhookRequestWebhookCodeEnum.SyncUpdatesAvailable,
       });
 
       // Sync to pull the new transactions into Orbyt
