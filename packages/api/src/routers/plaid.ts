@@ -572,6 +572,117 @@ export const plaidRouter = router({
     }),
 
   /**
+   * Sandbox only: create a realistic mix of income and expense transactions
+   * via the Plaid sandbox API, then immediately sync them into Orbyt.
+   * Uses the first active Plaid item for the household.
+   */
+  createTestTransactions: householdProcedure
+    .mutation(async ({ ctx }) => {
+      const item = await ctx.db.query.plaidItems.findFirst({
+        where: and(
+          eq(plaidItems.householdId, ctx.householdId),
+          eq(plaidItems.isActive, true)
+        ),
+      });
+
+      if (!item) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "No active Plaid item found" });
+      }
+
+      const client = getPlaidClient();
+      const accessToken = decrypt(item.accessToken);
+
+      const today = new Date();
+      const fmt = (d: Date) => d.toISOString().slice(0, 10);
+      const daysAgo = (n: number) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() - n);
+        return fmt(d);
+      };
+
+      // Create income transactions (negative amount = money in)
+      await client.sandboxTransactionsCreate({
+        access_token: accessToken,
+        transactions: [
+          {
+            date_transacted: daysAgo(1),
+            date_posted: daysAgo(1),
+            amount: -3500.00,
+            description: "Employer Direct Deposit - Payroll",
+            iso_currency_code: "USD",
+          },
+          {
+            date_transacted: daysAgo(3),
+            date_posted: daysAgo(3),
+            amount: -250.00,
+            description: "Venmo Transfer From John",
+            iso_currency_code: "USD",
+          },
+          {
+            date_transacted: daysAgo(7),
+            date_posted: daysAgo(7),
+            amount: -3500.00,
+            description: "Employer Direct Deposit - Payroll",
+            iso_currency_code: "USD",
+          },
+        ],
+      });
+
+      // Create expense transactions (positive amount = money out)
+      await client.sandboxTransactionsCreate({
+        access_token: accessToken,
+        transactions: [
+          {
+            date_transacted: daysAgo(1),
+            date_posted: daysAgo(1),
+            amount: 85.50,
+            description: "Whole Foods Market",
+            iso_currency_code: "USD",
+          },
+          {
+            date_transacted: daysAgo(2),
+            date_posted: daysAgo(2),
+            amount: 45.00,
+            description: "Shell Gas Station",
+            iso_currency_code: "USD",
+          },
+          {
+            date_transacted: daysAgo(3),
+            date_posted: daysAgo(3),
+            amount: 1200.00,
+            description: "Rent Payment - Apartment",
+            iso_currency_code: "USD",
+          },
+          {
+            date_transacted: daysAgo(4),
+            date_posted: daysAgo(4),
+            amount: 120.00,
+            description: "Electric Company - Monthly Bill",
+            iso_currency_code: "USD",
+          },
+          {
+            date_transacted: daysAgo(5),
+            date_posted: daysAgo(5),
+            amount: 65.00,
+            description: "Netflix and Spotify",
+            iso_currency_code: "USD",
+          },
+          {
+            date_transacted: daysAgo(6),
+            date_posted: daysAgo(6),
+            amount: 35.00,
+            description: "Target Shopping",
+            iso_currency_code: "USD",
+          },
+        ],
+      });
+
+      // Sync to pull the new transactions into Orbyt
+      const result = await syncPlaidTransactionsForItem(ctx.db, item);
+      return result;
+    }),
+
+  /**
    * Delete all Plaid-imported transactions for the household and reset sync
    * cursors so the next sync performs a full pull from Plaid.
    */

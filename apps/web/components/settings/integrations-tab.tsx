@@ -15,6 +15,7 @@ import {
   Bell,
   BellOff,
   Trash2,
+  FlaskConical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -150,6 +151,17 @@ export function IntegrationsTab() {
     },
     onError: (err) => {
       toast.error(err.message ?? "Failed to disable real-time sync");
+    },
+  });
+
+  const testTxnMutation = trpc.plaid.createTestTransactions.useMutation({
+    onSuccess: (data) => {
+      utils.finances.invalidate();
+      utils.plaid.invalidate();
+      toast.success(`Created test data: ${data.added} added, ${data.modified} updated`);
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to create test transactions");
     },
   });
 
@@ -605,25 +617,40 @@ export function IntegrationsTab() {
         <PlaidLinkButton />
       </div>
 
-      {/* Reset Plaid Data */}
+      {/* Sandbox Tools */}
       <div>
-        <p className="orbyt-label">Reset Plaid Data</p>
+        <p className="orbyt-label">Sandbox Tools</p>
         <p className="mb-3 mt-1 text-xs text-text-muted">
-          Delete all imported bank transactions for a fresh start. Sync cursors are also reset so the next sync pulls a full history from Plaid.
+          Test tools for Plaid sandbox environment.
         </p>
-        <button
-          type="button"
-          onClick={() => wipePlaidMutation.mutate()}
-          disabled={wipePlaidMutation.isPending}
-          className="flex min-h-[44px] items-center gap-2 rounded-xl border border-border bg-surface/50 px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {wipePlaidMutation.isPending ? (
-            <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-          ) : (
-            <Trash2 size={16} aria-hidden="true" />
-          )}
-          {wipePlaidMutation.isPending ? "Resetting..." : "Reset Transactions"}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => testTxnMutation.mutate()}
+            disabled={testTxnMutation.isPending}
+            className="flex min-h-[44px] items-center gap-2 rounded-xl border border-border bg-surface/50 px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {testTxnMutation.isPending ? (
+              <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <FlaskConical size={16} aria-hidden="true" />
+            )}
+            {testTxnMutation.isPending ? "Creating..." : "Create Test Transactions"}
+          </button>
+          <button
+            type="button"
+            onClick={() => wipePlaidMutation.mutate()}
+            disabled={wipePlaidMutation.isPending}
+            className="flex min-h-[44px] items-center gap-2 rounded-xl border border-border bg-surface/50 px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {wipePlaidMutation.isPending ? (
+              <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <Trash2 size={16} aria-hidden="true" />
+            )}
+            {wipePlaidMutation.isPending ? "Resetting..." : "Reset Transactions"}
+          </button>
+        </div>
       </div>
     </div>
   );
