@@ -27,11 +27,20 @@ export function mapPlaidCategory(primary: string | null | undefined): string {
   return CATEGORY_MAP[primary] ?? "other";
 }
 
+const INCOME_CATEGORIES = new Set(["INCOME", "TRANSFER_IN"]);
+const EXPENSE_CATEGORIES = new Set([
+  "TRANSFER_OUT", "LOAN_PAYMENTS", "BANK_FEES", "ENTERTAINMENT",
+  "FOOD_AND_DRINK", "GENERAL_MERCHANDISE", "GENERAL_SERVICES",
+  "GOVERNMENT_AND_NON_PROFIT", "HOME_IMPROVEMENT", "MEDICAL",
+  "PERSONAL_CARE", "RENT_AND_UTILITIES", "TRANSPORTATION", "TRAVEL",
+]);
+
 export function mapPlaidTransactionType(
   primary: string | null | undefined,
   amount: number
 ): "income" | "expense" {
-  if (primary === "INCOME" || primary === "TRANSFER_IN") return "income";
-  // Plaid: negative amounts = money out (expense), positive = money in (income)
-  return amount < 0 ? "expense" : "income";
+  if (primary && INCOME_CATEGORIES.has(primary)) return "income";
+  if (primary && EXPENSE_CATEGORIES.has(primary)) return "expense";
+  // Fallback: Plaid positive = money out (expense), negative = money in (income)
+  return amount > 0 ? "expense" : "income";
 }

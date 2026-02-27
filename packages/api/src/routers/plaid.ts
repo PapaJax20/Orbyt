@@ -569,4 +569,37 @@ export const plaidRouter = router({
 
       return { success: true };
     }),
+
+  /**
+   * Reclassify existing Plaid-imported transactions whose type (income/expense)
+   * was stored incorrectly due to the old mapPlaidTransactionType bug.
+   * Uses the stored plaidCategory.primary to determine the correct type.
+   */
+  reclassifyTransactions: householdProcedure
+    .mutation(async ({ ctx }) => {
+      const plaidTxns = await ctx.db.query.transactions.findMany({
+        where: and(
+          eq(transactions.householdId, ctx.householdId),
+          eq(transactions.importSource, "plaid")
+        ),
+      });
+
+      let reclassified = 0;
+      for (const txn of plaidTxns) {
+        const plaidCat = txn.plaidCategory as { primary?: string } | null;
+        if (!plaidCat?.primary) continue;
+
+        // Use category to determine correct type (can't use amount since it's Math.abs'd)
+        const correctType = mapPlaidTransactionType(plaidCat.primary, 1);
+        if (txn.type !== correctType) {
+          await ctx.db
+            .update(transactions)
+            .set({ type: correctType })
+            .where(eq(transactions.id, txn.id));
+          reclassified++;
+        }
+      }
+
+      return { reclassified };
+    }),
 });
