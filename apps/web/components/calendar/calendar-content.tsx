@@ -403,9 +403,13 @@ export function CalendarContent() {
       return {
         id: event.id,
         title: event.title,
-        start: event.startAt instanceof Date ? event.startAt.toISOString() : String(event.startAt),
+        start: event.allDay
+          ? (event.startAt instanceof Date ? event.startAt.toISOString().slice(0, 10) : String(event.startAt).slice(0, 10))
+          : (event.startAt instanceof Date ? event.startAt.toISOString() : String(event.startAt)),
         end: event.endAt
-          ? (event.endAt instanceof Date ? event.endAt.toISOString() : String(event.endAt))
+          ? event.allDay
+            ? (event.endAt instanceof Date ? event.endAt.toISOString().slice(0, 10) : String(event.endAt).slice(0, 10))
+            : (event.endAt instanceof Date ? event.endAt.toISOString() : String(event.endAt))
           : undefined,
         allDay: event.allDay,
         backgroundColor: bgColor,
@@ -430,9 +434,13 @@ export function CalendarContent() {
     externalEventsData?.map((event: ExternalEvent) => ({
       id: `ext-${event.id}`,
       title: event.title,
-      start: event.startAt instanceof Date ? event.startAt.toISOString() : String(event.startAt),
+      start: event.allDay
+        ? (event.startAt instanceof Date ? event.startAt.toISOString().slice(0, 10) : String(event.startAt).slice(0, 10))
+        : (event.startAt instanceof Date ? event.startAt.toISOString() : String(event.startAt)),
       end: event.endAt
-        ? (event.endAt instanceof Date ? event.endAt.toISOString() : String(event.endAt))
+        ? event.allDay
+          ? (event.endAt instanceof Date ? event.endAt.toISOString().slice(0, 10) : String(event.endAt).slice(0, 10))
+          : (event.endAt instanceof Date ? event.endAt.toISOString() : String(event.endAt))
         : undefined,
       allDay: event.allDay,
       backgroundColor: EXTERNAL_EVENT_COLOR,
@@ -447,9 +455,13 @@ export function CalendarContent() {
         dbId: event.id,
         externalId: (event as unknown as Record<string, unknown>).externalId ?? "",
         description: event.description ?? null,
-        startAt: event.startAt instanceof Date ? event.startAt.toISOString() : String(event.startAt),
+        startAt: event.allDay
+          ? (event.startAt instanceof Date ? event.startAt.toISOString().slice(0, 10) : String(event.startAt).slice(0, 10))
+          : (event.startAt instanceof Date ? event.startAt.toISOString() : String(event.startAt)),
         endAt: event.endAt
-          ? (event.endAt instanceof Date ? event.endAt.toISOString() : String(event.endAt))
+          ? event.allDay
+            ? (event.endAt instanceof Date ? event.endAt.toISOString().slice(0, 10) : String(event.endAt).slice(0, 10))
+            : (event.endAt instanceof Date ? event.endAt.toISOString() : String(event.endAt))
           : null,
         allDay: event.allDay,
         connectedAccountId: (event as unknown as Record<string, unknown>).connectedAccountId ?? "",
