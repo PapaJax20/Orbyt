@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Building2,
   RefreshCw,
@@ -70,6 +70,24 @@ export function ConnectedBanks() {
       toast.error(err.message ?? "Failed to disconnect bank");
     },
   });
+
+  const reclassifyMutation = trpc.plaid.reclassifyTransactions.useMutation({
+    onSuccess: (data) => {
+      if (data.reclassified > 0) {
+        utils.plaid.invalidate();
+        utils.finances.invalidate();
+      }
+    },
+  });
+
+  // Auto-reclassify once on mount to fix any legacy misclassified transactions
+  const hasReclassified = useRef(false);
+  useEffect(() => {
+    if (!hasReclassified.current && items && items.length > 0) {
+      hasReclassified.current = true;
+      reclassifyMutation.mutate();
+    }
+  }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSync = useCallback(
     (itemId: string) => {
@@ -245,6 +263,7 @@ export function ConnectedBanks() {
           </div>
         );
       })}
+
     </div>
   );
 }
