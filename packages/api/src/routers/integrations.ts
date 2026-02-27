@@ -1,5 +1,5 @@
 import { randomBytes, createHmac, timingSafeEqual } from "crypto";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, isNull, ne } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { google } from "googleapis";
 import { ConfidentialClientApplication } from "@azure/msal-node";
@@ -716,7 +716,50 @@ export const integrationsRouter = router({
                   updatedAt: new Date(),
                 })
                 .where(eq(connectedAccounts.id, account.id));
-              return { synced: syncedCount };
+            }
+          }
+
+          // Backfill: auto-import any external events not yet linked to Orbyt events.
+          // This runs after both the incremental and full-sync paths so events that
+          // existed before this feature was deployed (or arrived via webhook) are
+          // also linked even when Google reports zero changes.
+          if (userHouseholdId) {
+            const unlinkedEvents = await ctx.db.query.externalEvents.findMany({
+              where: and(
+                eq(externalEvents.connectedAccountId, account.id),
+                isNull(externalEvents.orbytEventId),
+                ne(externalEvents.status, "cancelled")
+              ),
+            });
+
+            for (const ext of unlinkedEvents) {
+              if (!ext.startAt) continue;
+
+              const [newEvent] = await ctx.db
+                .insert(events)
+                .values({
+                  householdId: userHouseholdId,
+                  createdBy: ctx.user.id,
+                  title: ext.title ?? "Untitled",
+                  startAt: ext.startAt,
+                  endAt: ext.endAt,
+                  allDay: ext.allDay ?? false,
+                  category: "other",
+                  description: ext.description ?? null,
+                  location: ext.location ?? null,
+                  externalEventId: ext.externalId,
+                  connectedAccountId: account.id,
+                  lastSyncedAt: new Date(),
+                })
+                .returning({ id: events.id });
+
+              if (newEvent) {
+                await ctx.db
+                  .update(externalEvents)
+                  .set({ orbytEventId: newEvent.id, updatedAt: new Date() })
+                  .where(eq(externalEvents.id, ext.id));
+                syncedCount++;
+              }
             }
           }
         } else {

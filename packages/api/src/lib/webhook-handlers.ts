@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull, ne } from "drizzle-orm";
 import { google } from "googleapis";
 import { ConfidentialClientApplication } from "@azure/msal-node";
 import { Client } from "@microsoft/microsoft-graph-client";
@@ -263,6 +263,49 @@ async function upsertGoogleEvents(
             })
             .where(eq(events.id, linked.orbytEventId));
         }
+      }
+    }
+  }
+
+  // Backfill: auto-import any external events for this account that were
+  // stored before the auto-import logic existed (or arrived via a prior
+  // webhook call) and still have no linked Orbyt event.
+  const householdId = await getUserHouseholdId(db, account.userId);
+  if (householdId) {
+    const unlinkedEvents = await db.query.externalEvents.findMany({
+      where: and(
+        eq(externalEvents.connectedAccountId, account.id),
+        isNull(externalEvents.orbytEventId),
+        ne(externalEvents.status, "cancelled")
+      ),
+    });
+
+    for (const ext of unlinkedEvents) {
+      if (!ext.startAt) continue;
+
+      const [newEvent] = await db
+        .insert(events)
+        .values({
+          householdId,
+          createdBy: account.userId,
+          title: ext.title ?? "Untitled",
+          startAt: ext.startAt,
+          endAt: ext.endAt,
+          allDay: ext.allDay ?? false,
+          category: "other",
+          description: ext.description ?? null,
+          location: ext.location ?? null,
+          externalEventId: ext.externalId,
+          connectedAccountId: account.id,
+          lastSyncedAt: new Date(),
+        })
+        .returning({ id: events.id });
+
+      if (newEvent) {
+        await db
+          .update(externalEvents)
+          .set({ orbytEventId: newEvent.id, updatedAt: new Date() })
+          .where(eq(externalEvents.id, ext.id));
       }
     }
   }
