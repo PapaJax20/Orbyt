@@ -4,15 +4,17 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 3.1 |
-| **Last updated** | February 24, 2026 |
+| **Version** | 3.2 |
+| **Last updated** | February 26, 2026 |
 | **GitHub** | https://github.com/PapaJax20/Orbyt |
 | **Local path** | `C:\Users\jmoon\Orbyt` |
-| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprints 13–19 complete. Custom domain `orbythq.com` live on Vercel. |
+| **Status** | App running locally. Auth, Dashboard, Tasks, Shopping, Finances, Calendar, Contacts, and Settings fully built. Sprints 13–22 complete. Security hardening, Plaid bank sync, auth UX, and PM delegation model shipped. Custom domain `orbythq.com` live on Vercel. |
 | **Project Lead** | J. Moon |
 | **Development Environment** | Claude Code Agent Teams (see Section 26) |
 
 > **REVISION NOTE (v3.0):** This revision corrects 11 discrepancies between the original bible and the actual codebase, adds a complete Entity Relationship Diagram derived from the Drizzle schema files, rewrites the API Contract Reference to match runtime behavior, adds a full Claude Code Agent Teams development environment specification (Section 26), and incorporates all Tier 1 launch-blocking fixes. Changes from v2.0 are marked with `[v3 CHANGE]` or `[v3 NEW]` inline.
+
+> **REVISION NOTE (v3.2):** Documents Sprints 20 (security hardening), 21 (Plaid bank sync), and 22 (auth UX + agent infrastructure). Adds 8 new agent definitions to Section 26.3, updates the CLAUDE.md copy in Section 26.2 with the PM delegation model, and extends the Known Issues table and Git History through commit `df34cad`.
 
 ---
 
@@ -2254,6 +2256,302 @@ Sprint 19 delivers two targeted fixes: cross-device theme persistence and dashbo
 
 ---
 
+### Sprint 19+ — Theme FOUC Fix ✅ COMPLETED — February 2026
+
+**Estimated effort:** 0.5 days
+**Branch:** `main`
+
+A blocking `<script>` tag was added to `<head>` in `apps/web/app/layout.tsx` that reads the theme from `localStorage` and sets the `data-theme` attribute before the first paint. This eliminates the flash of unstyled content (FOUC) where users saw the default theme briefly before their chosen theme loaded.
+
+#### Acceptance Criteria
+
+- [x] Theme is applied before first paint (no flash of default theme)
+- [x] Script runs synchronously in `<head>` before React hydration
+- [x] Falls back to "orbit" theme if no `localStorage` value exists
+- [x] `pnpm turbo typecheck` passes
+
+---
+
+### Sprint 20 — Security Hardening ✅ COMPLETED — February 2026
+
+**Estimated effort:** 1 day
+**Branch:** `main`
+
+Sprint 20 adds HTTP security headers, fixes an open redirect vector, adds timing-safe cron authentication, and introduces per-user rate limiting on all protected tRPC procedures.
+
+#### 20A — HTTP Security Headers
+
+All responses now include security headers configured in `apps/web/next.config.ts` `headers()`:
+
+| Header | Value |
+|---|---|
+| Content-Security-Policy | `default-src 'self'; script-src 'self' 'unsafe-inline' ...` (full CSP with allowed domains for Supabase, Google, Microsoft, Plaid) |
+| Strict-Transport-Security | `max-age=31536000; includeSubDomains` |
+| Permissions-Policy | `camera=(), microphone=(), geolocation=()` |
+| X-Frame-Options | `DENY` |
+| X-Content-Type-Options | `nosniff` |
+| Referrer-Policy | `strict-origin-when-cross-origin` |
+
+CSP allows `unsafe-inline` for scripts and styles (nonce-based CSP deferred to a later sprint). The `connect-src` directive includes Supabase, Google APIs, Microsoft Graph, and Plaid domains.
+
+#### 20B — Open Redirect Fix
+
+Redirect URLs in auth callbacks are validated to start with `/` and not `//`. This prevents attackers from crafting redirect URLs that send users to external sites after authentication.
+
+#### 20C — Timing-Safe Cron Auth
+
+`apps/web/app/api/cron/reminders/route.ts` uses `timingSafeEqual` from Node's `crypto` module to compare the `Authorization: Bearer <CRON_SECRET>` header against the expected value. This prevents timing attacks that could leak the secret character by character.
+
+#### 20D — Rate Limiting
+
+`packages/api/src/trpc.ts` adds an in-memory rate limiter on `protectedProcedure`. Each authenticated user is limited to 100 requests per 60-second window. Exceeding the limit throws a `TOO_MANY_REQUESTS` tRPC error. A periodic cleanup interval removes expired entries to prevent memory leaks.
+
+This is an in-memory `Map`, so each serverless instance maintains its own counter. Acceptable for invite-only launch; Redis-backed rate limiting is deferred to Phase 2.
+
+#### 20E — Drawer Scroll Fix
+
+`bbabfc4` fixed drawer overflow on both desktop and mobile. Drawer content now scrolls correctly when it exceeds the viewport height.
+
+#### Files Changed
+
+| File | Change |
+|---|---|
+| `apps/web/next.config.ts` | Added 6 security headers in `headers()` function |
+| `packages/api/src/trpc.ts` | Added `checkRateLimit()` with in-memory Map, called in `protectedProcedure` middleware |
+| `apps/web/app/api/cron/reminders/route.ts` | `timingSafeEqual` for CRON_SECRET validation |
+
+#### Acceptance Criteria
+
+- [x] All 6 security headers present on every response
+- [x] CSP blocks inline scripts from external domains while allowing Supabase/Google/Microsoft/Plaid connections
+- [x] HSTS enforced with 1-year max-age and includeSubDomains
+- [x] Redirect URLs validated (must start with `/`, not `//`)
+- [x] Cron endpoints use timing-safe comparison for secret validation
+- [x] Rate limiter returns HTTP 429 after 100 requests per minute per user
+- [x] Expired rate limit entries are cleaned up every 60 seconds
+- [x] Drawers scroll correctly on desktop and mobile
+- [x] `pnpm turbo typecheck` passes
+
+---
+
+### Sprint 21 — Plaid Bank Sync ✅ COMPLETED — February 2026
+
+**Estimated effort:** 2-3 days
+**Branch:** `main`
+
+Sprint 21 integrates Plaid for automatic bank account linking and transaction syncing. Users connect bank accounts through Plaid Link in Settings, and transactions sync incrementally via the Plaid Transactions Sync API. A daily cron job catches any transactions missed by webhooks.
+
+#### 21A — Database Tables
+
+Two new tables in `packages/db/src/schema/plaid.ts`:
+
+**`plaid_items`** — One row per Plaid institution connection.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | Primary key |
+| householdId | uuid | FK to households |
+| userId | uuid | FK to profiles (who connected it) |
+| plaidItemId | varchar(100) | Plaid's item_id, unique |
+| accessToken | text | AES-256-GCM encrypted |
+| institutionId | varchar(50) | Plaid institution ID |
+| institutionName | varchar(200) | Display name |
+| transactionsCursor | text | For incremental sync |
+| consentExpiresAt | timestamp | Plaid consent expiry |
+| lastSyncAt | timestamp | Last successful sync |
+| syncError | text | Last error message |
+| status | varchar(20) | "active", "login_required", "error", "disconnected" |
+| isActive | boolean | Soft delete flag |
+
+**`plaid_accounts`** — Individual bank accounts within a Plaid item.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | Primary key |
+| plaidItemId | uuid | FK to plaid_items |
+| orbytAccountId | uuid | FK to accounts (nullable, for balance sync) |
+| plaidAccountId | varchar(100) | Plaid's account_id, unique |
+| name | varchar(200) | Account name |
+| officialName | varchar(200) | Official name from bank |
+| type | varchar(20) | "depository", "credit", "loan", "investment" |
+| subtype | varchar(50) | More specific type |
+| mask | varchar(4) | Last 4 digits |
+| currentBalance | numeric(12,2) | Current balance |
+| availableBalance | numeric(12,2) | Available balance |
+| isoCurrencyCode | varchar(3) | Default "USD" |
+| isActive | boolean | Soft delete flag |
+
+#### 21B — Plaid tRPC Router
+
+`packages/api/src/routers/plaid.ts` with 8 procedures, all using `householdProcedure`:
+
+| Procedure | Type | Description |
+|---|---|---|
+| `createLinkToken` | mutation | Generates a Plaid Link token for the frontend |
+| `exchangePublicToken` | mutation | Exchanges public token for access token, creates plaid_items row, fetches and stores accounts, auto-creates Orbyt accounts |
+| `listItems` | query | Lists active Plaid items for the household (access tokens stripped) |
+| `listAccounts` | query | Lists accounts for a specific Plaid item |
+| `syncTransactions` | mutation | Manually triggers incremental transaction sync (1-min cooldown) |
+| `refreshBalances` | mutation | Refreshes account balances from Plaid, updates linked Orbyt accounts |
+| `disconnectItem` | mutation | Revokes access token at Plaid, soft-deletes item and accounts. Restricted to connecting user or admin |
+| `updateAccountMapping` | mutation | Links/unlinks a Plaid account to/from an existing Orbyt account |
+
+Transaction sync uses Plaid's cursor-based Transactions Sync API. New transactions are inserted with `onConflictDoNothing` on `plaidTransactionId` to prevent duplicates. Modified transactions update in place. Removed transactions are soft-removed with a `[Removed by bank]` note.
+
+The exported `syncPlaidTransactionsForItem` function is shared between the tRPC procedure (manual sync) and the daily cron job.
+
+#### 21C — Plaid Link UI
+
+Plaid Link is integrated in Settings > Integrations tab using the `react-plaid-link` package. The flow:
+
+1. User clicks "Connect Bank Account"
+2. Frontend calls `plaid.createLinkToken`
+3. Plaid Link opens as a modal overlay
+4. User authenticates with their bank
+5. Plaid returns a public token
+6. Frontend calls `plaid.exchangePublicToken`
+7. Connected accounts appear in the integrations list
+
+#### 21D — Webhook Endpoint
+
+`apps/web/app/api/webhooks/plaid/route.ts` handles Plaid webhook events (transaction updates, item errors, login required). The handler delegates to a shared `handlePlaidWebhook` function. Always returns HTTP 200 to prevent Plaid from retrying.
+
+JWT signature verification is a TODO for production. Plaid Sandbox does not sign webhooks.
+
+#### 21E — Daily Sync Cron
+
+`apps/web/app/api/cron/sync-plaid/route.ts` runs daily at 07:00 UTC. Iterates all active `plaid_items` and calls `syncPlaidTransactionsForItem` for each. Errors on individual items are logged but do not stop the cron from processing remaining items. Authenticated via timing-safe CRON_SECRET comparison.
+
+#### 21F — Other Changes
+
+- CSP updated to allow `cdn.plaid.com` in `script-src` and `frame-src`, and `*.plaid.com` in `connect-src`
+- Dashboard emoji changed from sparkles to robot
+- `@orbyt/db/orm` re-export added for drizzle-orm operators in `apps/web` route handlers
+- Privacy policy page added at `/privacy` (public, no auth required)
+
+#### Files Changed
+
+| File | Change |
+|---|---|
+| `packages/db/src/schema/plaid.ts` | New file: `plaid_items` + `plaid_accounts` tables |
+| `packages/api/src/routers/plaid.ts` | New file: 8 tRPC procedures + exported `syncPlaidTransactionsForItem` |
+| `packages/api/src/lib/plaid-client.ts` | New file: Plaid API client factory |
+| `packages/api/src/lib/plaid-category-map.ts` | New file: maps Plaid categories to Orbyt categories |
+| `packages/api/src/lib/plaid-webhook-handler.ts` | New file: shared webhook event handler |
+| `apps/web/app/api/webhooks/plaid/route.ts` | New file: webhook endpoint |
+| `apps/web/app/api/cron/sync-plaid/route.ts` | New file: daily sync cron |
+| `apps/web/next.config.ts` | CSP updated for Plaid domains |
+| `apps/web/app/(public)/privacy/page.tsx` | New file: privacy policy page |
+| `apps/web/components/dashboard-content.tsx` | Emoji fix |
+
+#### Acceptance Criteria
+
+- [x] `plaid_items` and `plaid_accounts` tables created with all columns
+- [x] Access tokens encrypted with AES-256-GCM before storage
+- [x] Plaid Link opens from Settings > Integrations and completes the connection flow
+- [x] `exchangePublicToken` creates the item, fetches accounts, and auto-creates Orbyt accounts
+- [x] `syncTransactions` incrementally syncs using cursor-based pagination with dedup on `plaidTransactionId`
+- [x] `refreshBalances` updates both Plaid account balances and linked Orbyt account balances
+- [x] `disconnectItem` revokes the access token at Plaid and soft-deletes the item
+- [x] Manual sync enforces 1-minute cooldown per item
+- [x] Webhook endpoint handles transaction update events and returns 200
+- [x] Daily cron syncs all active items with timing-safe CRON_SECRET auth
+- [x] CSP allows Plaid domains for script, frame, and connect sources
+- [x] Privacy policy page accessible at `/privacy`
+- [x] `pnpm turbo typecheck` passes
+
+---
+
+### Sprint 22 — Auth UX + Agent Infrastructure ✅ COMPLETED — February 2026
+
+**Estimated effort:** 1-2 days
+**Branch:** `main`
+
+Sprint 22 fixes the Google Calendar OAuth scope, adds password recovery and confirm-password flows, and establishes the PM delegation model with 10 agent definitions for Claude Code development.
+
+#### 22A — Google Calendar OAuth Scope Fix
+
+The Google Calendar OAuth scope was changed from `calendar.events` to `calendar` (the broader scope) across 4 files. Testing-mode Google OAuth apps may silently reject narrower scopes that are not registered in the Data Access settings. The broader scope resolves this.
+
+#### 22B — Password Recovery Flow
+
+A new `/reset-password` page (`apps/web/app/(auth)/reset-password/page.tsx`) accepts a new password and confirmation, then calls `supabase.auth.updateUser()`. The forgot-password email now includes a `redirectTo` parameter pointing to `/reset-password`. The auth layout (`apps/web/app/(auth)/layout.tsx`) now includes a `Toaster` for success/error feedback.
+
+The forgot-password form layout was also fixed: the email input and "Send Link" button are now stacked vertically instead of side-by-side.
+
+#### 22C — Confirm Password + Eye Toggle
+
+A new `PasswordInput` component (`apps/web/components/ui/password-input.tsx`) provides:
+- A password input with a show/hide toggle button (Eye/EyeOff icons from Lucide)
+- 44px touch target on the toggle button
+- `aria-label` that changes between "Show password" and "Hide password"
+
+This component replaced the plain `<input type="password">` in all 4 auth forms:
+- Login (`apps/web/app/(auth)/login/page.tsx`)
+- Register (`apps/web/app/(auth)/register/page.tsx`)
+- Reset Password (`apps/web/app/(auth)/reset-password/page.tsx`)
+- Invite acceptance (`apps/web/app/(auth)/invite/page.tsx`)
+
+Register and invite forms now require password confirmation (a second `PasswordInput` field that must match). The submit button is disabled until both fields match.
+
+#### 22D — PM Delegation Model
+
+The `CLAUDE.md` project root file now begins with a "PM Delegation Model (MANDATORY)" section that instructs Claude Code to act as a Project Manager, delegating all coding work to named agents. The section includes a table of all 10 agents with their model, scope, and tools.
+
+#### 22E — Agent Definitions
+
+Seven new agent definition files were created in `.claude/agents/`, bringing the total to 10:
+
+| Agent | File | Model | Role |
+|---|---|---|---|
+| schema-architect | `schema-architect.md` | sonnet | DB tables, relations, validators, raw SQL migrations |
+| api-engineer | `api-engineer.md` | sonnet | tRPC procedures, middleware, backend logic |
+| frontend-engineer | `frontend-engineer.md` | sonnet | UI components, pages, hooks |
+| devops-engineer | `devops-engineer.md` | sonnet | CI/CD, Vercel deploy, Sentry, PWA, env vars |
+| performance-auditor | `performance-auditor.md` | sonnet | Bundle size, Core Web Vitals, code splitting (read-only) |
+| accessibility-auditor | `accessibility-auditor.md` | sonnet | WCAG AA, contrast, keyboard nav, screen readers (read-only) |
+| security-auditor | `security-auditor.md` | sonnet | OWASP top 10, RLS, auth checks, input sanitization (read-only) |
+
+These join the 3 existing agents: feature-builder, e2e-tester, and qa-reviewer.
+
+The doc-writer agent (`doc-writer.md`, sonnet) was also added for maintaining the project bible, changelogs, and design handoff docs.
+
+#### 22F — Supabase URL Configuration
+
+Supabase Site URL changed from the Vercel deployment URL to `https://orbythq.com`. The redirect URL wildcard `https://orbythq.com/**` was added to handle all auth callback paths.
+
+#### Files Changed
+
+| File | Change |
+|---|---|
+| `packages/api/src/routers/integrations.ts` | OAuth scope `calendar.events` changed to `calendar` |
+| `packages/api/src/lib/google-calendar.ts` | OAuth scope updated |
+| `apps/web/app/(auth)/reset-password/page.tsx` | New file: password reset page |
+| `apps/web/app/(auth)/layout.tsx` | Added Toaster component |
+| `apps/web/components/ui/password-input.tsx` | New file: PasswordInput component with eye toggle |
+| `apps/web/app/(auth)/login/page.tsx` | Uses PasswordInput |
+| `apps/web/app/(auth)/register/page.tsx` | Uses PasswordInput + confirm password field |
+| `apps/web/app/(auth)/invite/page.tsx` | Uses PasswordInput + confirm password field |
+| `CLAUDE.md` | PM Delegation Model added as first section |
+| `.claude/agents/*.md` | 7 new agent definitions (+ 1 doc-writer) |
+
+#### Acceptance Criteria
+
+- [x] Google Calendar OAuth uses `calendar` scope (not `calendar.events`)
+- [x] Forgot-password email sends user to `/reset-password`
+- [x] `/reset-password` page accepts new password + confirmation, updates via Supabase Auth
+- [x] Toast feedback on password reset success/error
+- [x] Forgot-password form layout is stacked vertically
+- [x] PasswordInput component renders eye toggle with correct aria-labels
+- [x] All 4 auth forms use PasswordInput
+- [x] Register and invite forms require matching confirm password
+- [x] CLAUDE.md PM delegation model section is present and complete
+- [x] All 10 agent definitions exist in `.claude/agents/`
+- [x] Supabase Site URL set to `https://orbythq.com`
+- [x] `pnpm turbo typecheck` passes
+
+---
+
 ## 13. TESTING STRATEGY
 
 ### Testing Stack
@@ -3363,7 +3661,7 @@ Financial savings goals (already built in the Finances module) would automatical
 | `removeMember` last-admin check | Fixed | Done | Sprint 12C | Backend validates self-removal, last-admin, member exists |
 | `bills.amount` is string from Drizzle | Gotcha | — | — | Must `parseFloat()` before arithmetic |
 | `getMonthlyOverview` payment join | Bug risk | Medium | — | Verify at runtime |
-| No rate limiting on tRPC | Tech debt | Low | Phase 2 | Acceptable for invite-only launch |
+| No rate limiting on tRPC | Fixed | Done | Sprint 20 | In-memory 100 req/min per user on `protectedProcedure`. Redis-backed deferred to Phase 2 |
 | No structured logging | Tech debt | Low | Phase 2 | See Section 25 |
 | No product analytics | Tech debt | Medium | Phase 2 | No usage metrics |
 | No offline PWA support | Tech debt | Low | Phase 2 | Shopping lists key offline use case |
@@ -3377,6 +3675,20 @@ Financial savings goals (already built in the Finances module) would automatical
 | No time picker on event form | Fixed | Done | Sprint 18 | `TimeSelect` component with 30-min intervals |
 | Bill due date is plain number input | Fixed | Done | Sprint 18 | `DayOfMonthPicker` visual 7×5 grid |
 | Recurrence UI not shared across features | Fixed | Done | Sprint 18 | `RecurrencePicker` used by event, bill, and task drawers |
+| Theme FOUC (flash of unstyled content) | Fixed | Done | Sprint 19+ | Blocking `<script>` in `<head>` sets theme before first paint |
+| No HTTP security headers | Fixed | Done | Sprint 20 | CSP, HSTS, Permissions-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy |
+| Open redirect in auth callbacks | Fixed | Done | Sprint 20 | Redirect URLs validated to start with `/` not `//` |
+| Cron endpoints lack timing-safe auth | Fixed | Done | Sprint 20 | `timingSafeEqual` for CRON_SECRET comparison |
+| Drawer scroll broken on desktop/mobile | Fixed | Done | Sprint 20 | Overflow and sizing fix in drawer component |
+| No bank account sync | Fixed | Done | Sprint 21 | Plaid integration: Link, transactions sync, balance refresh, webhooks |
+| No privacy policy page | Fixed | Done | Sprint 21 | Public `/privacy` page added |
+| No password recovery flow | Fixed | Done | Sprint 22 | `/reset-password` page + `redirectTo` on forgot-password emails |
+| Password fields have no visibility toggle | Fixed | Done | Sprint 22 | `PasswordInput` component with Eye/EyeOff toggle on all 4 auth forms |
+| Register/invite forms lack confirm password | Fixed | Done | Sprint 22 | Second password field required to match on register + invite |
+| Google OAuth scope too narrow | Fixed | Done | Sprint 22 | `calendar.events` changed to `calendar` (broader scope) |
+| Plaid webhook JWT not verified | Tech debt | Medium | Phase 2 | Sandbox does not sign webhooks; production verification TODO |
+| CSP uses `unsafe-inline` | Tech debt | Low | Phase 2 | Nonce-based CSP deferred |
+| Rate limiting is in-memory only | Tech debt | Low | Phase 2 | Each serverless instance has its own counter; Redis deferred |
 
 ---
 
@@ -3469,9 +3781,39 @@ The Claude Code agents working on this project need the following technical comp
 
 ### 26.2 CLAUDE.md (Root Project File)
 
-Create this file at the repository root (`/CLAUDE.md`):
+The root `CLAUDE.md` is the first thing Claude Code reads at the start of every session. As of Sprint 22, it begins with the PM Delegation Model section:
 
+```
 # Orbyt — Claude Code Project Instructions
+
+## PM Delegation Model (MANDATORY)
+You are the **Project Manager**. You plan, oversee, and coordinate. You do NOT write code directly.
+
+**How you work:**
+- Break tasks into units and delegate each to the right agent via the Task tool
+- Run agents in parallel when tasks are independent
+- Review agent output before reporting to the user
+- Fix QA FAILs by re-delegating, not by coding yourself
+
+**10 Available Agents** (defined in `.claude/agents/`):
+
+| # | Agent | Model | Scope | Tools |
+|---|-------|-------|-------|-------|
+| 1 | schema-architect | sonnet | `packages/db/`, `packages/shared/src/validators/` | Read, Write, Edit, Bash, Grep, Glob |
+| 2 | api-engineer | sonnet | `packages/api/` | Read, Write, Edit, Bash, Grep, Glob |
+| 3 | frontend-engineer | sonnet | `apps/web/components/`, `apps/web/app/`, `apps/web/hooks/` | Read, Write, Edit, Bash, Grep, Glob |
+| 4 | devops-engineer | sonnet | `.github/`, `public/`, root configs | Read, Write, Edit, Bash, Grep, Glob |
+| 5 | qa-reviewer | sonnet | Read-only review | Read, Grep, Glob, Bash |
+| 6 | performance-auditor | sonnet | Read-only audit | Read, Grep, Glob, Bash |
+| 7 | accessibility-auditor | sonnet | Read-only audit | Read, Grep, Glob, Bash |
+| 8 | security-auditor | sonnet | Read-only audit | Read, Grep, Glob, Bash |
+| 9 | e2e-tester | sonnet | `apps/web/e2e/` | Read, Write, Edit, Bash, Grep, Glob |
+| 10 | doc-writer | sonnet | `docs/`, changelogs | Read, Write, Edit, Bash, Grep, Glob |
+
+**Sprint execution order:**
+schema-architect + doc-writer -> api-engineer -> frontend-engineer -> qa-reviewer + auditors -> fix FAILs -> e2e-tester -> typecheck -> commit -> deploy
+
+**If a task doesn't fit any agent:** STOP. Flag it to the user and design a new agent together.
 
 ## Project Overview
 Orbyt is a household management PWA (family CRM). Monorepo with Turborepo + pnpm.
@@ -3630,6 +3972,240 @@ Provide a structured report:
 - PASS: things that look correct
 - WARN: things that might cause issues
 - FAIL: things that must be fixed before merge
+```
+
+#### `.claude/agents/schema-architect.md` (Sprint 22)
+
+```
+---
+name: schema-architect
+description: DB tables, relations, validators, and raw SQL migrations for Orbyt. Use for any database schema work.
+tools: Read, Write, Edit, Bash, Grep, Glob
+model: sonnet
+---
+
+You are managing the database schema for the Orbyt household management app.
+
+Your scope is limited to:
+- `packages/db/src/schema/` — Drizzle ORM table definitions
+- `packages/shared/src/validators/` — Zod validators
+- SQL migration scripts (run directly against Supabase)
+
+CRITICAL RULES:
+- drizzle-kit push DOES NOT WORK against Supabase. ALWAYS use raw SQL migrations via postgres.js.
+- Every new Drizzle schema column MUST have a matching SQL migration run against Supabase.
+- `numeric(10,2)` columns return STRINGS from Drizzle.
+- Use `uuid` for all primary keys with `.defaultRandom()`.
+- Use `timestamp("...", { withTimezone: true })` for all date columns.
+- Add RLS policies for every new table.
+
+After making changes:
+1. Update `packages/db/src/schema/index.ts` barrel export.
+2. Provide the raw SQL migration script.
+3. Run `pnpm turbo typecheck` to verify.
+```
+
+#### `.claude/agents/api-engineer.md` (Sprint 22)
+
+```
+---
+name: api-engineer
+description: tRPC procedures, middleware, and backend logic for Orbyt. Use for any API/backend work.
+tools: Read, Write, Edit, Bash, Grep, Glob
+model: sonnet
+---
+
+You are building tRPC API procedures for the Orbyt household management app.
+
+Your scope is limited to:
+- `packages/api/src/routers/` — tRPC routers
+- `packages/api/src/lib/` — Shared backend utilities
+- `packages/api/src/trpc.ts` — Procedure chain definitions
+- `packages/api/src/root.ts` — Router registration
+
+CRITICAL RULES:
+- Follow the 4-tier procedure chain: publicProcedure -> protectedProcedure -> householdProcedure -> adminProcedure.
+- This package uses moduleResolution: NodeNext. All relative imports MUST use .js extensions.
+- Use Zod for all input validation.
+- Always handle errors with TRPCError and appropriate codes.
+- For mutations: always return the created/updated record via .returning().
+- numeric(10,2) columns return strings. Parse with parseFloat() before arithmetic.
+```
+
+#### `.claude/agents/frontend-engineer.md` (Sprint 22)
+
+```
+---
+name: frontend-engineer
+description: UI components, pages, and hooks for Orbyt. Use for any frontend/UI work.
+tools: Read, Write, Edit, Bash, Grep, Glob
+model: sonnet
+---
+
+You are building frontend features for the Orbyt household management app.
+
+Your scope is limited to:
+- `apps/web/app/` — Pages and layouts
+- `apps/web/components/` — UI components
+- `apps/web/hooks/` — Custom React hooks
+
+CRITICAL RULES:
+- page.tsx is ALWAYS a Server Component. Exports metadata, renders a single Client Component.
+- Content components use "use client" and contain all hooks, state, and interactivity.
+- Use inferRouterOutputs<AppRouter> for tRPC types.
+- All mutations must invalidate relevant query cache in onSuccess and show toast on success/error.
+- Styling: ONLY semantic theme tokens. No hardcoded colors.
+- Glass cards: .glass-card, .glass-card-elevated, .glass-card-subtle.
+- Border radius: min rounded-lg (8px). Cards rounded-2xl. Buttons rounded-xl.
+- Touch targets: 44x44px minimum on mobile.
+- Animations: Framer Motion. Respect prefers-reduced-motion.
+
+Implement all 4 states: Loading, Empty, Error, Loaded.
+```
+
+#### `.claude/agents/devops-engineer.md` (Sprint 22)
+
+```
+---
+name: devops-engineer
+description: CI/CD, Vercel deploy, Sentry, PWA config, and environment variables for Orbyt.
+tools: Read, Write, Edit, Bash, Grep, Glob
+model: sonnet
+---
+
+You are managing infrastructure and deployment for the Orbyt household management app.
+
+Your scope includes:
+- `.github/` — CI/CD workflows
+- `public/` — Static assets, PWA manifest, service worker
+- Root config files: turbo.json, next.config.ts, vercel.json, package.json
+- apps/web/sentry.*.config.ts — Sentry configuration
+
+CRITICAL RULES:
+- Deploy command: `npx vercel --prod --yes` (GitHub webhook is broken, use CLI)
+- Custom domain: orbythq.com (Cloudflare DNS -> Vercel)
+- NEVER use echo for Vercel env vars. Use printf instead.
+- getBaseUrl() must prefer NEXT_PUBLIC_APP_URL over VERCEL_URL.
+- All NEXT_PUBLIC_* env vars must be in turbo.json env array.
+- CSP headers live in next.config.ts headers() function.
+- Vercel Hobby plan: cron limited to 1x/day.
+
+Security headers to maintain: CSP, HSTS, Permissions-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy.
+```
+
+#### `.claude/agents/performance-auditor.md` (Sprint 22)
+
+```
+---
+name: performance-auditor
+description: Audits Orbyt for bundle size, Core Web Vitals, code splitting, and rendering performance. Read-only.
+tools: Read, Grep, Glob, Bash
+model: sonnet
+---
+
+You are auditing performance for the Orbyt household management app.
+
+You are READ-ONLY. Do not modify any files. Report findings only.
+
+Check for:
+1. Bundle size: Flag any route over 100kB First Load JS.
+2. Code splitting: Check for dynamic imports. Large components should be lazy-loaded.
+3. Unnecessary re-renders: Look for missing useMemo, useCallback.
+4. Image optimization: Check for <img> tags that should use next/image.
+5. Data fetching: Look for waterfall patterns and missing staleTime.
+6. Realtime subscriptions: Verify cleanup on unmount.
+7. CSS: Look for unused Tailwind classes.
+8. Third-party scripts: Check CSP and script loading.
+
+Report format: PASS / WARN / FAIL with estimated impact (high/medium/low).
+```
+
+#### `.claude/agents/accessibility-auditor.md` (Sprint 22)
+
+```
+---
+name: accessibility-auditor
+description: Audits Orbyt for WCAG AA compliance, keyboard navigation, screen reader support, and theme contrast. Read-only.
+tools: Read, Grep, Glob, Bash
+model: sonnet
+---
+
+You are auditing accessibility for the Orbyt household management app.
+
+You are READ-ONLY. Do not modify any files. Report findings only.
+
+Check for:
+1. Labels: Every input must have an associated label or aria-label.
+2. Icon buttons: Every icon-only button must have aria-label.
+3. Touch targets: All interactive elements >= 44x44px on mobile.
+4. Keyboard navigation: All elements reachable via Tab, activatable via Enter/Space.
+5. Focus management: Dialogs trap focus. Escape key dismisses.
+6. Color contrast: Check across all 9 themes. WCAG AA (4.5:1 normal, 3:1 large).
+7. Error messages: Must have role="alert".
+8. Reduced motion: Check for prefers-reduced-motion support.
+9. Semantic HTML: No divs as buttons. Correct heading hierarchy.
+10. ARIA attributes: Correct usage. aria-hidden on decorative elements.
+
+Report format: PASS / WARN / FAIL.
+```
+
+#### `.claude/agents/security-auditor.md` (Sprint 22)
+
+```
+---
+name: security-auditor
+description: Audits Orbyt for OWASP top 10, RLS policies, auth checks, and input sanitization. Read-only.
+tools: Read, Grep, Glob, Bash
+model: sonnet
+---
+
+You are auditing security for the Orbyt household management app.
+
+You are READ-ONLY. Do not modify any files. Report findings only.
+
+Check for:
+1. Authentication: All protected routes go through protectedProcedure or higher.
+2. Authorization: Household-scoped data uses householdProcedure. Check for missing householdId filters.
+3. RLS policies: Every table has Row Level Security enabled.
+4. Input validation: All tRPC inputs use Zod schemas. No raw user input in SQL.
+5. XSS: No dangerouslySetInnerHTML. User content escaped.
+6. CSRF: State parameters validated in OAuth flows.
+7. Open redirects: Redirect URLs validated (start with /, not //).
+8. Secret exposure: No secrets in client-side code.
+9. Headers: CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy configured.
+10. Rate limiting: Protected procedures have rate limiting. Timing-safe secret comparisons.
+11. Encryption: OAuth tokens encrypted with AES-256-GCM.
+12. Dependencies: Check for known vulnerabilities with pnpm audit.
+
+Report format: PASS / WARN / FAIL with severity (critical/high/medium/low).
+```
+
+#### `.claude/agents/doc-writer.md` (Sprint 22)
+
+```
+---
+name: doc-writer
+description: Updates the project bible, writes API docs, changelogs, and design handoff documents for Orbyt.
+tools: Read, Write, Edit, Bash, Grep, Glob
+model: sonnet
+---
+
+You are maintaining documentation for the Orbyt household management app.
+
+Your scope is limited to:
+- `docs/PROJECT_BIBLE.md` — The master project reference
+- `docs/DESIGN_HANDOFF.md` — Design specifications
+- `docs/` — Any other documentation files
+- `CHANGELOG.md` — Release notes (if it exists)
+
+CRITICAL RULES:
+- Follow the humanizer rules from the global CLAUDE.md (no AI vocabulary, be direct and specific).
+- Keep Bible sections consistent with existing format.
+- When documenting new features, include: what was built, files changed, API procedures, DB tables.
+- Use straight quotes, not curly quotes.
+- No emoji in documentation unless explicitly requested.
+
+After changes, verify section numbering and cross-references.
 ```
 
 ### 26.4 Skills
@@ -4059,6 +4635,20 @@ These gates should be verified by the QA reviewer agent (`.claude/agents/qa-revi
 ## 27. GIT COMMIT HISTORY
 
 ```
+df34cad  Add PM delegation model to CLAUDE.md + create 7 missing agent definitions
+d22f8ed  Add confirm password + show/hide eye toggle to all auth forms
+d4d0f50  Fix forgot-password form layout — stack input above button vertically
+089da1e  Add password recovery flow — reset page, redirectTo, auth layout Toaster
+2eb67e6  Fix Google Calendar OAuth — broader scope, correct redirect URL, userinfo.email
+9ca28da  Graceful error when Google/Microsoft OAuth credentials are missing
+6c2b8cb  Fix Plaid Link flow — CSP script-src, auto-open useEffect, Turbopack imports
+157e0b1  Update privacy policy contact email to admin@orbythq.com
+9bec859  Add public privacy policy page at /privacy
+553fbfb  Sprint 21: Plaid bank sync + dashboard emoji fix
+aaba81e  Sprint 20: Security hardening — headers, auth fixes, rate limiting
+bbabfc4  Fix drawer scroll on desktop + mobile sizing & scroll
+5108256  Fix theme FOUC — blocking script in <head> sets theme before first paint
+5fb9801  Update PROJECT_BIBLE to v3.1 — document Sprints 18-19 + orbythq.com
 (Sprint 19)  Sprint 19: Theme sync across devices + dashboard CTA drawer open
 (Sprint 18)  Sprint 18: UX Polish — TimeSelect, RecurrencePicker, DayOfMonthPicker, CategorySelect, custom categories
 b1a70d9  Sprint 13: Fix open issues — avatar picker, E2E expansion, bible cleanup
@@ -4152,4 +4742,4 @@ claude --continue                       # Continue most recent
 
 ---
 
-*END OF ORBYT PROJECT BIBLE v3.1*
+*END OF ORBYT PROJECT BIBLE v3.2*
