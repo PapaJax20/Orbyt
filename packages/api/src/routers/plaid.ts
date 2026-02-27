@@ -601,7 +601,7 @@ export const plaidRouter = router({
       };
 
       // Create income transactions (negative amount = money in)
-      await client.sandboxTransactionsCreate({
+      const incomeResult = await client.sandboxTransactionsCreate({
         access_token: accessToken,
         transactions: [
           {
@@ -627,9 +627,10 @@ export const plaidRouter = router({
           },
         ],
       });
+      console.log("[createTestTransactions] income result:", JSON.stringify(incomeResult.data));
 
       // Create expense transactions (positive amount = money out)
-      await client.sandboxTransactionsCreate({
+      const expenseResult = await client.sandboxTransactionsCreate({
         access_token: accessToken,
         transactions: [
           {
@@ -676,16 +677,18 @@ export const plaidRouter = router({
           },
         ],
       });
+      console.log("[createTestTransactions] expense result:", JSON.stringify(expenseResult.data));
 
       // Fire a sandbox webhook to make the newly created transactions available
       // for /transactions/sync. Plaid sandbox does not surface sandboxTransactionsCreate
       // results until SYNC_UPDATES_AVAILABLE is fired — without this step the sync
       // call immediately below would return "0 added, 0 updated".
-      await client.sandboxItemFireWebhook({
+      const webhookResult = await client.sandboxItemFireWebhook({
         access_token: accessToken,
         webhook_type: WebhookType.Transactions,
         webhook_code: SandboxItemFireWebhookRequestWebhookCodeEnum.SyncUpdatesAvailable,
       });
+      console.log("[createTestTransactions] webhook result:", JSON.stringify(webhookResult.data));
 
       // Reset the sync cursor so the next sync does a full pull.
       // Existing transactions are deduped by plaidTransactionId (onConflictDoNothing).
@@ -701,6 +704,7 @@ export const plaidRouter = router({
 
       // Sync to pull the new transactions into Orbyt
       const result = await syncPlaidTransactionsForItem(ctx.db, freshItem!);
+      console.log("[createTestTransactions] sync result:", JSON.stringify(result));
       return result;
     }),
 
