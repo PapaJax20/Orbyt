@@ -469,12 +469,12 @@ export const integrationsRouter = router({
                 const startAt = item.start?.dateTime
                   ? new Date(item.start.dateTime)
                   : item.start?.date
-                    ? new Date(item.start.date)
+                    ? new Date(item.start.date + "T00:00:00")
                     : null;
                 const endAt = item.end?.dateTime
                   ? new Date(item.end.dateTime)
                   : item.end?.date
-                    ? new Date(item.end.date)
+                    ? new Date(item.end.date + "T00:00:00")
                     : null;
 
                 if (!startAt) continue;
@@ -570,12 +570,12 @@ export const integrationsRouter = router({
               const startAt = item.start?.dateTime
                 ? new Date(item.start.dateTime)
                 : item.start?.date
-                  ? new Date(item.start.date)
+                  ? new Date(item.start.date + "T00:00:00")
                   : null;
               const endAt = item.end?.dateTime
                 ? new Date(item.end.dateTime)
                 : item.end?.date
-                  ? new Date(item.end.date)
+                  ? new Date(item.end.date + "T00:00:00")
                   : null;
 
               if (!startAt) continue;
