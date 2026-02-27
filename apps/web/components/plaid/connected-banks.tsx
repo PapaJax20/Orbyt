@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback } from "react";
 import {
   Building2,
   RefreshCw,
@@ -71,27 +71,6 @@ export function ConnectedBanks() {
     },
   });
 
-  const reclassifyMutation = trpc.plaid.reclassifyTransactions.useMutation({
-    onSuccess: (data) => {
-      if (data.reclassified > 0) {
-        utils.plaid.invalidate();
-        utils.finances.invalidate();
-        toast.success(`Reclassified ${data.reclassified} transactions`);
-      }
-    },
-    onError: (err) => {
-      toast.error(`Reclassify failed: ${err.message}`);
-    },
-  });
-
-  // Auto-reclassify once on mount to fix any legacy misclassified transactions
-  const hasReclassified = useRef(false);
-  useEffect(() => {
-    if (!hasReclassified.current && items && items.length > 0) {
-      hasReclassified.current = true;
-      reclassifyMutation.mutate();
-    }
-  }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSync = useCallback(
     (itemId: string) => {
