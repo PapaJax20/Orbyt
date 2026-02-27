@@ -1027,6 +1027,7 @@ export const integrationsRouter = router({
       const externalEvtList = await ctx.db.query.externalEvents.findMany({
         where: and(
           eq(externalEvents.userId, ctx.user.id),
+          isNull(externalEvents.orbytEventId),
           gte(externalEvents.startAt, startDate),
           lte(externalEvents.startAt, endDate)
         ),
