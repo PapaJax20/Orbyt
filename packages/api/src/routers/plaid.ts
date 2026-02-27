@@ -687,8 +687,20 @@ export const plaidRouter = router({
         webhook_code: SandboxItemFireWebhookRequestWebhookCodeEnum.SyncUpdatesAvailable,
       });
 
+      // Reset the sync cursor so the next sync does a full pull.
+      // Existing transactions are deduped by plaidTransactionId (onConflictDoNothing).
+      await ctx.db
+        .update(plaidItems)
+        .set({ transactionsCursor: null })
+        .where(eq(plaidItems.id, item.id));
+
+      // Re-fetch the item with null cursor
+      const freshItem = await ctx.db.query.plaidItems.findFirst({
+        where: eq(plaidItems.id, item.id),
+      });
+
       // Sync to pull the new transactions into Orbyt
-      const result = await syncPlaidTransactionsForItem(ctx.db, item);
+      const result = await syncPlaidTransactionsForItem(ctx.db, freshItem!);
       return result;
     }),
 
