@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   Bell,
   BellOff,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -149,6 +150,17 @@ export function IntegrationsTab() {
     },
     onError: (err) => {
       toast.error(err.message ?? "Failed to disable real-time sync");
+    },
+  });
+
+  const wipePlaidMutation = trpc.plaid.wipePlaidTransactions.useMutation({
+    onSuccess: (data) => {
+      utils.finances.invalidate();
+      utils.plaid.invalidate();
+      toast.success(`Deleted ${data.deleted} Plaid transactions`);
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to reset Plaid data");
     },
   });
 
@@ -591,6 +603,27 @@ export function IntegrationsTab() {
           Securely connect a new bank or credit card account.
         </p>
         <PlaidLinkButton />
+      </div>
+
+      {/* Reset Plaid Data */}
+      <div>
+        <p className="orbyt-label">Reset Plaid Data</p>
+        <p className="mb-3 mt-1 text-xs text-text-muted">
+          Delete all imported bank transactions for a fresh start. Sync cursors are also reset so the next sync pulls a full history from Plaid.
+        </p>
+        <button
+          type="button"
+          onClick={() => wipePlaidMutation.mutate()}
+          disabled={wipePlaidMutation.isPending}
+          className="flex min-h-[44px] items-center gap-2 rounded-xl border border-border bg-surface/50 px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {wipePlaidMutation.isPending ? (
+            <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+          ) : (
+            <Trash2 size={16} aria-hidden="true" />
+          )}
+          {wipePlaidMutation.isPending ? "Resetting..." : "Reset Transactions"}
+        </button>
       </div>
     </div>
   );

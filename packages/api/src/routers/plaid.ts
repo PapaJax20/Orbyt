@@ -209,15 +209,16 @@ export const plaidRouter = router({
           products: [Products.Transactions],
           country_codes: [CountryCode.Us],
           language: "en",
-          webhook: webhookUrl || undefined,
+          ...(webhookUrl && webhookUrl.startsWith("https://") ? { webhook: webhookUrl } : {}),
         });
 
         return { linkToken: response.data.link_token };
-      } catch (err) {
-        console.error("[plaid] createLinkToken failed:", err);
+      } catch (err: unknown) {
+        const plaidError = (err as { response?: { data?: { error_message?: string; error_code?: string } } })?.response?.data;
+        console.error("[plaid] createLinkToken failed:", plaidError ?? err);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to initialize bank connection. Please try again.",
+          message: plaidError?.error_message ?? "Failed to initialize bank connection",
         });
       }
     }),
@@ -571,42 +572,27 @@ export const plaidRouter = router({
     }),
 
   /**
-   * Reclassify existing Plaid-imported transactions whose type (income/expense)
-   * was stored incorrectly due to the old mapPlaidTransactionType bug.
-   * Uses plaidCategory.primary if available, falls back to the Orbyt category field.
+   * Delete all Plaid-imported transactions for the household and reset sync
+   * cursors so the next sync performs a full pull from Plaid.
    */
-  reclassifyTransactions: householdProcedure
+  wipePlaidTransactions: householdProcedure
     .mutation(async ({ ctx }) => {
-      const plaidTxns = await ctx.db.query.transactions.findMany({
-        where: and(
-          eq(transactions.householdId, ctx.householdId),
-          eq(transactions.importSource, "plaid")
-        ),
-      });
+      const deleted = await ctx.db
+        .delete(transactions)
+        .where(
+          and(
+            eq(transactions.householdId, ctx.householdId),
+            eq(transactions.importSource, "plaid")
+          )
+        )
+        .returning({ id: transactions.id });
 
-      let reclassified = 0;
-      for (const txn of plaidTxns) {
-        // Try plaidCategory.primary first
-        const plaidCat = txn.plaidCategory as { primary?: string } | null;
-        let correctType: "income" | "expense";
+      // Reset sync cursors so next sync is a full pull
+      await ctx.db
+        .update(plaidItems)
+        .set({ transactionsCursor: null })
+        .where(eq(plaidItems.householdId, ctx.householdId));
 
-        if (plaidCat?.primary) {
-          correctType = mapPlaidTransactionType(plaidCat.primary, 1);
-        } else {
-          // Fallback: use the Orbyt category field (always populated)
-          // "income" category → income type, everything else → expense
-          correctType = txn.category === "income" ? "income" : "expense";
-        }
-
-        if (txn.type !== correctType) {
-          await ctx.db
-            .update(transactions)
-            .set({ type: correctType })
-            .where(eq(transactions.id, txn.id));
-          reclassified++;
-        }
-      }
-
-      return { reclassified };
+      return { deleted: deleted.length };
     }),
 });

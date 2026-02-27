@@ -459,27 +459,6 @@ export function FinancesContent() {
     }
   }, [visibleTabs, activeTab]);
 
-  // Auto-reclassify Plaid transactions on first load (fixes legacy inverted types)
-  const hasReclassified = useRef(false);
-  const utils = trpc.useUtils();
-  const reclassifyMutation = trpc.plaid.reclassifyTransactions.useMutation({
-    onSuccess: (data) => {
-      if (data.reclassified > 0) {
-        utils.finances.invalidate();
-        toast.success(`Reclassified ${data.reclassified} transactions`);
-      }
-    },
-    onError: (err) => {
-      toast.error(`Reclassify failed: ${err.message}`);
-    },
-  });
-  useEffect(() => {
-    if (!hasReclassified.current) {
-      hasReclassified.current = true;
-      reclassifyMutation.mutate();
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
